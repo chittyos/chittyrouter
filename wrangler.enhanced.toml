@@ -1,0 +1,291 @@
+# ChittyRouter Enhanced Architecture - Production Configuration
+# Pipeline-Only ChittyID Generation with Distributed Session Sync
+
+name = "chittyrouter-enhanced"
+main = "src/pipeline-system.js"
+compatibility_date = "2025-09-16"
+compatibility_flags = ["nodejs_compat"]
+account_id = "84f0f32886f1d6196380fe6cbe9656a8"
+
+# AI Binding for enhanced processing
+[ai]
+binding = "AI"
+
+# Enhanced Durable Objects
+[[durable_objects.bindings]]
+name = "AI_STATE_DO"
+class_name = "AIStateDO"
+
+[[durable_objects.bindings]]
+name = "CHITTYCHAIN_DO"
+class_name = "ChittyChainDO"
+
+[[durable_objects.bindings]]
+name = "SESSION_STATE_DO"
+class_name = "SessionStateDO"
+
+[[durable_objects.bindings]]
+name = "PIPELINE_STATE_DO"
+class_name = "PipelineStateDO"
+
+# Pipeline Migration
+[[migrations]]
+tag = "v2_enhanced"
+new_classes = ["SessionStateDO", "PipelineStateDO"]
+
+# Environment Variables
+[vars]
+ENVIRONMENT = "production"
+SERVICE_NAME = "ChittyRouter Enhanced Pipeline"
+VERSION = "2.0.0-enhanced"
+AI_MODEL_PRIMARY = "@cf/meta/llama-3.1-8b-instruct"
+AI_MODEL_VISION = "@cf/microsoft/resnet-50"
+AI_MODEL_AUDIO = "@cf/openai/whisper"
+LOG_LEVEL = "INFO"
+PROJECT_ID = "chittyrouter-enhanced"
+CHITTY_ORG = "ChittyOS"
+NODE_ID = "chittyrouter-main"
+CHITTYOS_ENDPOINT = "https://chittyos.platform.com"
+CHITTYCHAT_API = "https://chittychat.api.com"
+EVIDENCE_VAULT_URL = "https://evidence.chittyos.com"
+CHITTYID_SERVER = "https://chittyid.platform.com"
+
+# Enhanced KV Namespaces for pipeline system
+[[kv_namespaces]]
+binding = "SESSION_STATE"
+id = "session-state-enhanced"
+preview_id = "session-state-preview"
+
+[[kv_namespaces]]
+binding = "PIPELINE_STATE"
+id = "pipeline-state-enhanced"
+preview_id = "pipeline-state-preview"
+
+[[kv_namespaces]]
+binding = "PIPELINE_LOGS"
+id = "pipeline-logs-enhanced"
+preview_id = "pipeline-logs-preview"
+
+[[kv_namespaces]]
+binding = "WEBHOOK_CACHE"
+id = "webhook-cache-enhanced"
+preview_id = "webhook-cache-preview"
+
+[[kv_namespaces]]
+binding = "WEBHOOK_CONFIG"
+id = "webhook-config-enhanced"
+preview_id = "webhook-config-preview"
+
+[[kv_namespaces]]
+binding = "WEBHOOK_SECRETS"
+id = "webhook-secrets-enhanced"
+preview_id = "webhook-secrets-preview"
+
+[[kv_namespaces]]
+binding = "FACT_SNAPSHOTS"
+id = "fact-snapshots-enhanced"
+preview_id = "fact-snapshots-preview"
+
+[[kv_namespaces]]
+binding = "ERROR_LOGS"
+id = "error-logs-enhanced"
+preview_id = "error-logs-preview"
+
+[[kv_namespaces]]
+binding = "SYNC_LOGS"
+id = "sync-logs-enhanced"
+preview_id = "sync-logs-preview"
+
+[[kv_namespaces]]
+binding = "DLQ"
+id = "dlq-enhanced"
+preview_id = "dlq-preview"
+
+# R2 bucket for document storage
+[[r2_buckets]]
+binding = "EVIDENCE_VAULT"
+bucket_name = "chittyrouter-evidence-vault"
+
+# Analytics Engine for observability
+[[analytics_engine_datasets]]
+binding = "CHITTYROUTER_ANALYTICS"
+dataset = "chittyrouter_enhanced_logs"
+
+# Note: Queues require paid plan - using KV for queue simulation in free tier
+
+# Enhanced Routes for all endpoint types
+[[routes]]
+pattern = "chittyrouter.example.com/*"
+custom_domain = false
+
+[[routes]]
+pattern = "pipeline.example.com/*"
+custom_domain = false
+
+[[routes]]
+pattern = "sync.example.com/*"
+custom_domain = false
+
+[[routes]]
+pattern = "webhook.example.com/*"
+custom_domain = false
+
+# Service bindings for ChittyOS integration
+[[services]]
+binding = "CHITTYOS_SERVICE"
+service = "chittyos-platform"
+
+[[services]]
+binding = "CHITTYCHAT_SERVICE"
+service = "chittychat-platform"
+
+[[services]]
+binding = "CHITTYID_SERVICE"
+service = "chittyid-generator"
+
+# Build configuration - disabled for initial deployment
+
+# Environment-specific configurations
+[env.development]
+name = "chittyrouter-enhanced-dev"
+[env.development.vars]
+ENVIRONMENT = "development"
+CHITTYOS_ENDPOINT = "http://localhost:3001"
+LOG_LEVEL = "DEBUG"
+
+[env.staging]
+name = "chittyrouter-enhanced-staging"
+[env.staging.vars]
+ENVIRONMENT = "staging"
+CHITTYOS_ENDPOINT = "https://staging.chittyos.com"
+
+[env.production]
+name = "chittyrouter-enhanced-prod"
+
+# AI Binding for production
+[env.production.ai]
+binding = "AI"
+
+# Enhanced Durable Objects for production
+[[env.production.durable_objects.bindings]]
+name = "AI_STATE_DO"
+class_name = "AIStateDO"
+
+[[env.production.durable_objects.bindings]]
+name = "CHITTYCHAIN_DO"
+class_name = "ChittyChainDO"
+
+[[env.production.durable_objects.bindings]]
+name = "SESSION_STATE_DO"
+class_name = "SessionStateDO"
+
+[[env.production.durable_objects.bindings]]
+name = "PIPELINE_STATE_DO"
+class_name = "PipelineStateDO"
+
+# Enhanced KV namespaces for production
+[[env.production.kv_namespaces]]
+binding = "SESSION_STATE"
+id = "session-state-enhanced"
+preview_id = "session-state-preview"
+
+[[env.production.kv_namespaces]]
+binding = "PIPELINE_STATE"
+id = "pipeline-state-enhanced"
+preview_id = "pipeline-state-preview"
+
+[[env.production.kv_namespaces]]
+binding = "PIPELINE_LOGS"
+id = "pipeline-logs-enhanced"
+preview_id = "pipeline-logs-preview"
+
+[[env.production.kv_namespaces]]
+binding = "WEBHOOK_CACHE"
+id = "webhook-cache-enhanced"
+preview_id = "webhook-cache-preview"
+
+[[env.production.kv_namespaces]]
+binding = "WEBHOOK_CONFIG"
+id = "webhook-config-enhanced"
+preview_id = "webhook-config-preview"
+
+[[env.production.kv_namespaces]]
+binding = "WEBHOOK_SECRETS"
+id = "webhook-secrets-enhanced"
+preview_id = "webhook-secrets-preview"
+
+[[env.production.kv_namespaces]]
+binding = "FACT_SNAPSHOTS"
+id = "fact-snapshots-enhanced"
+preview_id = "fact-snapshots-preview"
+
+[[env.production.kv_namespaces]]
+binding = "ERROR_LOGS"
+id = "error-logs-enhanced"
+preview_id = "error-logs-preview"
+
+[[env.production.kv_namespaces]]
+binding = "SYNC_LOGS"
+id = "sync-logs-enhanced"
+preview_id = "sync-logs-preview"
+
+[[env.production.kv_namespaces]]
+binding = "DLQ"
+id = "dlq-enhanced"
+preview_id = "dlq-preview"
+
+# R2 bucket for production
+[[env.production.r2_buckets]]
+binding = "EVIDENCE_VAULT"
+bucket_name = "chittyrouter-evidence-vault"
+
+# Analytics Engine for production
+[[env.production.analytics_engine_datasets]]
+binding = "CHITTYROUTER_ANALYTICS"
+dataset = "chittyrouter_enhanced_logs"
+
+# Service bindings for production
+[[env.production.services]]
+binding = "CHITTYOS_SERVICE"
+service = "chittyos-platform"
+
+[[env.production.services]]
+binding = "CHITTYCHAT_SERVICE"
+service = "chittychat-platform"
+
+[[env.production.services]]
+binding = "CHITTYID_SERVICE"
+service = "chittyid-generator"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+SERVICE_NAME = "ChittyRouter Enhanced Pipeline"
+VERSION = "2.0.0-enhanced"
+AI_MODEL_PRIMARY = "@cf/meta/llama-3.1-8b-instruct"
+AI_MODEL_VISION = "@cf/microsoft/resnet-50"
+AI_MODEL_AUDIO = "@cf/openai/whisper"
+PROJECT_ID = "chittyrouter-enhanced"
+CHITTY_ORG = "ChittyOS"
+NODE_ID = "chittyrouter-main"
+CHITTYCHAT_API = "https://chittychat.api.com"
+EVIDENCE_VAULT_URL = "https://evidence.chittyos.com"
+CHITTYOS_ENDPOINT = "https://chittyos.platform.com"
+CHITTYID_SERVER = "https://chittyid.platform.com"
+LOG_LEVEL = "WARN"
+
+# Observability
+[observability]
+enabled = true
+
+# Limits for complex pipeline processing
+[limits]
+cpu_ms = 50000
+memory_mb = 256
+
+# Node.js compatibility
+node_compat = true
+
+# Cron triggers for maintenance
+[[triggers.crons]]
+cron = "0 */6 * * *"  # Every 6 hours
+route = "/cron/cleanup"

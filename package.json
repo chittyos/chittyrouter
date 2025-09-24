@@ -1,0 +1,92 @@
+{
+  "name": "chittyrouter",
+  "version": "2.0.0-ai",
+  "description": "ChittyRouter AI Gateway - Intelligent email routing with AI agents and orchestration for ChittyOS legal platform",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "start": "node src/index.js",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "tail": "wrangler tail",
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:unit": "vitest run tests/unit/",
+    "test:integration": "vitest run tests/integration/",
+    "test:performance": "vitest run tests/performance/",
+    "test:failure": "vitest run tests/failure-scenarios/",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:performance && npm run test:failure",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "test:report": "vitest run --reporter=html",
+    "test:ci": "vitest run --reporter=junit --outputFile=test-results.xml",
+    "build": "esbuild src/index.js --bundle --format=esm --outfile=dist/index.js --external:@cloudflare/ai --external:cloudflare:email --external:@octokit/rest --external:@octokit/auth-app --external:crypto --external:node:http --external:node:crypto --target=es2022",
+    "build:enhanced": "esbuild src/pipeline-system.js --bundle --format=esm --outfile=dist/pipeline-system.js --external:@cloudflare/ai --external:cloudflare:email",
+    "email:test": "node tests/test-email-routing.js",
+    "chittyid:generate": "node src/utils/generate-chittyids.js",
+    "setup:secrets": "node config/setup-secrets.js",
+    "lint": "eslint src/ --ext .js",
+    "format": "prettier --write src/",
+    "pre-commit": "npm run lint && npm run test:unit && npm run test:integration",
+    "validate": "npm run lint && npm run test:all && npm run build"
+  },
+  "dependencies": {
+    "@octokit/rest": "^22.0.0",
+    "mimetext": "^3.0.27"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240909.0",
+    "esbuild": "^0.19.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "vitest": "^0.34.0",
+    "wrangler": "^4.37.1"
+  },
+  "keywords": [
+    "ai",
+    "artificial-intelligence",
+    "cloudflare",
+    "workers",
+    "email-routing",
+    "legal-tech",
+    "chittyos",
+    "chittyrouter",
+    "case-management",
+    "ai-agents",
+    "intelligent-routing",
+    "agent-orchestration"
+  ],
+  "author": "ChittyOS Legal Technology Team",
+  "license": "Proprietary",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chittyos/chittyrouter.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "chittyos": {
+    "component": "ai-gateway",
+    "version": "2.0.0-ai",
+    "dependencies": [
+      "chittyid",
+      "chittychat",
+      "chittychain"
+    ],
+    "integrations": [
+      "cloudflare",
+      "email",
+      "cloudflare-ai"
+    ],
+    "ai_capabilities": [
+      "intelligent-routing",
+      "agent-orchestration",
+      "document-analysis",
+      "priority-classification",
+      "automated-responses",
+      "case-intelligence"
+    ]
+  }
+}

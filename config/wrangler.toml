@@ -1,0 +1,105 @@
+# Wrangler configuration for ChittyRouter AI Gateway
+
+name = "chittyrouter-ai-gateway"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# AI Workers binding
+[ai]
+binding = "AI"
+
+# Email routing configuration
+[[email]]
+name = "chittyrouter-email"
+source_domain = "example.com"
+
+# Routes for email handling
+[[routes]]
+pattern = "*example.com/*"
+zone_id = "your-zone-id-here"
+
+# AI-Enhanced Durable Objects
+[[durable_objects.bindings]]
+name = "AI_STATE"
+class_name = "AIStateDO"
+
+[[durable_objects.bindings]]
+name = "CHITTYCHAIN_DO"
+class_name = "ChittyChainDO"
+
+# Environment variables for development
+[env.staging]
+name = "chittyrouter-ai-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+CHITTYOS_ENDPOINT = "https://staging.chittyos.com"
+CHITTYCHAT_API = "https://staging.chittychat.api.com"
+EVIDENCE_VAULT_URL = "https://staging.evidence.chittyos.com"
+AI_MODEL_ENDPOINT = "@cf/meta/llama-3.1-8b-instruct"
+AI_GATEWAY_VERSION = "2.0.0-ai"
+
+# Environment variables for production
+[env.production]
+name = "chittyrouter-ai-production"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+CHITTYOS_ENDPOINT = "https://chittyos.com"
+CHITTYCHAT_API = "https://chittychat.api.com"
+EVIDENCE_VAULT_URL = "https://evidence.chittyos.com"
+AI_MODEL_ENDPOINT = "@cf/meta/llama-3.1-8b-instruct"
+AI_GATEWAY_VERSION = "2.0.0-ai"
+
+# KV Namespaces for caching
+[[kv_namespaces]]
+binding = "CHITTYROUTER_CACHE"
+id = "your-kv-namespace-id"
+
+# R2 Buckets for file storage
+[[r2_buckets]]
+binding = "EMAIL_ATTACHMENTS"
+bucket_name = "chittyrouter-attachments"
+
+# Email sending configuration
+[[send_email]]
+name = "EMAIL_SENDER"
+destination_address = "updates@example.com"
+
+[[send_email]]
+name = "EVIDENCE_SENDER"
+destination_address = "evidence@example.com"
+
+[[send_email]]
+name = "CALENDAR_SENDER"
+destination_address = "calendar@example.com"
+
+[[send_email]]
+name = "CHITTYID_SENDER"
+destination_address = "chittyid@example.com"
+
+# Service bindings for ChittyOS integration
+[[services]]
+binding = "CHITTYOS_SERVICE"
+service = "chittyos-core"
+
+[[services]]
+binding = "CHITTYCHAT_SERVICE"
+service = "chittychat"
+
+[[services]]
+binding = "CHITTYID_SERVICE"
+service = "chittyid"
+
+# Analytics and logging
+[observability]
+enabled = true
+
+[build]
+command = "npm run build"
+cwd = "."
+
+# Deployment configuration
+[triggers]
+crons = ["0 0 * * *"] # Daily maintenance cron

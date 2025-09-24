@@ -1,0 +1,216 @@
+name = "chittyrouter-ai"
+main = "src/index-cloudflare.js"
+compatibility_date = "2024-09-16"
+compatibility_flags = ["nodejs_compat"]
+account_id = "84f0f32886f1d6196380fe6cbe9656a8"
+
+# AI Binding
+[ai]
+binding = "AI"
+
+# Durable Objects
+[[durable_objects.bindings]]
+name = "AI_STATE_DO"
+class_name = "AIStateDO"
+script_name = "chittyrouter-ai"
+
+[[durable_objects.bindings]]
+name = "CHITTYCHAIN_DO"
+class_name = "ChittyChainDO"
+script_name = "chittyrouter-ai"
+
+[[durable_objects.bindings]]
+name = "SYNC_STATE"
+class_name = "SyncStateDurableObject"
+script_name = "chittyrouter-ai"
+
+# Environment Variables
+[vars]
+ENVIRONMENT = "development"
+SERVICE_NAME = "ChittyRouter AI Gateway"
+VERSION = "2.1.0-ai"
+AI_MODEL_PRIMARY = "@cf/meta/llama-4-scout-17b-16e-instruct"
+AI_MODEL_SECONDARY = "@cf/openai/gpt-oss-120b"
+AI_MODEL_VISION = "@cf/meta/llama-3.2-11b-vision-instruct"
+AI_MODEL_AUDIO = "@cf/openai/whisper"
+AI_MODEL_REASONING = "@cf/google/gemma-3-12b-it"
+LOG_LEVEL = "INFO"
+PROJECT_ID = "chittyrouter"
+CHITTY_ORG = "ChittyOS"
+SESSION_REPO = "chittychat-sessions"
+RANDOMNESS_BEACON = "true"
+VERSION_MANAGEMENT = "enterprise"
+
+# Routes
+[[routes]]
+pattern = "chittyrouter.example.com/*"
+custom_domain = false
+
+# Sync service routes - will need to be configured in Cloudflare dashboard
+# Custom domains should be set up separately, not in routes
+# [[routes]]
+# pattern = "sync.chitty.cc"
+# custom_domain = true
+
+# Email Worker Configuration
+[[email]]
+name = "chittyrouter-email"
+destination_addresses = [
+  "*@example.com",
+  "*-v-*@example.com",
+  "case-*@example.com",
+  "matter-*@example.com"
+]
+
+# Development Environment
+[env.development]
+[env.development.vars]
+ENVIRONMENT = "development"
+LOG_LEVEL = "DEBUG"
+AI_DEBUG = "true"
+
+# KV Bindings for caching
+[[env.development.kv_namespaces]]
+binding = "AI_CACHE"
+id = "ai_cache_dev"
+preview_id = "ai_cache_preview"
+
+# Staging Environment
+[env.staging]
+[env.staging.vars]
+ENVIRONMENT = "staging"
+LOG_LEVEL = "INFO"
+AI_DEBUG = "false"
+SERVICE_NAME = "ChittyRouter AI Gateway"
+VERSION = "2.1.0-ai"
+AI_MODEL_PRIMARY = "@cf/meta/llama-4-scout-17b-16e-instruct"
+AI_MODEL_SECONDARY = "@cf/openai/gpt-oss-120b"
+AI_MODEL_VISION = "@cf/meta/llama-3.2-11b-vision-instruct"
+AI_MODEL_AUDIO = "@cf/openai/whisper"
+AI_MODEL_REASONING = "@cf/google/gemma-3-12b-it"
+PROJECT_ID = "chittyrouter"
+CHITTY_ORG = "ChittyOS"
+SESSION_REPO = "chittychat-sessions"
+RANDOMNESS_BEACON = "true"
+VERSION_MANAGEMENT = "enterprise"
+
+# KV namespace - commented out until created
+# [[env.staging.kv_namespaces]]
+# binding = "AI_CACHE"
+# id = "ai_cache_staging"
+
+# AI Binding for staging
+[env.staging.ai]
+binding = "AI"
+
+# Durable Objects for staging
+[[env.staging.durable_objects.bindings]]
+name = "AI_STATE_DO"
+class_name = "AIStateDO"
+script_name = "chittyrouter-ai"
+
+[[env.staging.durable_objects.bindings]]
+name = "CHITTYCHAIN_DO"
+class_name = "ChittyChainDO"
+script_name = "chittyrouter-ai"
+
+[[env.staging.durable_objects.bindings]]
+name = "SYNC_STATE"
+class_name = "SyncStateDurableObject"
+script_name = "chittyrouter-ai"
+
+# Production Environment
+[env.production]
+[env.production.vars]
+ENVIRONMENT = "production"
+LOG_LEVEL = "WARN"
+AI_DEBUG = "false"
+ENABLE_ANALYTICS = "true"
+SERVICE_NAME = "ChittyRouter AI Gateway"
+VERSION = "2.1.0-ai"
+AI_MODEL_PRIMARY = "@cf/meta/llama-4-scout-17b-16e-instruct"
+AI_MODEL_SECONDARY = "@cf/openai/gpt-oss-120b"
+AI_MODEL_VISION = "@cf/meta/llama-3.2-11b-vision-instruct"
+AI_MODEL_AUDIO = "@cf/openai/whisper"
+AI_MODEL_REASONING = "@cf/google/gemma-3-12b-it"
+PROJECT_ID = "chittyrouter"
+CHITTY_ORG = "ChittyOS"
+SESSION_REPO = "chittychat-sessions"
+AI_GATEWAY_VERSION = "2.1.0-ai"
+AI_MODEL_ENDPOINT = "@cf/meta/llama-4-scout-17b-16e-instruct"
+CHITTYROUTER_URL = "https://router.chitty.cc"
+REGION = "us-west"
+MCP_PORT = "3000"
+AGENT_COORDINATION_PORT = "8080"
+REDIS_PORT = "6379"
+RANDOMNESS_BEACON = "true"
+VERSION_MANAGEMENT = "enterprise"
+
+[[env.production.kv_namespaces]]
+binding = "AI_CACHE"
+id = "863b20701b5145c3a5e1561469f93ee4"
+
+# AI Binding for production
+[env.production.ai]
+binding = "AI"
+
+# Durable Objects for production
+[[env.production.durable_objects.bindings]]
+name = "AI_STATE_DO"
+class_name = "AIStateDO"
+script_name = "chittyrouter-ai"
+
+[[env.production.durable_objects.bindings]]
+name = "CHITTYCHAIN_DO"
+class_name = "ChittyChainDO"
+script_name = "chittyrouter-ai"
+
+[[env.production.durable_objects.bindings]]
+name = "SYNC_STATE"
+class_name = "SyncStateDurableObject"
+script_name = "chittyrouter-ai"
+
+# Analytics Engine for AI metrics (disabled - needs to be enabled in dashboard)
+# [[env.production.analytics_engine_datasets]]
+# binding = "AI_ANALYTICS"
+
+# R2 Storage for document attachments
+[[env.production.r2_buckets]]
+binding = "DOCUMENT_STORAGE"
+bucket_name = "chittyrouter-documents"
+
+# Secrets (set via wrangler secret put)
+# CHITTYCHAIN_API_KEY - API key for ChittyChain blockchain
+# EVIDENCE_VAULT_API_KEY - API key for Evidence Vault
+# OPENAI_API_KEY - Optional OpenAI API key for fallback
+# ENCRYPTION_KEY - Key for encrypting sensitive data
+
+# Build configuration - let wrangler handle bundling
+# [build]
+# command = "npm run build"
+# watch_dir = "src"
+
+# Limits
+[limits]
+cpu_ms = 30000  # 30 seconds for AI processing
+
+# Triggers for batch processing
+[[triggers.crons]]
+cron = "0 */6 * * *"  # Every 6 hours
+route = "/cron/cleanup-ai-cache"
+
+[[triggers.crons]]
+cron = "0 0 * * *"    # Daily at midnight
+route = "/cron/ai-metrics-report"
+
+[[triggers.crons]]
+cron = "*/30 * * * *"  # Every 30 minutes
+route = "/cron/sync-dlq-process"
+
+[[triggers.crons]]
+cron = "0 */2 * * *"   # Every 2 hours
+route = "/cron/session-reconcile"
+
+# Placement for optimal AI performance
+[placement]
+mode = "smart"
