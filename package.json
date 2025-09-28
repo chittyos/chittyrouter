@@ -33,6 +33,7 @@
     "validate": "npm run lint && npm run test:all && npm run build"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.1",
     "@octokit/rest": "^22.0.0",
     "mimetext": "^3.0.27"
   },

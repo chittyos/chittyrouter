@@ -358,7 +358,7 @@ class RouteMultiplexer {
     });
   }
 
-  errorResponse(error, status = 500) {
+  async errorResponse(error, status = 500) {
     return this.jsonResponse({
       error: error.message || 'Internal Server Error',
       code: error.code || 'UNKNOWN_ERROR',
@@ -383,7 +383,7 @@ export default {
 
     try {
       // Add request ID for tracing
-      const requestId = crypto.randomUUID();
+      const requestId = await this.generateChittyId();
       ctx.waitUntil(
         this.logRequest(env, requestId, request)
       );

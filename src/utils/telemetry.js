@@ -17,11 +17,11 @@ const TELEMETRY_ENDPOINTS = {
  * Telemetry Client with ChittyID integration
  */
 export class ChittyTelemetry {
-  constructor(env, workerName) {
+  async constructor(env, workerName) {
     this.env = env;
     this.workerName = workerName;
     this.chittyId = env.WORKER_CHITTYID || null;
-    this.sessionId = crypto.randomUUID();
+    this.sessionId = await this.generateChittyId();
     this.startTime = Date.now();
 
     // Metrics collectors

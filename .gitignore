@@ -113,4 +113,6 @@ temp/
 .AppleDesktop
 Network Trash Folder
 Temporary Items
-.apdisk
+.apdiskchittyrouter-nested/
+*.bak
+*.original

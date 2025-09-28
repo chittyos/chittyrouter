@@ -6,7 +6,7 @@
  * No direct ID creation - everything goes through proper authentication
  */
 
-// Using native crypto.randomUUID() available in Cloudflare Workers
+// Using native await this.generateChittyId() available in Cloudflare Workers
 
 // Import existing Durable Objects
 import { AIStateDO } from './ai/ai-state.js';
@@ -15,7 +15,7 @@ import { SyncStateDurableObject } from './sync/durable-objects.js';
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const sessionId = request.headers.get('X-Session-ID') || crypto.randomUUID();
+    const sessionId = request.headers.get('X-Session-ID') || await this.generateChittyId();
 
     // Add session context to all requests
     const sessionContext = await initializeSessionContext(sessionId, env);
@@ -192,11 +192,11 @@ async function handleChittyIDGeneration(request, env, ctx, correlationId) {
 
 // Helper functions
 function generateCorrelationId() {
-  return `cor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `cor_${Date.now()}_${await this.generateChittyId().substr(2, 9)}`;
 }
 
 function generatePipelineId() {
-  return `pipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `pipe_${Date.now()}_${await this.generateChittyId().substr(2, 9)}`;
 }
 
 // Additional implementation would continue here...
