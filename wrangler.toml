@@ -1,4 +1,4 @@
-name = "chittyrouter-ai"
+name = "chitty-ultimate-worker"
 main = "src/index-cloudflare.js"
 compatibility_date = "2024-09-16"
 compatibility_flags = ["nodejs_compat"]
@@ -40,6 +40,9 @@ CHITTY_ORG = "ChittyOS"
 SESSION_REPO = "chittychat-sessions"
 RANDOMNESS_BEACON = "true"
 VERSION_MANAGEMENT = "enterprise"
+NOTION_TOKEN = "op://Private/notion-integration/ChittyCorp/api_token"
+GITHUB_TOKEN = "op://Claude-Code Tools/ChittyCLI - GitHub Token/token"
+CLOUDFLARE_API_TOKEN = "op://Private/gxyne23yqngvk2nzjwl62uakx4/ChittyCorp LLC/global_api_key"
 
 # Routes
 [[routes]]

@@ -11,6 +11,8 @@ import { UnifiedSyncOrchestrator } from "./sync/unified-sync-orchestrator.js";
 import { ChittyRouterAI } from "./ai/intelligent-router.js";
 import { EmailProcessor } from "./ai/email-processor.js";
 import { AgentOrchestrator } from "./ai/agent-orchestrator.js";
+import { SessionService } from "./services/session-service.js";
+import { MobileBridgeService } from "./services/mobile-bridge.js";
 
 /**
  * Route multiplexer - determines which service to invoke based on path
@@ -30,6 +32,10 @@ class RouteMultiplexer {
         notion: new NotionAtomicFactsSync(env),
         session: new SessionSyncManager(env),
         orchestrator: new UnifiedSyncOrchestrator(env),
+      },
+      sessions: {
+        sessionService: new SessionService(env),
+        mobileBridge: new MobileBridgeService(env),
       },
     };
 
@@ -57,6 +63,10 @@ class RouteMultiplexer {
       ["/session/state", this.handleSessionState.bind(this)],
       ["/session/atomic-facts", this.handleSessionAtomicFacts.bind(this)],
       ["/session/status", this.handleSessionStatus.bind(this)],
+
+      // Session Management API
+      ["/session", this.handleSessionManagement.bind(this)],
+      ["/mobile", this.handleMobileBridge.bind(this)],
 
       // Orchestration Routes
       ["/sync/unified", this.handleUnifiedSync.bind(this)],
@@ -611,6 +621,16 @@ export default {
       console.error("Worker error:", error);
       return multiplexer.errorResponse(error);
     }
+  },
+
+  // ============ Session Management Handlers ============
+
+  async handleSessionManagement(request) {
+    return await this.services.sessions.sessionService.handleRequest(request);
+  },
+
+  async handleMobileBridge(request) {
+    return await this.services.sessions.mobileBridge.handleRequest(request);
   },
 
   async logRequest(env, requestId, request) {

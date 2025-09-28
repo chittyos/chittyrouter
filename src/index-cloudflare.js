@@ -47,6 +47,15 @@ export default {
       return UnifiedWorker.fetch(request, env, ctx);
     }
 
+    // Check if this is a session management route
+    if (
+      url.pathname.startsWith("/session") ||
+      url.pathname.startsWith("/mobile")
+    ) {
+      // Delegate to unified worker for session management
+      return UnifiedWorker.fetch(request, env, ctx);
+    }
+
     // Legacy routing for backward compatibility
     const ai = env.AI; // Cloudflare AI binding
     const router = new ChittyRouterAI(ai, env);
