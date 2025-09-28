@@ -2,7 +2,7 @@ name = "chittyrouter-ai"
 main = "src/index-cloudflare.js"
 compatibility_date = "2024-09-16"
 compatibility_flags = ["nodejs_compat"]
-account_id = "84f0f32886f1d6196380fe6cbe9656a8"
+account_id = "0bc21e3a5a9de1a4cc843be9c3e98121"
 
 # AI Binding
 [ai]
@@ -43,11 +43,21 @@ VERSION_MANAGEMENT = "enterprise"
 
 # Routes
 [[routes]]
+pattern = "mcp.chitty.cc/*"
+zone_name = "chitty.cc"
+
+[[routes]]
+pattern = "ai.chitty.cc/*"
+zone_name = "chitty.cc"
+
+[[routes]]
+pattern = "router.chitty.cc/*"
+zone_name = "chitty.cc"
+
+# Legacy route
+[[routes]]
 pattern = "chittyrouter.example.com/*"
 custom_domain = false
-
-# Sync service routes - will need to be configured in Cloudflare dashboard
-# Custom domains should be set up separately, not in routes
 # [[routes]]
 # pattern = "sync.chitty.cc"
 # custom_domain = true

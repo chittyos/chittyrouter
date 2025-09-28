@@ -1,0 +1,51 @@
+# Multi-Worker Architecture Configuration
+# Run all workers together: wrangler dev --config wrangler.multi.toml
+
+# Main Gateway Worker - Routes requests to appropriate services
+name = "chitty-gateway"
+main = "src/gateway.js"
+compatibility_date = "2024-09-23"
+account_id = "0bc21e3a5a9de1a4cc843be9c3e98121"
+
+# Service bindings to other workers
+[[services]]
+binding = "PLATFORM"
+service = "chittyos-platform"
+
+[[services]]
+binding = "BRIDGE"
+service = "chitty-bridge"
+
+[[services]]
+binding = "CONSULTANT"
+service = "chitty-consultant"
+
+[[services]]
+binding = "CHAIN"
+service = "chitty-chain"
+
+[[services]]
+binding = "CTO"
+service = "cloudeto-cto-mcp"
+
+[[services]]
+binding = "LANDING"
+service = "chitty-landing"
+
+# Shared resources
+[[kv_namespaces]]
+binding = "SHARED_KV"
+id = "NEEDS_KV_ID"
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "NEEDS_HYPERDRIVE_ID"
+
+[ai]
+binding = "AI"
+
+# Routes for all domains
+# routes = [
+#   "*.chitty.cc/*",
+#   "*.chittycorp.com/*"
+# ]

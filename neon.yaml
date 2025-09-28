@@ -1,0 +1,118 @@
+# Neon GitHub Integration Configuration
+# This file configures automatic database branching for pull requests
+
+# Project settings
+project_id: ${NEON_PROJECT_ID}
+api_key: ${NEON_API_KEY}
+
+# Branching strategy
+branching:
+  # Create a branch for each pull request
+  preview_branches: true
+
+  # Branch naming pattern
+  branch_name_template: "preview/pr-{{PR_NUMBER}}"
+
+  # Parent branch to create branches from
+  parent_branch: main
+
+  # Automatically delete branches when PR is closed
+  delete_on_close: true
+
+  # Reset branch on each push
+  reset_on_push: false
+
+# Database configuration
+database:
+  # Run migrations automatically
+  auto_migrate: true
+
+  # Migration command
+  migration_command: "npm run migrate"
+
+  # Seed data for preview branches
+  seed_command: "npm run seed:preview"
+
+  # Copy data from parent branch
+  copy_data: true
+
+# Connection pooling
+pooler:
+  # Use connection pooler for preview branches
+  enabled: true
+
+  # Pooler mode
+  mode: transaction
+
+# Resource limits for preview branches
+limits:
+  # Compute size for preview branches
+  compute_size: 0.25
+
+  # Autosuspend after inactivity (seconds)
+  autosuspend_delay: 300
+
+  # Maximum lifetime of preview branch (hours)
+  max_lifetime: 168  # 7 days
+
+# Notifications
+notifications:
+  # Comment on PR with database details
+  pr_comment: true
+
+  # Include connection string in comment (be careful!)
+  include_connection_string: false
+
+  # Notify on Slack
+  slack:
+    enabled: false
+    webhook_url: ${SLACK_WEBHOOK_URL}
+
+# Integration with other services
+integrations:
+  # Cloudflare Workers
+  cloudflare:
+    # Update Worker environment with branch database URL
+    update_worker_env: true
+
+    # Worker name to update
+    worker_name: chitty-ultimate-worker
+
+    # Environment variable name
+    env_var_name: NEON_DATABASE_URL
+
+  # Prisma
+  prisma:
+    # Generate Prisma client for branch
+    generate_client: true
+
+    # Push schema to branch
+    push_schema: true
+
+# Security
+security:
+  # Restrict branch creation to specific users
+  allowed_users: []
+
+  # Require approval before creating branch
+  require_approval: false
+
+  # IP allowlist for branch databases
+  ip_allowlist: []
+
+# Custom scripts
+scripts:
+  # Run after branch creation
+  post_create: |
+    echo "Branch created: $NEON_BRANCH_NAME"
+    echo "Database URL: $NEON_DATABASE_URL"
+
+  # Run before branch deletion
+  pre_delete: |
+    echo "Archiving branch data..."
+    # Add backup logic here if needed
+
+  # Run on each sync
+  on_sync: |
+    echo "Syncing branch with main..."
+    # Add sync logic here
