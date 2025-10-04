@@ -1,0 +1,25 @@
+# Development secrets - Copy to .dev.vars and add your values
+# DO NOT COMMIT .dev.vars to git
+
+# Neon Database
+NEON_DATABASE_URL=postgresql://user:password@ep-example.region.neon.tech/dbname?sslmode=require
+
+# Cloudflare API
+CF_API_TOKEN=your_cloudflare_api_token
+CF_ACCOUNT_ID=your_account_id
+
+# AI Services
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Authentication
+AUTH_SECRET=your_auth_secret_key
+JWT_SECRET=your_jwt_secret
+
+# Third-party services
+GITHUB_TOKEN=ghp_...
+STRIPE_API_KEY=sk_live_...
+SENDGRID_API_KEY=SG...
+
+# Encryption keys
+ENCRYPTION_KEY=your_encryption_key

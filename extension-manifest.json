@@ -1,0 +1,132 @@
+{
+  "name": "chittymcp",
+  "displayName": "ChittyMCP",
+  "version": "2.1.0",
+  "description": "ChittyOS integration with 32 tools including rclone, Replit, file operations, git, web, databases, AI, and system management",
+  "author": "ChittyOS",
+  "license": "MIT",
+  "homepage": "https://chitty.cc",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chittyos/chittyrouter.git"
+  },
+  "keywords": [
+    "mcp",
+    "chittyos",
+    "ai",
+    "automation",
+    "integration",
+    "claude",
+    "extension"
+  ],
+  "categories": ["Development Tools", "AI Integration", "System Management"],
+  "main": "src/mcp-server.js",
+  "mcp": {
+    "server": {
+      "command": "node",
+      "args": ["src/mcp-server.js"],
+      "env": {
+        "CHITTY_MCP_SERVER": "true",
+        "MCP_SERVER_NAME": "ChittyRouter MCP",
+        "MCP_SERVER_VERSION": "2.1.0",
+        "CHITTYOS_INTEGRATION": "true"
+      }
+    },
+    "capabilities": {
+      "tools": {
+        "count": 32,
+        "categories": [
+          "file_operations",
+          "git_operations",
+          "web_operations",
+          "database_operations",
+          "chittyos_integration",
+          "ai_operations",
+          "project_management",
+          "system_operations",
+          "security_operations",
+          "data_management",
+          "monitoring",
+          "deployment",
+          "logging",
+          "reporting",
+          "workflow_automation",
+          "backup_restore",
+          "encryption",
+          "rclone_storage",
+          "replit_development"
+        ]
+      },
+      "resources": false,
+      "prompts": false
+    },
+    "transport": ["stdio"],
+    "requirements": {
+      "node": ">=18.0.0"
+    }
+  },
+  "engines": {
+    "claude": ">=1.0.0",
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "extensionSettings": {
+    "enableAutoUpdates": true,
+    "useBuiltinNodejs": true,
+    "developerMode": false
+  },
+  "activationEvents": [
+    "onStartup",
+    "onCommand:chittyrouter.connect",
+    "onLanguage:javascript",
+    "onLanguage:typescript"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "chittyrouter.connect",
+        "title": "Connect to ChittyRouter MCP",
+        "category": "ChittyOS"
+      },
+      {
+        "command": "chittyrouter.health",
+        "title": "Check ChittyOS Health",
+        "category": "ChittyOS"
+      },
+      {
+        "command": "chittyrouter.sync",
+        "title": "Sync ChittyOS Services",
+        "category": "ChittyOS"
+      }
+    ],
+    "configuration": {
+      "title": "ChittyRouter MCP",
+      "properties": {
+        "chittyrouter.serverPath": {
+          "type": "string",
+          "default": "/Users/nb/.claude/projects/-/CHITTYOS/chittyos-services/chittyrouter/src/mcp-server.js",
+          "description": "Path to ChittyRouter MCP server"
+        },
+        "chittyrouter.enableLogging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable ChittyRouter MCP logging"
+        },
+        "chittyrouter.autoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically connect to ChittyRouter MCP on startup"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "start": "node src/mcp-server.js",
+    "test": "npm run test:unit",
+    "test:unit": "node --test tests/",
+    "lint": "eslint src/",
+    "format": "prettier --write src/"
+  }
+}

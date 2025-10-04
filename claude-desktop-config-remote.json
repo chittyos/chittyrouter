@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "chittymcp-remote": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-http", "https://mcp.chitty.cc"],
+      "env": {
+        "CHITTY_MCP_SERVER": "true",
+        "MCP_SERVER_NAME": "ChittyMCP Remote",
+        "MCP_SERVER_VERSION": "2.1.0",
+        "CHITTYOS_INTEGRATION": "true",
+        "MCP_TRANSPORT": "http"
+      }
+    },
+    "chittymcp-local": {
+      "command": "node",
+      "args": [
+        "/Users/nb/.claude/projects/-/CHITTYOS/chittyos-services/chittyrouter/src/mcp-server.js"
+      ],
+      "env": {
+        "CHITTY_MCP_SERVER": "true",
+        "MCP_SERVER_NAME": "ChittyMCP Local",
+        "MCP_SERVER_VERSION": "2.1.0",
+        "CHITTYOS_INTEGRATION": "true"
+      }
+    }
+  }
+}

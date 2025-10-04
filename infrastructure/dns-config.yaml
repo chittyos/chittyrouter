@@ -1,0 +1,76 @@
+version: 1
+dns_provider: cloudflare
+
+zones:
+  chitty.cc:
+    apex: {repo: ChittyCorp/hub, deploy: pages}          # Pages deploy
+    subdomains:
+      api:    {repo: ChittyOS/router, deploy: workers}   # Workers route/custom domain
+      auth:   {repo: ChittyCorp/auth, deploy: workers}
+      id:     {repo: ChittyOS/chittyid-service, deploy: workers}
+      chat:   {repo: ChittyApps/chittychat, deploy: pages}
+      router: {repo: ChittyOS/router, deploy: workers}
+      trace:  {repo: ChittyApps/trace, deploy: workers}
+      docs:   {repo: ChittyCorp/docs, deploy: pages}
+      status: {repo: ChittyCorp/status, deploy: workers}
+    pages:
+      deploy_hooks: true                                  # Deploy Hooks supported
+
+  chittycorp.com:
+    apex: {repo: ChittyCorp/www, deploy: pages}
+    subdomains:
+      foundation: {repo: ChittyFoundation/site, deploy: pages}  # temporary facade on owned subdomain
+      careers:    {repo: ChittyCorp/careers, deploy: pages}
+      partners:   {repo: ChittyCorp/partners, deploy: pages}
+
+  nevershitty.com:
+    apex: {repo: NeverShitty/portfolio, deploy: pages}
+    subdomains:
+      labs:  {repo: NeverShitty/labs, deploy: pages}
+      tools: {repo: NeverShitty/tools, deploy: pages}
+
+  chicagoapps.com:
+    apex: {repo: ChicagoApps/portal, deploy: pages}
+
+# Parked/brand domains → centralized redirects (account-level Bulk Redirects)
+redirects:
+  account_level_lists:
+    - name: chitty-aliases
+      items:
+        # brand/aliases → chitty.cc
+        - {source: "https://thechitty.com/*",          target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://itschitty.com/*",          target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://mychitty.com/*",           target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://chittyservices.com/*",     target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://chittystreet.com/*",       target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://digital-dossier.com/*",    target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://cloudette.cc/*",           target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://niche-famous.com/*",       target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://derailme.com/*",           target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://derail.me/*",              target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://notawhiterefrigerator.com/*", target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://weirdlink.io/*",           target: "https://chitty.cc/$1", code: 308}
+        - {source: "https://claudemom.com/*",          target: "https://nevershitty.com/$1", code: 308}
+    - name: corp-consolidations
+      items:
+        - {source: "https://foundation.chittycorp.com/*", target: "https://foundation.chittycorp.com/$1", code: 308}
+
+security:
+  tls:
+    universal_ssl: true                                   # Universal SSL/TLS
+    hsts:
+      enable: true
+      max_age: 31536000
+      include_subdomains: true
+      preload: true                                       # HSTS guidance & risks
+  headers:                                                # Security headers via Workers example
+    csp: "default-src 'self'"
+    x_content_type_options: "nosniff"
+    x_frame_options: "DENY"
+    referrer_policy: "strict-origin-when-cross-origin"
+
+ci:
+  required_secrets: [CF_API_TOKEN, CF_ACCOUNT_ID]
+  checks:
+    - workers_routes_configured: true                     # Workers routes on hostnames
+    - redirects_lists_exist: ["chitty-aliases","corp-consolidations"]  # Bulk Redirects lists present

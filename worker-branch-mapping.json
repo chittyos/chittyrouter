@@ -1,0 +1,66 @@
+{
+  "workers": {
+    "chittyid": {
+      "branch": "worker/chittyid",
+      "type": "IDENTITY",
+      "priority": "critical",
+      "deploy": "workers"
+    },
+    "chittychat": {
+      "branch": "worker/chittychat",
+      "type": "COMMUNICATION",
+      "priority": "critical",
+      "deploy": "workers"
+    },
+    "chittychain": {
+      "branch": "worker/chittychain",
+      "type": "BLOCKCHAIN",
+      "priority": "critical",
+      "deploy": "workers"
+    },
+    "evidence-vault": {
+      "branch": "worker/evidence-vault",
+      "type": "STORAGE",
+      "priority": "high",
+      "deploy": "workers"
+    },
+    "chitty-accounts": {
+      "branch": "worker/accounts",
+      "type": "FINANCIAL",
+      "priority": "high",
+      "deploy": "workers"
+    },
+    "chitty-payments": {
+      "branch": "worker/payments",
+      "type": "FINANCIAL",
+      "priority": "high",
+      "deploy": "workers"
+    },
+    "chitty-billing": {
+      "branch": "worker/billing",
+      "type": "FINANCIAL",
+      "priority": "high",
+      "deploy": "workers"
+    },
+    "chitty-treasury": {
+      "branch": "worker/treasury",
+      "type": "FINANCIAL",
+      "priority": "medium",
+      "deploy": "workers"
+    },
+    "chittyos-gateway": {
+      "branch": "main",
+      "type": "GATEWAY",
+      "priority": "critical",
+      "deploy": "workers"
+    }
+  },
+  "syncConfig": {
+    "repository": "ChittyOS/chittyrouter-gateway",
+    "mainBranch": "main",
+    "workerPrefix": "worker/",
+    "autoSync": true,
+    "syncInterval": 3600,
+    "deploymentStrategy": "branch-based"
+  }
+}

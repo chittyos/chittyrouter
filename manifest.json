@@ -1,0 +1,231 @@
+{
+  "mcpb_version": "0.1",
+  "name": "chittymcp",
+  "version": "2.1.0",
+  "description": "ChittyOS MCP Extension with 32 tools including rclone, Replit, AI, file operations, git, web, databases, and system management",
+  "author": {
+    "name": "ChittyOS",
+    "email": "mcp@chitty.cc",
+    "url": "https://chitty.cc"
+  },
+  "server": {
+    "type": "nodejs",
+    "runtime": "builtin",
+    "entry": "server/mcp-server.js",
+    "command": {
+      "default": "node",
+      "args": ["server/mcp-server.js"]
+    },
+    "environment": {
+      "CHITTY_MCP_SERVER": "true",
+      "MCP_SERVER_NAME": "ChittyMCP",
+      "MCP_SERVER_VERSION": "2.1.0"
+    },
+    "platform_overrides": {
+      "windows": {
+        "command": "node.exe"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "read_file",
+      "description": "Read contents of a file",
+      "category": "file_operations"
+    },
+    {
+      "name": "write_file",
+      "description": "Write content to a file",
+      "category": "file_operations"
+    },
+    {
+      "name": "list_directory",
+      "description": "List contents of a directory",
+      "category": "file_operations"
+    },
+    {
+      "name": "git_status",
+      "description": "Get git repository status",
+      "category": "git_operations"
+    },
+    {
+      "name": "git_commit",
+      "description": "Create a git commit",
+      "category": "git_operations"
+    },
+    {
+      "name": "fetch_url",
+      "description": "Fetch content from a URL",
+      "category": "web_operations"
+    },
+    {
+      "name": "query_database",
+      "description": "Execute a database query",
+      "category": "database_operations"
+    },
+    {
+      "name": "chittyid_generate",
+      "description": "Generate a new ChittyID",
+      "category": "chittyos_integration"
+    },
+    {
+      "name": "chittyos_sync",
+      "description": "Sync data with ChittyOS services",
+      "category": "chittyos_integration"
+    },
+    {
+      "name": "ai_analyze",
+      "description": "Analyze content using AI",
+      "category": "ai_operations"
+    },
+    {
+      "name": "project_status",
+      "description": "Get ChittyOS project status",
+      "category": "project_management"
+    },
+    {
+      "name": "system_health",
+      "description": "Check system health across ChittyOS services",
+      "category": "system_operations"
+    },
+    {
+      "name": "encrypt_data",
+      "description": "Encrypt sensitive data",
+      "category": "security_operations"
+    },
+    {
+      "name": "decrypt_data",
+      "description": "Decrypt sensitive data",
+      "category": "security_operations"
+    },
+    {
+      "name": "validate_schema",
+      "description": "Validate data against ChittyOS schema",
+      "category": "security_operations"
+    },
+    {
+      "name": "backup_data",
+      "description": "Create data backup",
+      "category": "data_management"
+    },
+    {
+      "name": "restore_data",
+      "description": "Restore data from backup",
+      "category": "data_management"
+    },
+    {
+      "name": "monitor_service",
+      "description": "Monitor ChittyOS service metrics",
+      "category": "monitoring"
+    },
+    {
+      "name": "deploy_service",
+      "description": "Deploy ChittyOS service",
+      "category": "deployment"
+    },
+    {
+      "name": "search_logs",
+      "description": "Search through system logs",
+      "category": "logging"
+    },
+    {
+      "name": "generate_report",
+      "description": "Generate system or project report",
+      "category": "reporting"
+    },
+    {
+      "name": "execute_workflow",
+      "description": "Execute a ChittyOS workflow",
+      "category": "workflow_automation"
+    },
+    {
+      "name": "rclone_copy",
+      "description": "Copy files/folders using rclone",
+      "category": "rclone_storage"
+    },
+    {
+      "name": "rclone_sync",
+      "description": "Sync directories using rclone",
+      "category": "rclone_storage"
+    },
+    {
+      "name": "rclone_list",
+      "description": "List files in remote storage",
+      "category": "rclone_storage"
+    },
+    {
+      "name": "rclone_config",
+      "description": "Manage rclone configuration",
+      "category": "rclone_storage"
+    },
+    {
+      "name": "replit_create",
+      "description": "Create a new Replit project",
+      "category": "replit_development"
+    },
+    {
+      "name": "replit_deploy",
+      "description": "Deploy Replit project",
+      "category": "replit_development"
+    },
+    {
+      "name": "replit_run",
+      "description": "Run code in Replit environment",
+      "category": "replit_development"
+    },
+    {
+      "name": "replit_files",
+      "description": "Manage files in Replit project",
+      "category": "replit_development"
+    },
+    {
+      "name": "replit_collaborate",
+      "description": "Manage Replit project collaboration",
+      "category": "replit_development"
+    }
+  ],
+  "prompts": [],
+  "user_config": {
+    "remote_endpoint": {
+      "type": "string",
+      "description": "Remote MCP endpoint URL",
+      "default": "https://mcp.chitty.cc",
+      "required": false
+    },
+    "use_remote": {
+      "type": "boolean",
+      "description": "Use remote endpoint instead of local server",
+      "default": false,
+      "required": false
+    },
+    "api_key": {
+      "type": "secret",
+      "description": "ChittyOS API key for authentication",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "linux", "win32"],
+    "node_version": ">=18.0.0",
+    "claude_desktop_version": ">=1.0.0"
+  },
+  "repository": "https://github.com/chittyos/chittyrouter",
+  "homepage": "https://chitty.cc",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "chittyos",
+    "ai",
+    "automation",
+    "rclone",
+    "replit",
+    "development-tools"
+  ],
+  "icon": "icon.png",
+  "screenshots": [],
+  "auto_update": true,
+  "enterprise": {
+    "managed": false,
+    "allow_user_config": true
+  }
+}
