@@ -55,7 +55,7 @@ export default {
 
       // Platform routes (main chittyos-platform-live functionality)
       if (hostname.includes("platform") || pathname.startsWith("/platform")) {
-        return await handleServices(request, env, ctx);
+        return await handlePlatform(request, env, ctx);
       }
 
       // Bridge service routes
