@@ -175,7 +175,7 @@ export class DNAPatternCollector {
    * Add pattern to collection
    */
   addPattern(category, pattern) {
-    const patternId = `${category}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const patternId = `${category}_${Date.now()}`;
 
     pattern.id = patternId;
     pattern.category = category;

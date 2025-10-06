@@ -2,9 +2,25 @@
  * Universal Email Worker for ChittyOS with Workers AI
  * Automatically handles any domain configured in Cloudflare Email Routing
  * Enhanced with AI-powered classification, sentiment analysis, and smart routing
+ *
+ * Version: 2.1.0 - Enhanced with ChittyID, spam scoring, domain rate limiting, R2 archival
  */
 
+// Import enhancements
+import {
+  fetchHandler,
+  mintEmailChittyID,
+  calculateSpamScore,
+  checkDomainRateLimit,
+  updateDomainRateLimit,
+  archiveEmailToR2,
+  incrementDailyStats,
+} from "./email-worker-enhancements.js";
+
 export default {
+  // Add fetch handler for HTTP endpoints
+  fetch: fetchHandler.fetch,
+
   async scheduled(event, env, ctx) {
     // Weekly impact report cron job
     console.log("Running weekly impact report...");
@@ -20,7 +36,7 @@ export default {
       .split("@");
 
     // Generate transaction ID
-    const transactionId = `EMAIL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const transactionId = `EMAIL-${Date.now()}`;
 
     // Check for BCC tracking (bcc@chitty.cc)
     const bccHeader = message.headers.get("bcc") || "";
@@ -68,7 +84,16 @@ export default {
     };
 
     try {
-      // Rate limiting check
+      // Domain rate limiting check (NEW)
+      if (await checkDomainRateLimit(env, recipientDomain)) {
+        console.log(
+          `[${transactionId}] Domain rate limited: ${recipientDomain}`,
+        );
+        await message.setReject("Domain rate limit exceeded");
+        return;
+      }
+
+      // Per-sender rate limiting check
       if (await checkRateLimit(env, message.from)) {
         console.log(`[${transactionId}] Rate limited: ${message.from}`);
         await message.setReject("Rate limit exceeded - please try again later");
@@ -118,7 +143,19 @@ export default {
             entityCount: aiInsights.entities.length,
           });
 
-          // Reject if AI detects spam
+          // Enhanced spam scoring (NEW)
+          const spamScore = calculateSpamScore(message, aiInsights);
+          console.log(`[${transactionId}] Spam score: ${spamScore}/100`);
+
+          if (spamScore >= 75) {
+            console.log(
+              `[${transactionId}] High spam score (${spamScore}), rejecting`,
+            );
+            await message.setReject("Message classified as spam");
+            return;
+          }
+
+          // Reject if AI detects spam (keep existing check as fallback)
           if (aiInsights.classification === "spam") {
             console.log(`[${transactionId}] AI detected spam, rejecting`);
             await message.setReject("Message classified as spam by AI");
@@ -459,26 +496,41 @@ export default {
         trackingHeaders["Importance"] = "high";
       }
 
+      // Mint ChittyID for blockchain verification (NEW)
+      const chittyId = await mintEmailChittyID(env, {
+        from: message.from,
+        to: message.to,
+        subject: message.headers.get("subject"),
+        timestamp: new Date().toISOString(),
+        classification: aiInsights?.classification,
+      });
+
+      if (chittyId) {
+        trackingHeaders["X-ChittyID"] = chittyId;
+        console.log(`[${transactionId}] ChittyID: ${chittyId}`);
+      }
+
       console.log(`[${transactionId}] Tracking headers:`, trackingHeaders);
 
-      // Forwarding disabled for testing - no external destination needed
-      console.log(
-        `[${transactionId}] Email processed successfully (forwarding disabled for testing)`,
-      );
-      console.log(
-        `[${transactionId}] Would forward to: ${forwardTo} (priority: ${isPriority})`,
-      );
+      // Log analytics FIRST (works even if forwarding disabled)
+      if (env.EMAIL_ANALYTICS) {
+        await logAnalytics(env, {
+          transactionId,
+          action: "processed",
+          from: message.from,
+          to: message.to,
+          forwardedTo: forwardTo,
+          domain: recipientDomain,
+          processingTime: Date.now() - startTime,
+          priority: isPriority,
+          size: message.raw.length,
+          aiInsights,
+        });
+        console.log(`[${transactionId}] ✅ Analytics stored in KV`);
+      }
 
-      // UNCOMMENT TO ENABLE FORWARDING:
-      // try {
-      //   await message.forward(forwardTo);
-      //   console.log(`[${transactionId}] Successfully forwarded to ${forwardTo}`);
-      // } catch (forwardError) {
-      //   console.error(`[${transactionId}] Forward failed:`, forwardError.message);
-      // }
-
-      // Send feedback to sender if from chitty.cc domain
-      if (env.FEEDBACK_ENABLED === "true" && fromEmail.includes("@chitty.cc")) {
+      // Send feedback to sender (all senders, not just @chitty.cc)
+      if (env.FEEDBACK_ENABLED === "true") {
         await sendFeedbackToSender(env, {
           transactionId,
           from: message.from,
@@ -489,21 +541,7 @@ export default {
           isNamespaceCopy,
           isPriority,
         });
-      }
-
-      // Log analytics
-      if (env.EMAIL_ANALYTICS) {
-        await logAnalytics(env, {
-          transactionId,
-          action: "forwarded",
-          from: message.from,
-          to: message.to,
-          forwardedTo: forwardTo,
-          domain: recipientDomain,
-          processingTime: Date.now() - startTime,
-          priority: isPriority,
-          size: message.raw.length,
-        });
+        console.log(`[${transactionId}] ✅ Feedback sent to ${message.from}`);
       }
 
       // Send webhook for priority emails
@@ -516,10 +554,47 @@ export default {
           subject: message.headers.get("subject"),
           domain: recipientDomain,
         });
+        console.log(`[${transactionId}] ✅ Webhook sent`);
       }
 
-      // Update rate limit
+      // Forward the email to the destination
+      console.log(
+        `[${transactionId}] Forwarding to: ${forwardTo} (priority: ${isPriority})`,
+      );
+
+      try {
+        await message.forward(forwardTo);
+        console.log(
+          `[${transactionId}] ✅ Successfully forwarded to ${forwardTo}`,
+        );
+      } catch (forwardError) {
+        console.error(
+          `[${transactionId}] ⚠️  Forward failed:`,
+          forwardError.message,
+        );
+        console.log(
+          `[${transactionId}] Note: Destination address must be verified in Cloudflare Email Routing`,
+        );
+        // Email processing completed, but forwarding failed
+      }
+
+      // Archive email to R2 (NEW - optional)
+      await archiveEmailToR2(env, transactionId, {
+        from: message.from,
+        to: message.to,
+        subject: message.headers.get("subject"),
+        timestamp: new Date().toISOString(),
+        classification: aiInsights?.classification,
+        chittyId: chittyId,
+        rawEmail: await new Response(message.raw).text(),
+      });
+
+      // Update rate limits (sender + domain)
       await updateRateLimit(env, message.from);
+      await updateDomainRateLimit(env, recipientDomain);
+
+      // Increment daily stats (NEW)
+      await incrementDailyStats(env);
     } catch (error) {
       console.error(`[${transactionId}] Error:`, error);
       // Email processed but encountered an error - no fallback forwarding
@@ -627,7 +702,14 @@ async function updateRateLimit(env, sender) {
 // Log analytics
 async function logAnalytics(env, data) {
   try {
+    if (!env.EMAIL_ANALYTICS) {
+      console.error("EMAIL_ANALYTICS KV binding is missing!");
+      return;
+    }
+
     const key = `email:${data.domain}:${data.transactionId}`;
+    console.log(`Storing analytics with key: ${key}`);
+
     await env.EMAIL_ANALYTICS.put(
       key,
       JSON.stringify({
@@ -642,8 +724,9 @@ async function logAnalytics(env, data) {
         },
       },
     );
+    console.log(`Analytics stored successfully for key: ${key}`);
   } catch (error) {
-    console.error("Analytics logging failed:", error);
+    console.error("Analytics logging failed:", error.message, error.stack);
   }
 }
 

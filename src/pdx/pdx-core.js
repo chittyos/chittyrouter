@@ -4,6 +4,7 @@
  */
 
 import { ChittyIdClient } from '../utils/chittyid-integration.js';
+import { mintId } from '../utils/mint-id.js';
 import { ChittyP256Signatures } from '../crypto/p256-signatures.js';
 import { ChittyFinancialServices } from '../financial/financial-services.js';
 
@@ -59,7 +60,7 @@ export class PDXCore {
     }
 
     try {
-      const packageId = `pdx_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+      const packageId = await mintId('pdx', 'pdx_package', this.env);
 
       // Get ChittyID for package issuer
       const issuerChittyId = await this.chittyIdClient.request?.('chittyrouter-pdx') ||

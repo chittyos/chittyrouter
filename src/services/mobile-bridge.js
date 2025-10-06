@@ -172,7 +172,7 @@ export class MobileBridgeService {
       }
 
       const session = JSON.parse(sessionData);
-      const handoffId = `mobile-${Date.now()}-${crypto.randomUUID().slice(0, 6)}`;
+      const handoffId = `mobile-${Date.now()}`;
 
       const mobileHandoff = {
         handoffId,

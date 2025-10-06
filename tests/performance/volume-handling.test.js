@@ -13,7 +13,7 @@ import { testEmails, createMockMessage, getRandomTestEmail } from '../data/test-
 // Mock utilities for performance testing
 vi.mock('../../src/utils/chittyid-generator.js', () => ({
   generateEmailChittyID: vi.fn().mockImplementation(() => {
-    return Promise.resolve(`CHITTY-PERF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+    return Promise.resolve(`CHITTY-PERF-${Date.now()}`);
   })
 }));
 

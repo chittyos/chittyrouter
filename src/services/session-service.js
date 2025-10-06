@@ -3,6 +3,8 @@
  * Provides session management and cross-platform sync as a service
  */
 
+import { mintId } from "../utils/mint-id.js";
+
 export class SessionService {
   constructor(env) {
     this.env = env;
@@ -86,7 +88,7 @@ export class SessionService {
   async createSession(request) {
     try {
       const sessionData = await request.json();
-      const sessionId = `session-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+      const sessionId = await mintId("session", "chittyrouter_session", this.env);
 
       const session = {
         id: sessionId,
@@ -330,7 +332,7 @@ export class SessionService {
       const session = JSON.parse(sessionData);
 
       // Create handoff context
-      const handoffId = `handoff-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+      const handoffId = await mintId("handoff", "chittyrouter_handoff", this.env);
       const handoffContext = {
         handoffId,
         sessionId,

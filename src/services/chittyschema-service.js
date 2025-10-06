@@ -120,7 +120,7 @@ export class ChittySchemaService {
       JSON.stringify({
         success: true,
         evidence: {
-          id: crypto.randomUUID(),
+          id: `schema-${Date.now()}`,
           ...data,
           timestamp: new Date().toISOString(),
         },
@@ -159,7 +159,7 @@ export class ChittySchemaService {
       JSON.stringify({
         success: true,
         fact: {
-          id: crypto.randomUUID(),
+          id: `schema-${Date.now()}`,
           ...data,
           createdAt: new Date().toISOString(),
         },
