@@ -51,6 +51,19 @@ export default {
       (bccHeader.toLowerCase().includes(fromEmail) ||
         ccHeader.toLowerCase().includes(fromEmail));
 
+    // Whitelist for system/verification emails
+    const WHITELISTED_SENDERS = [
+      "noreply@notify.cloudflare.com",
+      "@cloudflare.com",
+      "@google.com",
+      "no-reply@",
+      "noreply@",
+    ];
+
+    const isWhitelisted = WHITELISTED_SENDERS.some((pattern) =>
+      fromEmail.includes(pattern.toLowerCase()),
+    );
+
     console.log(`[${transactionId}] Email received:`, {
       from: message.from,
       to: message.to,
@@ -58,6 +71,7 @@ export default {
       bccTracked: isBccTracked,
       ccTracked: isCcTracked,
       namespaceCopy: isNamespaceCopy,
+      whitelisted: isWhitelisted,
       timestamp: new Date().toISOString(),
     });
 
@@ -100,8 +114,8 @@ export default {
         return;
       }
 
-      // Quick spam check (before AI)
-      if (await isSpamQuick(message)) {
+      // Quick spam check (before AI) - skip for whitelisted senders
+      if (!isWhitelisted && (await isSpamQuick(message))) {
         console.log(
           `[${transactionId}] Quick spam check failed from ${message.from}`,
         );
@@ -143,11 +157,13 @@ export default {
             entityCount: aiInsights.entities.length,
           });
 
-          // Enhanced spam scoring (NEW)
+          // Enhanced spam scoring (NEW) - skip for whitelisted senders
           const spamScore = calculateSpamScore(message, aiInsights);
-          console.log(`[${transactionId}] Spam score: ${spamScore}/100`);
+          console.log(
+            `[${transactionId}] Spam score: ${spamScore}/100 (whitelisted: ${isWhitelisted})`,
+          );
 
-          if (spamScore >= 75) {
+          if (!isWhitelisted && spamScore >= 75) {
             console.log(
               `[${transactionId}] High spam score (${spamScore}), rejecting`,
             );
@@ -155,8 +171,8 @@ export default {
             return;
           }
 
-          // Reject if AI detects spam (keep existing check as fallback)
-          if (aiInsights.classification === "spam") {
+          // Reject if AI detects spam (keep existing check as fallback) - skip for whitelisted
+          if (!isWhitelisted && aiInsights.classification === "spam") {
             console.log(`[${transactionId}] AI detected spam, rejecting`);
             await message.setReject("Message classified as spam by AI");
             return;
