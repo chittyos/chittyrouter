@@ -4,10 +4,10 @@
  * Uses service discovery to find ChittyID service endpoint
  */
 
-import { ServiceDiscovery } from './service-discovery.js';
+import { ServiceDiscovery } from "./service-discovery.js";
 
 // Default fallback endpoint
-const CHITTYID_API_FALLBACK = 'https://id.chitty.cc/api/v1';
+const CHITTYID_API_FALLBACK = "https://id.chitty.cc/api/v1";
 let serviceDiscovery = null;
 
 /**
@@ -21,12 +21,15 @@ async function getChittyIdApiEndpoint(env) {
 
   if (serviceDiscovery) {
     try {
-      const endpoint = await serviceDiscovery.getEndpointForCapability('chittyid_generation', 'chittyid');
+      const endpoint = await serviceDiscovery.getEndpointForCapability(
+        "chittyid_generation",
+        "chittyid",
+      );
       if (endpoint) {
         return `${endpoint}/api/v1`;
       }
     } catch (error) {
-      console.warn('⚠️ Failed to discover ChittyID endpoint:', error.message);
+      console.warn("⚠️ Failed to discover ChittyID endpoint:", error.message);
     }
   }
 
@@ -42,22 +45,22 @@ export async function requestChittyId(workerName, metadata = {}, env = null) {
 
     const params = new URLSearchParams({
       for: `chittyrouter-${workerName}`,
-      region: metadata.region || '1', // North America
-      jurisdiction: metadata.jurisdiction || 'USA',
-      entityType: 'T', // ChittyThing for workers/services
-      trustLevel: metadata.trustLevel || '2', // Standard trust
+      region: metadata.region || "1", // North America
+      jurisdiction: metadata.jurisdiction || "USA",
+      entityType: "T", // ChittyThing for workers/services
+      trustLevel: metadata.trustLevel || "2", // Standard trust
       purpose: `ChittyOS Worker: ${workerName}`,
-      requester: 'chittyrouter'
+      requester: "chittyrouter",
     });
 
     const response = await fetch(`${chittyIdApi}/get-chittyid?${params}`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Accept': 'application/json',
-        'X-Service-Name': 'chittyrouter',
-        'X-Worker-Name': workerName,
-        'User-Agent': 'ChittyRouter/2.0.0-ai'
-      }
+        Accept: "application/json",
+        "X-Service-Name": "chittyrouter",
+        "X-Worker-Name": workerName,
+        "User-Agent": "ChittyRouter/2.0.0-ai",
+      },
     });
 
     if (!response.ok) {
@@ -71,13 +74,15 @@ export async function requestChittyId(workerName, metadata = {}, env = null) {
     return {
       chittyId: result.chittyId,
       metadata: result.metadata || {},
-      timestamp: result.timestamp
+      timestamp: result.timestamp,
     };
   } catch (error) {
     console.error(`Failed to request ChittyID for ${workerName}:`, error);
 
-    // Fallback to local generation if id.chitty.cc is unavailable
-    return generateFallbackChittyId(workerName);
+    // NO LOCAL GENERATION - All ChittyIDs MUST come from id.chitty.cc
+    throw new Error(
+      `ChittyID service unavailable for ${workerName}. Cannot proceed without valid ChittyID from id.chitty.cc`,
+    );
   }
 }
 
@@ -89,15 +94,15 @@ export async function verifyChittyId(chittyId, env = null) {
     const chittyIdApi = await getChittyIdApiEndpoint(env);
 
     const response = await fetch(`${chittyIdApi}/validate`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify({
         id: chittyId,
-        context: 'worker-verification'
-      })
+        context: "worker-verification",
+      }),
     });
 
     if (!response.ok) {
@@ -109,7 +114,7 @@ export async function verifyChittyId(chittyId, env = null) {
       valid: result.valid,
       chittyId: result.id,
       details: result.details || {},
-      lastVerified: new Date().toISOString()
+      lastVerified: new Date().toISOString(),
     };
   } catch (error) {
     console.error(`Failed to verify ChittyID ${chittyId}:`, error);
@@ -131,16 +136,22 @@ export async function ensureWorkerChittyId(env, workerName) {
       console.log(`Using existing ChittyID for ${workerName}: ${storedId}`);
       return storedId;
     }
-    console.warn(`Stored ChittyID invalid for ${workerName}, requesting new one`);
+    console.warn(
+      `Stored ChittyID invalid for ${workerName}, requesting new one`,
+    );
   }
 
   // Request a new ChittyID
-  const newId = await requestChittyId(workerName, {
-    environment: env.ENVIRONMENT,
-    version: env.VERSION,
-    accountId: env.ACCOUNT_ID,
-    capabilities: getWorkerCapabilities(workerName)
-  }, env);
+  const newId = await requestChittyId(
+    workerName,
+    {
+      environment: env.ENVIRONMENT,
+      version: env.VERSION,
+      accountId: env.ACCOUNT_ID,
+      capabilities: getWorkerCapabilities(workerName),
+    },
+    env,
+  );
 
   // Store the new ChittyID
   await storeChittyId(env, workerName, newId.chittyId);
@@ -159,9 +170,9 @@ async function storeChittyId(env, workerName, chittyId) {
       JSON.stringify({
         chittyId,
         workerName,
-        storedAt: new Date().toISOString()
+        storedAt: new Date().toISOString(),
       }),
-      { expirationTtl: 86400 * 365 } // 1 year
+      { expirationTtl: 86400 * 365 }, // 1 year
     );
   } else {
     // Fallback to environment variable or config
@@ -200,50 +211,40 @@ async function getStoredChittyId(env, workerName) {
 }
 
 /**
- * Generate fallback ChittyID if id.chitty.cc is unavailable
+ * REMOVED: generateFallbackChittyId()
+ *
+ * ChittyOS Policy: NO local ChittyID generation permitted.
+ * All ChittyIDs MUST be minted from id.chitty.cc service.
+ * Fallback generation violates ChittyID Authority and has been removed.
  */
-function generateFallbackChittyId(workerName) {
-  const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const chittyId = `CHITTY-WORKER-${workerName.toUpperCase()}-${random}-${timestamp}`;
-
-  console.warn(`Generated fallback ChittyID: ${chittyId}`);
-
-  return {
-    chittyId,
-    shortId: `${workerName.substring(0, 4).toUpperCase()}-${random}`,
-    fallback: true,
-    generated: new Date().toISOString()
-  };
-}
 
 /**
  * Get worker capabilities for ChittyID metadata
  */
 function getWorkerCapabilities(workerName) {
   const capabilities = {
-    'chittyrouter': ['ai', 'email', 'routing', 'sync'],
-    'chittychat': ['messaging', 'sessions', 'github-sync'],
-    'chittyid': ['id-generation', 'verification'],
-    'chittychain': ['blockchain', 'ledger', 'immutable-storage'],
-    'chittydashboard': ['ui', 'analytics', 'reporting'],
-    'chittycases': ['case-management', 'legal-workflow'],
-    'chittyverify': ['verification', 'authentication'],
-    'chitty-unified': ['ai', 'processing', 'sync', 'logging'],
-    'chitty-ui': ['frontend', 'dashboard', 'user-interface'],
-    'chitty-connect': ['integrations', 'webhooks', 'external-apis']
+    chittyrouter: ["ai", "email", "routing", "sync"],
+    chittychat: ["messaging", "sessions", "github-sync"],
+    chittyid: ["id-generation", "verification"],
+    chittychain: ["blockchain", "ledger", "immutable-storage"],
+    chittydashboard: ["ui", "analytics", "reporting"],
+    chittycases: ["case-management", "legal-workflow"],
+    chittyverify: ["verification", "authentication"],
+    "chitty-unified": ["ai", "processing", "sync", "logging"],
+    "chitty-ui": ["frontend", "dashboard", "user-interface"],
+    "chitty-connect": ["integrations", "webhooks", "external-apis"],
   };
 
-  return capabilities[workerName] || ['general'];
+  return capabilities[workerName] || ["general"];
 }
 
 /**
  * Known worker ChittyIDs (hardcoded registry)
  */
 const KNOWN_WORKER_IDS = {
-  'chittyid': 'CHITTY-CORE-ID-000001',
-  'chittychat': 'CHITTY-CORE-CHAT-000002',
-  'chittychain': 'CHITTY-CORE-CHAIN-000003'
+  chittyid: "CHITTY-CORE-ID-000001",
+  chittychat: "CHITTY-CORE-CHAT-000002",
+  chittychain: "CHITTY-CORE-CHAIN-000003",
 };
 
 /**
@@ -254,22 +255,26 @@ export async function batchRequestChittyIds(workers) {
 
   for (const worker of workers) {
     try {
-      const result = await requestChittyId(worker.name, worker.metadata || {}, worker.env);
+      const result = await requestChittyId(
+        worker.name,
+        worker.metadata || {},
+        worker.env,
+      );
       results.push({
         workerName: worker.name,
         chittyId: result.chittyId,
-        success: true
+        success: true,
       });
     } catch (error) {
       console.error(`Failed to request ChittyID for ${worker.name}:`, error);
 
-      // Use fallback for this worker
-      const fallback = generateFallbackChittyId(worker.name);
+      // NO FALLBACK - Record failure without generating local ID
       results.push({
         workerName: worker.name,
-        chittyId: fallback.chittyId,
+        chittyId: null,
         success: false,
-        fallback: true
+        error: error.message,
+        message: "ChittyID service unavailable - no local generation permitted",
       });
     }
   }
@@ -291,10 +296,10 @@ export async function chittyIdMiddleware(env, workerName) {
   return {
     chittyId,
     addToResponse: (response) => {
-      response.headers.set('X-ChittyID', chittyId);
-      response.headers.set('X-Worker-Name', workerName);
+      response.headers.set("X-ChittyID", chittyId);
+      response.headers.set("X-Worker-Name", workerName);
       return response;
-    }
+    },
   };
 }
 
@@ -305,7 +310,7 @@ export async function initializeChittyIdDiscovery(env) {
   if (!serviceDiscovery) {
     serviceDiscovery = new ServiceDiscovery(env);
     await serviceDiscovery.initialize();
-    console.log('🆔 ChittyID service discovery initialized');
+    console.log("🆔 ChittyID service discovery initialized");
   }
   return serviceDiscovery;
 }
@@ -320,5 +325,5 @@ export const ChittyIdClient = {
   batch: batchRequestChittyIds,
   middleware: chittyIdMiddleware,
   initializeDiscovery: initializeChittyIdDiscovery,
-  getEndpoint: getChittyIdApiEndpoint
+  getEndpoint: getChittyIdApiEndpoint,
 };

@@ -1,0 +1,36 @@
+name = "chittyrouter"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+account_id = "0bc21e3a5a9de1a4cc843be9c3e98121"
+
+[env.staging]
+name = "chittyrouter-staging"
+main = "src/index.js"
+vars = { SERVICE_NAME = "chittyrouter-ai-staging", SERVICE_VERSION = "2.1.0-staging", CHITTYOS_ENVIRONMENT = "staging", VERSION_MANAGEMENT = "enterprise", RANDOMNESS_BEACON = "true" }
+
+[env.staging.ai]
+binding = "AI"
+
+[env.production]
+name = "chittyrouter-production"
+main = "src/index.js"
+vars = { SERVICE_NAME = "chittyrouter-ai", SERVICE_VERSION = "2.1.0", CHITTYOS_ENVIRONMENT = "production", VERSION_MANAGEMENT = "enterprise", RANDOMNESS_BEACON = "true" }
+
+[env.production.ai]
+binding = "AI"
+
+[[env.production.routes]]
+pattern = "router.chitty.cc/*"
+zone_name = "chitty.cc"
+
+# Default/development configuration
+[vars]
+SERVICE_NAME = "chittyrouter-ai"
+SERVICE_VERSION = "2.1.0"
+CHITTYOS_ENVIRONMENT = "production"
+VERSION_MANAGEMENT = "enterprise"
+RANDOMNESS_BEACON = "true"
+
+[ai]
+binding = "AI"
