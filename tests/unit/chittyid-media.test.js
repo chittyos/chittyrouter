@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import {
   generateMediaChittyID,
-  validateChittyID,
+  requestEmailChittyID,
   getChittyIDType,
   parseMediaChittyID,
-} from "../../src/utils/chittyid-generator.js";
+} from "../../src/utils/chittyid-client.js";
 
 describe("Media ChittyID Generation and Validation", () => {
   let testChittyIDs;
@@ -60,21 +60,21 @@ describe("Media ChittyID Generation and Validation", () => {
     });
   });
 
-  describe("validateChittyID", () => {
+  describe("requestEmailChittyID", () => {
     it("should validate existing migration ChittyIDs", () => {
       testChittyIDs.forEach((chittyId) => {
-        expect(validateChittyID(chittyId)).toBe(true);
+        expect(requestEmailChittyID(chittyId)).toBe(true);
       });
     });
 
     it("should validate standard email ChittyIDs", () => {
       const emailChittyID = "CE-1234abcd-EMAIL-1757369100211";
-      expect(validateChittyID(emailChittyID)).toBe(true);
+      expect(requestEmailChittyID(emailChittyID)).toBe(true);
     });
 
     it("should validate document ChittyIDs", () => {
       const docChittyID = "CD-5678efab-DOC-1757369100211";
-      expect(validateChittyID(docChittyID)).toBe(true);
+      expect(requestEmailChittyID(docChittyID)).toBe(true);
     });
 
     it("should reject invalid ChittyIDs", () => {
@@ -86,7 +86,7 @@ describe("Media ChittyID Generation and Validation", () => {
       ];
 
       invalidIds.forEach((id) => {
-        expect(validateChittyID(id)).toBe(false);
+        expect(requestEmailChittyID(id)).toBe(false);
       });
     });
   });
@@ -167,7 +167,7 @@ describe("Media ChittyID Generation and Validation", () => {
       );
 
       chittyIds.forEach((chittyId) => {
-        expect(validateChittyID(chittyId)).toBe(true);
+        expect(requestEmailChittyID(chittyId)).toBe(true);
         expect(getChittyIDType(chittyId)).toBe("MEDIA");
 
         const parsed = parseMediaChittyID(chittyId);

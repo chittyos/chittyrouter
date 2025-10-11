@@ -42,8 +42,8 @@ vi.mock("../../src/ai/intelligent-router.js", () => ({
 }));
 
 // Mock utilities - Using mock format to avoid rogue ChittyID patterns
-vi.mock("../../src/utils/chittyid-generator.js", () => ({
-  generateEmailChittyID: vi.fn().mockResolvedValue("MOCK-TEST-456"),
+vi.mock("../../src/utils/chittyid-client.js", () => ({
+  requestEmailChittyID: vi.fn().mockResolvedValue("MOCK-TEST-456"),
 }));
 
 vi.mock("../../src/utils/storage.js", () => ({
@@ -547,10 +547,10 @@ describe("EmailProcessor", () => {
         attachments: [{ name: "test.pdf", size: 123, type: "application/pdf" }],
       };
 
-      const { generateEmailChittyID } = await import(
-        "../../src/utils/chittyid-generator.js"
+      const { requestEmailChittyID } = await import(
+        "../../src/utils/chittyid-client.js"
       );
-      generateEmailChittyID.mockRejectedValueOnce(
+      requestEmailChittyID.mockRejectedValueOnce(
         new Error("ChittyID generation failed"),
       );
 

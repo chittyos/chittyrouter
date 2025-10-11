@@ -4,7 +4,7 @@
  * Test script for ChittyRouter email routing functionality
  */
 
-import { generateEmailChittyID, validateChittyID } from '../src/utils/chittyid-generator.js';
+import { requestEmailChittyID, requestEmailChittyID } from '../src/utils/chittyid-client.js';
 
 // Mock email message for testing
 const mockEmailMessage = {
@@ -19,10 +19,10 @@ async function testChittyIDGeneration() {
   console.log('🧪 Testing ChittyID Generation...');
 
   try {
-    const chittyId = await generateEmailChittyID(mockEmailMessage);
+    const chittyId = await requestEmailChittyID(mockEmailMessage);
     console.log('✅ Generated ChittyID:', chittyId);
 
-    const isValid = validateChittyID(chittyId);
+    const isValid = requestEmailChittyID(chittyId);
     console.log('✅ ChittyID validation:', isValid ? 'PASS' : 'FAIL');
 
     return chittyId;

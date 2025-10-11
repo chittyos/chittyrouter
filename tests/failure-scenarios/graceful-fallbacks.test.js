@@ -202,8 +202,8 @@ describe('Failure Scenarios - Graceful Fallbacks', () => {
 
     it('should handle ChittyID generation failures', async () => {
       // Mock ChittyID generation to fail
-      vi.doMock('../../src/utils/chittyid-generator.js', () => ({
-        generateEmailChittyID: vi.fn().mockRejectedValue(new Error('ChittyID generation failed'))
+      vi.doMock('../../src/utils/chittyid-client.js', () => ({
+        requestEmailChittyID: vi.fn().mockRejectedValue(new Error('ChittyID generation failed'))
       }));
 
       const message = createMockMessage('document_evidence');

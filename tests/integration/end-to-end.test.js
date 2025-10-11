@@ -3,34 +3,41 @@
  * Tests complete email processing workflows through ChittyRouter AI Gateway
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { EmailProcessor } from '../../src/ai/email-processor.js';
-import { ChittyRouterAI } from '../../src/ai/intelligent-router.js';
-import { AgentOrchestrator } from '../../src/ai/agent-orchestrator.js';
-import { AIStateDO } from '../../src/ai/ai-state.js';
-import { mockAI } from '../mocks/ai-responses.js';
-import { testEmails, createMockMessage } from '../data/test-emails.js';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { EmailProcessor } from "../../src/ai/email-processor.js";
+import { ChittyRouterAI } from "../../src/ai/intelligent-router.js";
+import { AgentOrchestrator } from "../../src/ai/agent-orchestrator.js";
+import { AIStateDO } from "../../src/ai/ai-state.js";
+import { mockAI } from "../mocks/ai-responses.js";
+import { testEmails, createMockMessage } from "../data/test-emails.js";
 
-// Mock utilities
-vi.mock('../../src/utils/chittyid-generator.js', () => ({
-  generateEmailChittyID: vi.fn().mockImplementation((emailData) => {
+// Mock ChittyID client (using official @chittyos/chittyid-client)
+vi.mock("../../src/utils/chittyid-client.js", () => ({
+  requestEmailChittyID: vi.fn().mockImplementation((message) => {
     const timestamp = Date.now();
     const hash = Math.random().toString(36).substr(2, 9);
-    return Promise.resolve(`CHITTY-${timestamp}-${hash}`);
-  })
+    return Promise.resolve(`CHITTY-EMAIL-${timestamp}-${hash}`);
+  }),
+  requestDocumentChittyID: vi.fn().mockImplementation((document) => {
+    const timestamp = Date.now();
+    const hash = Math.random().toString(36).substr(2, 9);
+    return Promise.resolve(`CHITTY-DOC-${timestamp}-${hash}`);
+  }),
 }));
 
-vi.mock('../../src/utils/storage.js', () => ({
-  storeInChittyChain: vi.fn().mockResolvedValue({ success: true, stored: true }),
-  logEmailToChain: vi.fn().mockResolvedValue({ success: true, logged: true })
+vi.mock("../../src/utils/storage.js", () => ({
+  storeInChittyChain: vi
+    .fn()
+    .mockResolvedValue({ success: true, stored: true }),
+  logEmailToChain: vi.fn().mockResolvedValue({ success: true, logged: true }),
 }));
 
 // Mock chain logger
-vi.mock('../../src/utils/chain-logger.js', () => ({
-  logEmailToChain: vi.fn().mockResolvedValue({ success: true, logged: true })
+vi.mock("../../src/utils/chain-logger.js", () => ({
+  logEmailToChain: vi.fn().mockResolvedValue({ success: true, logged: true }),
 }));
 
-describe('End-to-End Email Processing', () => {
+describe("End-to-End Email Processing", () => {
   let processor;
   let router;
   let orchestrator;
@@ -38,9 +45,9 @@ describe('End-to-End Email Processing', () => {
 
   beforeEach(() => {
     mockEnv = {
-      CHITTY_CHAIN_URL: 'https://test-chain.example.com',
-      AI_MODEL: '@cf/meta/llama-3.1-8b-instruct',
-      CHITTY_STATE_URL: 'https://test-state.example.com'
+      CHITTY_CHAIN_URL: "https://test-chain.example.com",
+      AI_MODEL: "@cf/meta/llama-3.1-8b-instruct",
+      CHITTY_STATE_URL: "https://test-state.example.com",
     };
 
     router = new ChittyRouterAI(mockAI, mockEnv);
@@ -54,9 +61,9 @@ describe('End-to-End Email Processing', () => {
     vi.clearAllMocks();
   });
 
-  describe('Lawsuit Email Processing', () => {
-    it('should process urgent lawsuit email end-to-end', async () => {
-      const message = createMockMessage('lawsuit_urgent');
+  describe("Lawsuit Email Processing", () => {
+    it("should process urgent lawsuit email end-to-end", async () => {
+      const message = createMockMessage("lawsuit_urgent");
 
       // Process the email
       const result = await processor.processIncomingEmail(message, {});
@@ -75,16 +82,18 @@ describe('End-to-End Email Processing', () => {
       expect(result.actions_taken.length).toBeGreaterThan(0);
 
       // Verify ChittyID generation was called
-      const { generateEmailChittyID } = await import('../../src/utils/chittyid-generator.js');
-      expect(generateEmailChittyID).toHaveBeenCalled();
+      const { requestEmailChittyID } = await import(
+        "../../src/utils/chittyid-client.js"
+      );
+      expect(requestEmailChittyID).toHaveBeenCalled();
 
       // Verify storage calls were made
-      const { storeInChittyChain } = await import('../../src/utils/storage.js');
+      const { storeInChittyChain } = await import("../../src/utils/storage.js");
       expect(storeInChittyChain).toHaveBeenCalled();
     });
 
-    it('should handle lawsuit with settlement discussion', async () => {
-      const message = createMockMessage('lawsuit_settlement');
+    it("should handle lawsuit with settlement discussion", async () => {
+      const message = createMockMessage("lawsuit_settlement");
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -97,9 +106,9 @@ describe('End-to-End Email Processing', () => {
     });
   });
 
-  describe('Emergency Email Processing', () => {
-    it('should process emergency TRO email with escalation', async () => {
-      const message = createMockMessage('emergency_injunction');
+  describe("Emergency Email Processing", () => {
+    it("should process emergency TRO email with escalation", async () => {
+      const message = createMockMessage("emergency_injunction");
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -110,8 +119,8 @@ describe('End-to-End Email Processing', () => {
       expect(result.chittyId).toBeDefined();
     });
 
-    it('should process federal subpoena with compliance handling', async () => {
-      const message = createMockMessage('emergency_subpoena');
+    it("should process federal subpoena with compliance handling", async () => {
+      const message = createMockMessage("emergency_subpoena");
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -120,9 +129,9 @@ describe('End-to-End Email Processing', () => {
     });
   });
 
-  describe('Document Submission Processing', () => {
-    it('should process document evidence submission', async () => {
-      const message = createMockMessage('document_evidence');
+  describe("Document Submission Processing", () => {
+    it("should process document evidence submission", async () => {
+      const message = createMockMessage("document_evidence");
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -132,17 +141,19 @@ describe('End-to-End Email Processing', () => {
       // Verify attachment processing
       const emailData = await processor.extractEmailData(message);
       expect(emailData.attachments).toBeDefined();
-      expect(emailData.attachments.length).toBe(testEmails.document_evidence.attachments.length);
+      expect(emailData.attachments.length).toBe(
+        testEmails.document_evidence.attachments.length,
+      );
 
       // Each attachment should have a ChittyID
-      emailData.attachments.forEach(attachment => {
+      emailData.attachments.forEach((attachment) => {
         expect(attachment.chittyId).toBeDefined();
         expect(attachment.processed).toBe(true);
       });
     });
 
-    it('should process court filing confirmation', async () => {
-      const message = createMockMessage('document_filing');
+    it("should process court filing confirmation", async () => {
+      const message = createMockMessage("document_filing");
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -151,9 +162,9 @@ describe('End-to-End Email Processing', () => {
     });
   });
 
-  describe('Client Communication Processing', () => {
-    it('should process new client consultation request', async () => {
-      const message = createMockMessage('client_consultation');
+  describe("Client Communication Processing", () => {
+    it("should process new client consultation request", async () => {
+      const message = createMockMessage("client_consultation");
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -162,8 +173,8 @@ describe('End-to-End Email Processing', () => {
       expect(result.chittyId).toBeDefined();
     });
 
-    it('should process existing client update request', async () => {
-      const message = createMockMessage('client_update_request');
+    it("should process existing client update request", async () => {
+      const message = createMockMessage("client_update_request");
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -172,9 +183,9 @@ describe('End-to-End Email Processing', () => {
     });
   });
 
-  describe('General Inquiry Processing', () => {
-    it('should process general legal question', async () => {
-      const message = createMockMessage('general_question');
+  describe("General Inquiry Processing", () => {
+    it("should process general legal question", async () => {
+      const message = createMockMessage("general_question");
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -183,9 +194,9 @@ describe('End-to-End Email Processing', () => {
     });
   });
 
-  describe('Appointment and Scheduling Processing', () => {
-    it('should process deposition scheduling request', async () => {
-      const message = createMockMessage('appointment_request');
+  describe("Appointment and Scheduling Processing", () => {
+    it("should process deposition scheduling request", async () => {
+      const message = createMockMessage("appointment_request");
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -194,9 +205,9 @@ describe('End-to-End Email Processing', () => {
     });
   });
 
-  describe('Billing Inquiry Processing', () => {
-    it('should process billing question', async () => {
-      const message = createMockMessage('billing_question');
+  describe("Billing Inquiry Processing", () => {
+    it("should process billing question", async () => {
+      const message = createMockMessage("billing_question");
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -205,8 +216,8 @@ describe('End-to-End Email Processing', () => {
     });
   });
 
-  describe('AI Routing Intelligence', () => {
-    it('should make intelligent routing decisions based on content analysis', async () => {
+  describe("AI Routing Intelligence", () => {
+    it("should make intelligent routing decisions based on content analysis", async () => {
       const emailData = testEmails.lawsuit_urgent;
 
       const routingResult = await router.intelligentRoute(emailData);
@@ -226,7 +237,7 @@ describe('End-to-End Email Processing', () => {
       expect(routingResult.ai.routing.reasoning).toBeDefined();
     });
 
-    it('should generate appropriate auto-responses', async () => {
+    it("should generate appropriate auto-responses", async () => {
       const emailData = testEmails.client_consultation;
 
       const routingResult = await router.intelligentRoute(emailData);
@@ -234,11 +245,11 @@ describe('End-to-End Email Processing', () => {
       if (routingResult.ai.response?.should_respond) {
         expect(routingResult.ai.response.subject).toBeDefined();
         expect(routingResult.ai.response.body).toBeDefined();
-        expect(routingResult.ai.response.type).toBe('ai_generated');
+        expect(routingResult.ai.response.type).toBe("ai_generated");
       }
     });
 
-    it('should analyze attachments intelligently', async () => {
+    it("should analyze attachments intelligently", async () => {
       const emailData = testEmails.document_evidence;
 
       const routingResult = await router.intelligentRoute(emailData);
@@ -252,55 +263,59 @@ describe('End-to-End Email Processing', () => {
     });
   });
 
-  describe('Agent Orchestration Integration', () => {
-    it('should orchestrate agents for case analysis', async () => {
+  describe("Agent Orchestration Integration", () => {
+    it("should orchestrate agents for case analysis", async () => {
       const taskData = {
-        type: 'case_analysis',
-        caseId: 'SMITH_v_JONES',
-        emailData: testEmails.lawsuit_urgent
+        type: "case_analysis",
+        caseId: "SMITH_v_JONES",
+        emailData: testEmails.lawsuit_urgent,
       };
 
       const result = await orchestrator.executeTask(taskData);
 
       expect(result.success).toBe(true);
       expect(result.taskId).toBeDefined();
-      expect(result.agents_used).toContain('legal_analyzer');
+      expect(result.agents_used).toContain("legal_analyzer");
       expect(result.result.total_steps).toBeGreaterThan(0);
       expect(result.result.success_rate).toBeDefined();
     });
 
-    it('should orchestrate agents for document review', async () => {
+    it("should orchestrate agents for document review", async () => {
       const taskData = {
-        type: 'document_review',
-        documents: testEmails.document_evidence.attachments
+        type: "document_review",
+        documents: testEmails.document_evidence.attachments,
       };
 
       const result = await orchestrator.executeTask(taskData);
 
       expect(result.success).toBe(true);
-      expect(result.agents_used).toContain('document_analyzer');
+      expect(result.agents_used).toContain("document_analyzer");
       expect(result.result.completed_steps).toBeGreaterThan(0);
     });
 
-    it('should orchestrate agents for client communication', async () => {
+    it("should orchestrate agents for client communication", async () => {
       const taskData = {
-        type: 'client_communication',
-        emailData: testEmails.client_consultation
+        type: "client_communication",
+        emailData: testEmails.client_consultation,
       };
 
       const result = await orchestrator.executeTask(taskData);
 
       expect(result.success).toBe(true);
-      expect(result.agents_used).toContain('triage_agent');
+      expect(result.agents_used).toContain("triage_agent");
     });
   });
 
-  describe('ChittyID Generation and Tracking', () => {
-    it('should generate unique ChittyIDs for each email', async () => {
+  describe("ChittyID Generation and Tracking", () => {
+    it("should generate unique ChittyIDs for each email", async () => {
       const chittyIds = new Set();
 
       // Process multiple emails
-      for (const emailKey of ['lawsuit_urgent', 'document_evidence', 'client_consultation']) {
+      for (const emailKey of [
+        "lawsuit_urgent",
+        "document_evidence",
+        "client_consultation",
+      ]) {
         const message = createMockMessage(emailKey);
         const result = await processor.processIncomingEmail(message, {});
 
@@ -312,8 +327,8 @@ describe('End-to-End Email Processing', () => {
       expect(chittyIds.size).toBe(3);
     });
 
-    it('should track ChittyIDs through the entire pipeline', async () => {
-      const message = createMockMessage('lawsuit_urgent');
+    it("should track ChittyIDs through the entire pipeline", async () => {
+      const message = createMockMessage("lawsuit_urgent");
 
       // Extract email data
       const emailData = await processor.extractEmailData(message);
@@ -330,21 +345,21 @@ describe('End-to-End Email Processing', () => {
     });
   });
 
-  describe('ChittyChain Integration', () => {
-    it('should log all processing steps to ChittyChain', async () => {
-      const message = createMockMessage('lawsuit_urgent');
+  describe("ChittyChain Integration", () => {
+    it("should log all processing steps to ChittyChain", async () => {
+      const message = createMockMessage("lawsuit_urgent");
 
       const result = await processor.processIncomingEmail(message, {});
 
       expect(result.success).toBe(true);
 
       // Verify chain logging was called
-      const { storeInChittyChain } = await import('../../src/utils/storage.js');
+      const { storeInChittyChain } = await import("../../src/utils/storage.js");
       expect(storeInChittyChain).toHaveBeenCalled();
     });
 
-    it('should create immutable audit trail', async () => {
-      const message = createMockMessage('emergency_injunction');
+    it("should create immutable audit trail", async () => {
+      const message = createMockMessage("emergency_injunction");
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -352,23 +367,23 @@ describe('End-to-End Email Processing', () => {
       expect(result.chittyId).toBeDefined();
 
       // Chain should have record of processing
-      const { storeInChittyChain } = await import('../../src/utils/storage.js');
+      const { storeInChittyChain } = await import("../../src/utils/storage.js");
       expect(storeInChittyChain).toHaveBeenCalledWith(
         expect.objectContaining({
-          chittyId: result.chittyId
-        })
+          chittyId: result.chittyId,
+        }),
       );
     });
   });
 
-  describe('Error Handling and Resilience', () => {
-    it('should gracefully handle AI service failures', async () => {
+  describe("Error Handling and Resilience", () => {
+    it("should gracefully handle AI service failures", async () => {
       const failingAI = {
-        run: vi.fn().mockRejectedValue(new Error('AI service unavailable'))
+        run: vi.fn().mockRejectedValue(new Error("AI service unavailable")),
       };
 
       const failingProcessor = new EmailProcessor(failingAI, mockEnv);
-      const message = createMockMessage('general_question');
+      const message = createMockMessage("general_question");
 
       const result = await failingProcessor.processIncomingEmail(message, {});
 
@@ -377,18 +392,20 @@ describe('End-to-End Email Processing', () => {
       expect(result.error).toBeDefined();
     });
 
-    it('should handle message processing failures gracefully', async () => {
+    it("should handle message processing failures gracefully", async () => {
       const invalidMessage = {
         from: null,
         to: null,
         headers: new Map(),
         attachments: [],
-        raw: null
+        raw: null,
       };
 
       // Mock streamToText to fail
       const originalStreamToText = processor.streamToText;
-      processor.streamToText = vi.fn().mockRejectedValue(new Error('Stream processing failed'));
+      processor.streamToText = vi
+        .fn()
+        .mockRejectedValue(new Error("Stream processing failed"));
 
       const result = await processor.processIncomingEmail(invalidMessage, {});
 
@@ -398,12 +415,14 @@ describe('End-to-End Email Processing', () => {
       processor.streamToText = originalStreamToText;
     });
 
-    it('should continue processing when non-critical components fail', async () => {
-      const message = createMockMessage('lawsuit_urgent');
+    it("should continue processing when non-critical components fail", async () => {
+      const message = createMockMessage("lawsuit_urgent");
 
       // Mock attachment processing to fail
       const originalProcessAttachments = processor.processAttachments;
-      processor.processAttachments = vi.fn().mockRejectedValue(new Error('Attachment processing failed'));
+      processor.processAttachments = vi
+        .fn()
+        .mockRejectedValue(new Error("Attachment processing failed"));
 
       const result = await processor.processIncomingEmail(message, {});
 
@@ -415,9 +434,9 @@ describe('End-to-End Email Processing', () => {
     });
   });
 
-  describe('Performance and Efficiency', () => {
-    it('should process emails within reasonable time limits', async () => {
-      const message = createMockMessage('lawsuit_urgent');
+  describe("Performance and Efficiency", () => {
+    it("should process emails within reasonable time limits", async () => {
+      const message = createMockMessage("lawsuit_urgent");
 
       const startTime = Date.now();
       const result = await processor.processIncomingEmail(message, {});
@@ -429,13 +448,13 @@ describe('End-to-End Email Processing', () => {
       expect(processingTime).toBeLessThan(5000); // Should complete within 5 seconds
     });
 
-    it('should handle multiple email types efficiently', async () => {
+    it("should handle multiple email types efficiently", async () => {
       const emailTypes = [
-        'lawsuit_urgent',
-        'document_evidence',
-        'client_consultation',
-        'general_question',
-        'emergency_injunction'
+        "lawsuit_urgent",
+        "document_evidence",
+        "client_consultation",
+        "general_question",
+        "emergency_injunction",
       ];
 
       const results = [];
@@ -451,7 +470,7 @@ describe('End-to-End Email Processing', () => {
       const totalTime = endTime - startTime;
 
       // All should succeed
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.success).toBe(true);
         expect(result.chittyId).toBeDefined();
       });
@@ -461,9 +480,9 @@ describe('End-to-End Email Processing', () => {
     });
   });
 
-  describe('Data Consistency and Validation', () => {
-    it('should maintain data consistency across all components', async () => {
-      const message = createMockMessage('lawsuit_settlement');
+  describe("Data Consistency and Validation", () => {
+    it("should maintain data consistency across all components", async () => {
+      const message = createMockMessage("lawsuit_settlement");
 
       const emailData = await processor.extractEmailData(message);
       const routingResult = await router.intelligentRoute(emailData);
@@ -479,16 +498,16 @@ describe('End-to-End Email Processing', () => {
       expect(finalResult.actions_taken).toBeDefined();
     });
 
-    it('should validate all required fields are present', async () => {
-      const message = createMockMessage('document_evidence');
+    it("should validate all required fields are present", async () => {
+      const message = createMockMessage("document_evidence");
 
       const result = await processor.processIncomingEmail(message, {});
 
-      expect(result).toHaveProperty('success');
-      expect(result).toHaveProperty('chittyId');
-      expect(result).toHaveProperty('ai_processed');
-      expect(result).toHaveProperty('routing');
-      expect(result).toHaveProperty('actions_taken');
+      expect(result).toHaveProperty("success");
+      expect(result).toHaveProperty("chittyId");
+      expect(result).toHaveProperty("ai_processed");
+      expect(result).toHaveProperty("routing");
+      expect(result).toHaveProperty("actions_taken");
     });
   });
 });
