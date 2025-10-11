@@ -6,12 +6,12 @@ Intelligent AI agents with memory, learning, and self-healing capabilities deplo
 
 ## 🚀 New: Persistent AI Agents ✅ DEPLOYED
 
-**REAL agents with memory, learning, and self-healing - NO TOY CODE!**
+Persistent agents with memory, learning, and self-healing capabilities deployed to production.
 
 - ✅ **4-Tier Memory System**: KV + Vectorize + R2 + Durable Objects
 - ✅ **Learning Engine**: Agents improve with each interaction
 - ✅ **Self-Healing**: Automatic fallback chains
-- ✅ **88% Cost Savings**: $500/mo → $60/mo using Workers AI
+- ✅ **Cost Optimization**: Workers AI free tier for simple tasks
 - ✅ **Production Live**: https://router.chitty.cc/platform/agents/
 
 ### Quick Start

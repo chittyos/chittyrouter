@@ -171,10 +171,14 @@ await env.AGENT_EPISODIC_MEMORY.put(
 );
 ```
 
-#### Tier 4: Long-Term Memory (Neon PostgreSQL)
-**Purpose**: Aggregate statistics, evolution history
-**Schema**:
+#### Tier 4: Aggregate Statistics (Durable Object State)
+**Purpose**: Agent-level aggregate statistics and performance tracking
+**Storage**: Durable Object persistent state (SQLite backend)
+**Implementation**: `persistent-agent.js:112-133` (updateAggregateStats)
 
+**Future Enhancement**: PostgreSQL integration planned for cross-agent analytics and historical trend analysis
+
+**Proposed Schema** (not yet implemented):
 ```sql
 CREATE TABLE agent_memory (
   agent_id TEXT PRIMARY KEY,
@@ -467,16 +471,17 @@ export class ChittyRouterAI {
 
 ## Expected Results
 
-**Cost Savings**: 88% reduction ($500/mo → $60/mo)
-- Workers AI handles 80% of simple tasks (FREE)
-- AI Gateway caching reduces external calls by 50-80%
-- Learning engine optimizes provider selection
+**Cost Optimization Potential**:
+- Workers AI free tier available for simple tasks (workload distribution varies by use case)
+- AI Gateway caching enabled (actual hit rates require production monitoring)
+- Learning engine selects providers based on historical performance scores
+- **Note**: Actual cost savings depend on task complexity distribution and require measurement over 30+ days
 
-**Performance Improvements**:
-- Cached responses: <50ms
-- Memory-enhanced responses: Higher quality
-- Self-healing: Automatic recovery from failures
-- Evolution: Continuous improvement over time
+**Performance Characteristics**:
+- Cached responses: Expected <50ms (requires production measurement)
+- Memory-enhanced responses: Context from past interactions improves relevance
+- Self-healing: Automatic fallback chains on provider failures (verified functional)
+- Evolution: Score-based provider optimization with each interaction
 
 **Intelligence Growth**:
 - Agents learn optimal strategies per task type

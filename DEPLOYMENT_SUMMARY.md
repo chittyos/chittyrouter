@@ -8,7 +8,7 @@
 
 ## What Was Built
 
-**REAL persistent AI agents** with memory, learning, and self-healing - NO TOY CODE.
+Persistent AI agents with memory, learning, and self-healing capabilities deployed to production.
 
 ### Core Features Implemented
 
@@ -38,7 +38,7 @@
    - Using existing `chittygateway`
    - Multi-provider support (Workers AI, OpenAI, Anthropic, etc.)
    - Intelligent routing by task complexity
-   - 88% cost savings (FREE Workers AI for most tasks)
+   - Cost optimization through Workers AI free tier (actual savings require measurement)
 
 ---
 
@@ -113,19 +113,21 @@ Purpose: Long-term episodic memory storage
 
 ### Production Tests
 
-**Email Router Agent:**
+**Production Agent Status** (as of Oct 10, 2025):
 ```
 Agent ID: e729570037755e361b3b81123a5421c51f1140227a9fa03d97e0c4be9ab16c6d
-Total Interactions: 1+
+Total Interactions: 1
 Total Cost: $0.00
 Provider: workersai (FREE)
 ```
 
-**Learning Evidence:**
-After 6 interactions:
-- `email_routing:workersai`: 2.1 (learned from 3 tasks)
-- `triage:workersai`: 1.4 (learned from 2 tasks)
-- `legal_reasoning:workersai`: 0.7 (baseline)
+**Test Environment Results** (local testing):
+After 6 test interactions:
+- `email_routing:workersai`: 2.1 (3 test tasks)
+- `triage:workersai`: 1.4 (2 test tasks)
+- `legal_reasoning:workersai`: 0.7 (1 test task)
+
+**Note**: Production deployment is recent; metrics will accumulate with usage.
 
 ---
 
@@ -155,16 +157,15 @@ GET https://router.chitty.cc/platform/agents/{agentName}/health
 
 ---
 
-## Cost Savings
+## Cost Structure
 
-**Before**: $500/month (external AI APIs)
-**After**: $60/month (mostly Workers AI - FREE tier)
-**Savings**: 88% reduction
+**Current Configuration**:
+- Workers AI: FREE tier for simple tasks (actual usage distribution TBD)
+- AI Gateway: Caching enabled (cache hit rates not yet measured)
+- Learning optimization: Provider selection based on quality/success scores
+- External providers: Used when Workers AI insufficient (cost varies by model)
 
-**Cost Breakdown:**
-- Workers AI: FREE (80% of simple tasks)
-- AI Gateway caching: 50-80% reduction in external calls
-- Learning optimization: Selects cheapest provider for each task type
+**Measurement Required**: Run production workload for 30+ days to establish baseline vs optimized costs
 
 ---
 
@@ -274,8 +275,43 @@ curl https://router.chitty.cc/platform/agents/email-router/health
 ✅ **Zero downtime deployment**
 ✅ **All 4 memory tiers operational**
 ✅ **Learning system functional**
-✅ **88% cost reduction achieved**
+✅ **Cost optimization framework deployed**
 ✅ **Self-healing verified**
 ✅ **Production stable at router.chitty.cc**
 
-**This is production-ready infrastructure with REAL intelligence, memory, and evolution - not toy code!** 🚀
+---
+
+## Current Limitations
+
+**As of October 2025 deployment**:
+
+1. **PostgreSQL Analytics**: Not yet implemented
+   - Current: Durable Object state for aggregate stats
+   - Planned: Neon PostgreSQL for cross-agent analytics
+
+2. **Semantic Memory (Vectorize)**: Partial implementation
+   - Storage layer configured
+   - Embedding generation not yet integrated
+   - Currently returns empty array (line 99-100 in persistent-agent.js)
+
+3. **Production Data**: Early deployment phase
+   - Limited production usage (1 interaction as of Oct 10)
+   - Cost/performance claims require validation with production workload
+   - Cache hit rates not yet measured
+
+4. **Learning Algorithm**: Heuristic-based
+   - Simple score accumulation (not machine learning)
+   - Provider selection based on success/failure history
+   - Quality assessment uses static heuristics (line 435-442)
+
+5. **Model Scores**: Baseline initialization
+   - Agents start with default provider preferences
+   - Requires 10+ interactions per task type for meaningful optimization
+   - No cross-agent learning (each agent learns independently)
+
+**Roadmap**:
+- [ ] Complete Vectorize embedding integration
+- [ ] Add PostgreSQL analytics tier
+- [ ] Implement user feedback quality scoring
+- [ ] Add cross-agent learning patterns
+- [ ] Build monitoring dashboard for cost/performance tracking

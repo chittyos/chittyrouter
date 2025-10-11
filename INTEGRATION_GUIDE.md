@@ -164,21 +164,21 @@ curl https://router.chitty.cc/platform/agents/email-router/stats
 Response:
 ```json
 {
-  "agent_id": "...",
+  "agent_id": "e729570037755e...",
   "stats": {
-    "total_interactions": 150,
+    "total_interactions": 150,  // Example - actual values vary
     "total_cost": 0.00,
     "provider_usage": {
-      "workersai": 145,
+      "workersai": 145,  // Example distribution
       "anthropic": 5
     },
     "task_type_usage": {
-      "email_routing": 100,
+      "email_routing": 100,  // Example - varies by usage
       "triage": 50
     }
   },
   "model_scores": {
-    "email_routing:workersai": 25.5,
+    "email_routing:workersai": 25.5,  // Example score
     "triage:workersai": 12.8
   }
 }
@@ -255,7 +255,7 @@ When a provider fails, agent automatically tries fallbacks:
 
 Agents automatically:
 1. Try Workers AI first (FREE)
-2. Use cache when available (50-80% hit rate)
+2. Use cache when available (hit rates require measurement)
 3. Learn which provider works best per task
 4. Minimize costs while maximizing quality
 
