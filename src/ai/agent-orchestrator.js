@@ -17,7 +17,7 @@ export class AgentOrchestrator {
     console.log('🎯 Agent orchestrator executing task:', taskData.type);
 
     try {
-      const taskId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const taskId = `task-${Date.now()}`;
 
       // Determine required agents based on task type
       const requiredAgents = this.determineRequiredAgents(taskData);

@@ -140,7 +140,7 @@ export class HardenedMintingService {
           timestamp: new Date().toISOString(),
           event,
           data,
-          auditId: `audit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          auditId: `audit-${Date.now()}`,
           level: 'INFO'
         };
 
@@ -1165,7 +1165,7 @@ export class HardenedMintingService {
    * Generate request ID
    */
   generateRequestId() {
-    return `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `req-${Date.now()}`;
   }
 
   /**

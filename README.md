@@ -1,9 +1,35 @@
-# ChittyOS Ultimate Worker
+# ChittyRouter - Persistent AI Agents Platform
 
-## Overview
-Flexible Cloudflare Worker architecture supporting both:
-1. **Unified Worker** - Single worker handling all services
-2. **Multi-Worker with Gateway** - Separate workers with service bindings
+**Production URL**: https://router.chitty.cc
+
+Intelligent AI agents with memory, learning, and self-healing capabilities deployed on Cloudflare Workers.
+
+## 🚀 New: Persistent AI Agents ✅ DEPLOYED
+
+Persistent agents with memory, learning, and self-healing capabilities deployed to production.
+
+- ✅ **4-Tier Memory System**: KV + Vectorize + R2 + Durable Objects
+- ✅ **Learning Engine**: Agents improve with each interaction
+- ✅ **Self-Healing**: Automatic fallback chains
+- ✅ **Cost Optimization**: Workers AI free tier for simple tasks
+- ✅ **Production Live**: https://router.chitty.cc/platform/agents/
+
+### Quick Start
+
+```bash
+curl -X POST 'https://router.chitty.cc/platform/agents/my-agent/complete' \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"Your task","taskType":"email_routing"}'
+```
+
+### Agent Documentation
+- **[Architecture](PERSISTENT_AGENTS_ARCHITECTURE.md)** - Complete system design
+- **[Integration Guide](INTEGRATION_GUIDE.md)** - How to use agents
+- **[Deployment Summary](DEPLOYMENT_SUMMARY.md)** - Infrastructure details
+
+## 📚 Other Documentation
+- **[Growth Loop Analytics](./GROWTH_LOOPS.md)** - Email worker feedback loops
+- **[AI Gateway Setup](AI_GATEWAY_SETUP.md)** - Gateway configuration
 
 ## Consolidated Services
 1. **chittyos-platform-live** - Main platform with AI, Durable Objects, and KV
@@ -21,6 +47,21 @@ Flexible Cloudflare Worker architecture supporting both:
 - Handles all 73 domains
 
 ## Deployment Options
+
+### Email Worker (Production)
+```bash
+# Deploy email worker with AI and analytics
+wrangler deploy --config wrangler-email.toml
+
+# Monitor logs
+wrangler tail chittyos-email-worker --format pretty
+
+# Run tests
+./tests/email-worker-suite.sh
+
+# View analytics
+wrangler kv key list --namespace-id=695c3bef12ca4c298c56630b51b94d9b --remote --prefix="email:"
+```
 
 ### Option 1: Unified Worker (Recommended for simplicity)
 ```bash

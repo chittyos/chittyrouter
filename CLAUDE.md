@@ -153,6 +153,34 @@ Primary AI routing logic in `src/ai/intelligent-router.js` uses confidence scori
 - Vector clocks in `src/sync/enhanced-session-sync.js` handle concurrent modifications
 - Cross-session synthesis available through `src/synthesis/chittychat-project-synth.js`
 
+### ChittyID Runtime Minting (Phase 1 Complete)
+The session management system now uses runtime ChittyID minting for all session identifiers:
+
+**Session ID Minting** (`src/sync/session-sync-manager.js`):
+- Session IDs are minted from `https://id.chitty.cc` using the `mintId()` helper
+- Entity type: `SESSN` (Session)
+- Purpose format: `{projectId}-sync` (e.g., `project-123-sync`)
+- Graceful fallback to `pending-sessn-{timestamp}` when service unavailable
+- No local random generation - fully compliant with ChittyCheck
+
+**Integration Pattern**:
+```javascript
+import { mintId } from '../utils/mint-id.js';
+
+// In SessionSyncManager.initSession()
+this.sessionId = sessionId || await mintId('SESSN', `${this.projectId}-sync`, this.env);
+```
+
+**Error Handling**:
+- On service failure, falls back to deterministic pending ID format
+- Logs errors but does not throw - session initialization continues
+- Pending IDs use timestamp for uniqueness: `pending-sessn-1696814400000`
+
+**Testing**:
+- Integration tests in `tests/integration/mintid-integration.test.js`
+- Tests cover success, failure, and fallback scenarios
+- Validates ChittyCheck compliance (no random patterns)
+
 ## Key API Endpoints
 
 **AI Services**:

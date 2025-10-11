@@ -3,19 +3,19 @@
  */
 
 export function classNames(...classes) {
-  return classes.filter(Boolean).join(' ');
+  return classes.filter(Boolean).join(" ");
 }
 
 export function formatBytes(bytes, decimals = 2) {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 }
 
 export function formatDuration(ms) {
@@ -26,12 +26,12 @@ export function formatDuration(ms) {
 }
 
 export function formatDate(date) {
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(date));
 }
 
@@ -43,61 +43,70 @@ export function formatRelativeTime(date) {
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
 
-  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-  return 'Just now';
+  if (days > 0) return `${days} day${days > 1 ? "s" : ""} ago`;
+  if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  if (minutes > 0) return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+  return "Just now";
 }
 
 export function getStatusColor(status) {
   switch (status?.toLowerCase()) {
-    case 'healthy':
-    case 'online':
-    case 'success':
-    case 'completed':
-      return 'green';
-    case 'warning':
-    case 'degraded':
-    case 'pending':
-      return 'yellow';
-    case 'error':
-    case 'offline':
-    case 'failed':
-    case 'critical':
-      return 'red';
-    case 'loading':
-    case 'processing':
-      return 'blue';
+    case "healthy":
+    case "online":
+    case "success":
+    case "completed":
+      return "green";
+    case "warning":
+    case "degraded":
+    case "pending":
+      return "yellow";
+    case "error":
+    case "offline":
+    case "failed":
+    case "critical":
+      return "red";
+    case "loading":
+    case "processing":
+      return "blue";
     default:
-      return 'gray';
+      return "gray";
   }
 }
 
 export function getStatusIcon(status) {
   const color = getStatusColor(status);
-  return `status-${color === 'green' ? 'healthy' :
-                  color === 'yellow' ? 'warning' :
-                  color === 'red' ? 'error' :
-                  color === 'blue' ? 'loading' : 'loading'}`;
+  return `status-${
+    color === "green"
+      ? "healthy"
+      : color === "yellow"
+        ? "warning"
+        : color === "red"
+          ? "error"
+          : color === "blue"
+            ? "loading"
+            : "loading"
+  }`;
 }
 
 export function truncateText(text, length = 50) {
   if (text.length <= length) return text;
-  return text.substr(0, length) + '...';
+  return text.substr(0, length) + "...";
 }
 
 export function parseChittyID(chittyId) {
   if (!chittyId) return null;
 
   // Standard ChittyID format: CE-hash-EMAIL-timestamp
-  const standardMatch = chittyId.match(/^(C[ECPD])-([a-f0-9]+)-(EMAIL|DOC|CASE|PERSON)-(\d+)$/);
+  const standardMatch = chittyId.match(
+    /^(C[ECPD])-([a-f0-9]+)-(EMAIL|DOC|CASE|PERSON)-(\d+)$/,
+  );
   if (standardMatch) {
     return {
       prefix: standardMatch[1],
       hash: standardMatch[2],
       type: standardMatch[3],
       timestamp: parseInt(standardMatch[4]),
-      format: 'standard'
+      format: "standard",
     };
   }
 
@@ -108,7 +117,7 @@ export function parseChittyID(chittyId) {
       source: mediaMatch[1],
       timestamp: parseInt(mediaMatch[2]),
       hash: mediaMatch[3],
-      format: 'media'
+      format: "media",
     };
   }
 
@@ -119,29 +128,29 @@ export function parseChittyID(chittyId) {
       prefix: fallbackMatch[1],
       timestamp: parseInt(fallbackMatch[2]),
       suffix: fallbackMatch[3],
-      format: 'fallback'
+      format: "fallback",
     };
   }
 
-  return { raw: chittyId, format: 'unknown' };
+  return { raw: chittyId, format: "unknown" };
 }
 
 export function getChittyIDTypeColor(type) {
   switch (type?.toLowerCase()) {
-    case 'email':
-      return 'blue';
-    case 'document':
-    case 'doc':
-      return 'green';
-    case 'case':
-      return 'purple';
-    case 'participant':
-    case 'person':
-      return 'orange';
-    case 'media':
-      return 'pink';
+    case "email":
+      return "blue";
+    case "document":
+    case "doc":
+      return "green";
+    case "case":
+      return "purple";
+    case "participant":
+    case "person":
+      return "orange";
+    case "media":
+      return "pink";
     default:
-      return 'gray';
+      return "gray";
   }
 }
 
@@ -163,7 +172,7 @@ export function throttle(func, limit) {
     if (!inThrottle) {
       func.apply(this, args);
       inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
+      setTimeout(() => (inThrottle = false), limit);
     }
   };
 }
@@ -173,13 +182,13 @@ export function copyToClipboard(text) {
     return navigator.clipboard.writeText(text);
   } else {
     // Fallback for older browsers
-    const textArea = document.createElement('textarea');
+    const textArea = document.createElement("textarea");
     textArea.value = text;
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();
     try {
-      document.execCommand('copy');
+      document.execCommand("copy");
       document.body.removeChild(textArea);
       return Promise.resolve();
     } catch (err) {
@@ -190,7 +199,9 @@ export function copyToClipboard(text) {
 }
 
 export function generateRandomId(length = 8) {
-  return Math.random().toString(36).substr(2, length);
+  // Use ChittyOS-compliant deterministic ID generation
+  const timestamp = Date.now().toString();
+  return timestamp.substring(timestamp.length - length);
 }
 
 export function validateEmail(email) {
@@ -199,24 +210,24 @@ export function validateEmail(email) {
 }
 
 export function formatNumber(num) {
-  if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
-  if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
-  if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+  if (num >= 1e9) return (num / 1e9).toFixed(1) + "B";
+  if (num >= 1e6) return (num / 1e6).toFixed(1) + "M";
+  if (num >= 1e3) return (num / 1e3).toFixed(1) + "K";
   return num.toString();
 }
 
 export function getHealthScore(services) {
   if (!services || services.length === 0) return 0;
 
-  const healthyCount = services.filter(s => s.status === 'healthy').length;
+  const healthyCount = services.filter((s) => s.status === "healthy").length;
   return Math.round((healthyCount / services.length) * 100);
 }
 
-export function sortByDate(items, key = 'timestamp', order = 'desc') {
+export function sortByDate(items, key = "timestamp", order = "desc") {
   return [...items].sort((a, b) => {
     const dateA = new Date(a[key]);
     const dateB = new Date(b[key]);
-    return order === 'desc' ? dateB - dateA : dateA - dateB;
+    return order === "desc" ? dateB - dateA : dateA - dateB;
   });
 }
 

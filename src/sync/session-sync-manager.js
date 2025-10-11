@@ -5,31 +5,32 @@
  * Manages state across Claude, OpenAI, Gemini, and ChittyOS services
  */
 
-import { Octokit } from '@octokit/rest';
-import getRepositoryManager from './repository-manager.js';
+import { Octokit } from "@octokit/rest";
+import getRepositoryManager from "./repository-manager.js";
+import { mintId } from "../utils/chittyid-adapter.js";
 
-const CHITTY_ORG = 'ChittyOS';
-const SESSION_REPO = 'chittychat-data';  // For project management and sessions
-const DATA_REPO = 'chittyos-data';        // For actual data storage
-const BRANCH_PREFIX = 'session';
+const CHITTY_ORG = "ChittyOS";
+const SESSION_REPO = "chittychat-data"; // For project management and sessions
+const DATA_REPO = "chittyos-data"; // For actual data storage
+const BRANCH_PREFIX = "session";
 
 export class SessionSyncManager {
   constructor(env) {
     this.env = env;
     this.github = new Octokit({
       auth: env.GITHUB_TOKEN,
-      baseUrl: 'https://api.github.com'
+      baseUrl: "https://api.github.com",
     });
 
     // Use hardened repository manager
     this.repoManager = getRepositoryManager(env);
 
     // Separate repos for different purposes
-    this.sessionRepo = SESSION_REPO;  // Project management
-    this.dataRepo = DATA_REPO;        // Data storage
+    this.sessionRepo = SESSION_REPO; // Project management
+    this.dataRepo = DATA_REPO; // Data storage
 
     // Session metadata
-    this.projectId = env.PROJECT_ID || 'chittyrouter';
+    this.projectId = env.PROJECT_ID || "chittyrouter";
     this.sessionId = null;
     this.branch = null;
 
@@ -40,7 +41,7 @@ export class SessionSyncManager {
       gemini: {},
       notion: {},
       neon: {},
-      cloudflare: {}
+      cloudflare: {},
     };
 
     // Sync queue for batching operations
@@ -55,7 +56,9 @@ export class SessionSyncManager {
     const { sessionId, projectId, resumeFrom } = options;
 
     this.projectId = projectId || this.projectId;
-    this.sessionId = sessionId || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    // Use mintId for session IDs with proper entity type and context
+    this.sessionId =
+      sessionId || (await mintId("SESSN", `${this.projectId}-sync`, this.env));
     this.branch = `${BRANCH_PREFIX}/${this.projectId}/${this.sessionId}`;
 
     try {
@@ -77,10 +80,10 @@ export class SessionSyncManager {
         sessionId: this.sessionId,
         projectId: this.projectId,
         branch: this.branch,
-        resumedFrom: resumeFrom || null
+        resumedFrom: resumeFrom || null,
       };
     } catch (error) {
-      console.error('Session initialization failed:', error);
+      console.error("Session initialization failed:", error);
       throw error;
     }
   }
@@ -94,7 +97,7 @@ export class SessionSyncManager {
       const { data: mainRef } = await this.github.git.getRef({
         owner: CHITTY_ORG,
         repo: this.sessionRepo,
-        ref: 'heads/main'
+        ref: "heads/main",
       });
 
       // Create new branch
@@ -102,7 +105,7 @@ export class SessionSyncManager {
         owner: CHITTY_ORG,
         repo: this.sessionRepo,
         ref: `refs/heads/${this.branch}`,
-        sha: mainRef.object.sha
+        sha: mainRef.object.sha,
       });
 
       console.log(`Created session branch: ${this.branch}`);
@@ -124,11 +127,11 @@ export class SessionSyncManager {
       // Find session branch
       const branches = await this.github.repos.listBranches({
         owner: CHITTY_ORG,
-        repo: SESSION_REPO
+        repo: SESSION_REPO,
       });
 
-      const sessionBranch = branches.data.find(b =>
-        b.name.includes(sessionIdentifier)
+      const sessionBranch = branches.data.find((b) =>
+        b.name.includes(sessionIdentifier),
       );
 
       if (!sessionBranch) {
@@ -136,7 +139,7 @@ export class SessionSyncManager {
       }
 
       this.branch = sessionBranch.name;
-      const parts = this.branch.split('/');
+      const parts = this.branch.split("/");
       this.projectId = parts[1];
       this.sessionId = parts[2];
 
@@ -145,7 +148,7 @@ export class SessionSyncManager {
 
       console.log(`Resumed session: ${this.sessionId}`);
     } catch (error) {
-      console.error('Failed to resume session:', error);
+      console.error("Failed to resume session:", error);
       throw error;
     }
   }
@@ -164,7 +167,7 @@ export class SessionSyncManager {
       `projects/${this.projectId}/state/openai.json`,
       `projects/${this.projectId}/state/gemini.json`,
       `projects/${this.projectId}/state/notion.json`,
-      `projects/${this.projectId}/state/sync-metadata.json`
+      `projects/${this.projectId}/state/sync-metadata.json`,
     ];
 
     const config = {
@@ -172,28 +175,31 @@ export class SessionSyncManager {
       sessionId: this.sessionId,
       createdAt: new Date().toISOString(),
       services: {
-        claude: { enabled: true, model: 'claude-opus-4-1-20250805' },
-        openai: { enabled: true, model: 'gpt-4' },
-        gemini: { enabled: true, model: 'gemini-pro' },
-        notion: { enabled: true, database: this.env.NOTION_DATABASE_ID_ATOMIC_FACTS },
-        github: { enabled: true, repo: SESSION_REPO }
+        claude: { enabled: true, model: "claude-opus-4-1-20250805" },
+        openai: { enabled: true, model: "gpt-4" },
+        gemini: { enabled: true, model: "gemini-pro" },
+        notion: {
+          enabled: true,
+          database: this.env.NOTION_DATABASE_ID_ATOMIC_FACTS,
+        },
+        github: { enabled: true, repo: SESSION_REPO },
       },
       syncSettings: {
         autoSync: true,
         syncInterval: 30000,
-        conflictResolution: 'latest-write',
+        conflictResolution: "latest-write",
         retryPolicy: {
           maxRetries: 3,
-          backoffMs: 1000
-        }
-      }
+          backoffMs: 1000,
+        },
+      },
     };
 
     // Create config file
     await this.commitFile(
       `projects/${this.projectId}/.chittychat/config.json`,
       JSON.stringify(config, null, 2),
-      'Initialize session configuration'
+      "Initialize session configuration",
     );
   }
 
@@ -207,7 +213,7 @@ export class SessionSyncManager {
     this.state[service] = {
       ...this.state[service],
       ...data,
-      lastUpdated: timestamp
+      lastUpdated: timestamp,
     };
 
     // Queue for sync
@@ -215,7 +221,7 @@ export class SessionSyncManager {
       service,
       data,
       metadata,
-      timestamp
+      timestamp,
     });
 
     // Trigger sync
@@ -225,7 +231,7 @@ export class SessionSyncManager {
       service,
       saved: true,
       timestamp,
-      queued: this.syncQueue.length
+      queued: this.syncQueue.length,
     };
   }
 
@@ -233,12 +239,19 @@ export class SessionSyncManager {
    * Load session state from GitHub
    */
   async loadSessionState() {
-    const services = ['claude', 'openai', 'gemini', 'notion', 'neon', 'cloudflare'];
+    const services = [
+      "claude",
+      "openai",
+      "gemini",
+      "notion",
+      "neon",
+      "cloudflare",
+    ];
 
     for (const service of services) {
       try {
         const content = await this.getFileContent(
-          `projects/${this.projectId}/state/${service}.json`
+          `projects/${this.projectId}/state/${service}.json`,
         );
 
         if (content) {
@@ -262,7 +275,7 @@ export class SessionSyncManager {
 
     // Group facts by type for organized storage
     const factsByType = facts.reduce((acc, fact) => {
-      const type = fact.factType || 'UNCLASSIFIED';
+      const type = fact.factType || "UNCLASSIFIED";
       if (!acc[type]) acc[type] = [];
       acc[type].push(fact);
       return acc;
@@ -274,14 +287,18 @@ export class SessionSyncManager {
 
       await this.commitFile(
         filename,
-        JSON.stringify({
-          batchId,
-          type,
-          timestamp,
-          count: typeFacts.length,
-          facts: typeFacts
-        }, null, 2),
-        `Sync ${typeFacts.length} ${type} atomic facts`
+        JSON.stringify(
+          {
+            batchId,
+            type,
+            timestamp,
+            count: typeFacts.length,
+            facts: typeFacts,
+          },
+          null,
+          2,
+        ),
+        `Sync ${typeFacts.length} ${type} atomic facts`,
       );
     }
 
@@ -290,14 +307,14 @@ export class SessionSyncManager {
       lastFactSync: timestamp,
       factBatches: batchId,
       factCount: facts.length,
-      factTypes: Object.keys(factsByType)
+      factTypes: Object.keys(factsByType),
     });
 
     return {
       synced: facts.length,
       batchId,
       timestamp,
-      types: Object.keys(factsByType)
+      types: Object.keys(factsByType),
     };
   }
 
@@ -313,27 +330,31 @@ export class SessionSyncManager {
 
       await this.commitFile(
         filename,
-        JSON.stringify({
-          ...doc,
-          syncedAt: timestamp,
-          sessionId: this.sessionId
-        }, null, 2),
-        `Sync evidence: ${doc.title || doc.id}`
+        JSON.stringify(
+          {
+            ...doc,
+            syncedAt: timestamp,
+            sessionId: this.sessionId,
+          },
+          null,
+          2,
+        ),
+        `Sync evidence: ${doc.title || doc.id}`,
       );
 
       // Add to chain of custody
       await this.addToChainOfCustody({
         documentId: doc.id,
-        action: 'SYNCED',
+        action: "SYNCED",
         timestamp,
         sessionId: this.sessionId,
-        hash: await this.calculateHash(doc)
+        hash: await this.calculateHash(doc),
       });
 
       results.push({
         id: doc.id,
         synced: true,
-        timestamp
+        timestamp,
       });
     }
 
@@ -344,9 +365,9 @@ export class SessionSyncManager {
    * Add to chain of custody
    */
   async addToChainOfCustody(entry) {
-    const filename = `projects/${this.projectId}/chain-of-custody/log-${new Date().toISOString().split('T')[0]}.jsonl`;
+    const filename = `projects/${this.projectId}/chain-of-custody/log-${new Date().toISOString().split("T")[0]}.jsonl`;
 
-    const content = JSON.stringify(entry) + '\n';
+    const content = JSON.stringify(entry) + "\n";
 
     await this.appendToFile(filename, content);
 
@@ -360,7 +381,7 @@ export class SessionSyncManager {
     const services = Object.keys(this.state);
     const syncReport = {
       timestamp: new Date().toISOString(),
-      services: {}
+      services: {},
     };
 
     for (const service of services) {
@@ -370,12 +391,12 @@ export class SessionSyncManager {
         await this.commitFile(
           filename,
           JSON.stringify(this.state[service], null, 2),
-          `Update ${service} state`
+          `Update ${service} state`,
         );
 
         syncReport.services[service] = {
           synced: true,
-          items: Object.keys(this.state[service]).length
+          items: Object.keys(this.state[service]).length,
         };
       }
     }
@@ -383,7 +404,7 @@ export class SessionSyncManager {
     // Update sync metadata
     await this.updateSyncMetadata({
       lastStateSync: syncReport.timestamp,
-      syncedServices: Object.keys(syncReport.services)
+      syncedServices: Object.keys(syncReport.services),
     });
 
     return syncReport;
@@ -410,13 +431,13 @@ export class SessionSyncManager {
       ...updates,
       lastUpdated: new Date().toISOString(),
       sessionId: this.sessionId,
-      projectId: this.projectId
+      projectId: this.projectId,
     };
 
     await this.commitFile(
       filename,
       JSON.stringify(metadata, null, 2),
-      'Update sync metadata'
+      "Update sync metadata",
     );
 
     return metadata;
@@ -457,16 +478,19 @@ export class SessionSyncManager {
         const filename = `projects/${this.projectId}/state/${service}.json`;
 
         // Merge all updates
-        const merged = serviceItems.reduce((acc, item) => ({
-          ...acc,
-          ...item.data,
-          lastUpdated: item.timestamp
-        }), this.state[service] || {});
+        const merged = serviceItems.reduce(
+          (acc, item) => ({
+            ...acc,
+            ...item.data,
+            lastUpdated: item.timestamp,
+          }),
+          this.state[service] || {},
+        );
 
         await this.commitFile(
           filename,
           JSON.stringify(merged, null, 2),
-          `Batch sync ${service} state (${serviceItems.length} updates)`
+          `Batch sync ${service} state (${serviceItems.length} updates)`,
         );
 
         this.state[service] = merged;
@@ -474,7 +498,7 @@ export class SessionSyncManager {
 
       console.log(`Flushed ${items.length} sync items`);
     } catch (error) {
-      console.error('Sync flush failed:', error);
+      console.error("Sync flush failed:", error);
       // Re-queue failed items
       this.syncQueue.push(...items);
     }
@@ -500,7 +524,7 @@ export class SessionSyncManager {
         repo: this.sessionRepo,
         title: `Session: ${this.projectId}/${this.sessionId}`,
         head: this.branch,
-        base: 'main',
+        base: "main",
         body: `## Session Summary
 
 **Project:** ${this.projectId}
@@ -508,29 +532,31 @@ export class SessionSyncManager {
 **Created:** ${new Date().toISOString()}
 
 ### Services Used
-${Object.keys(this.state).map(s => `- ${s}`).join('\n')}
+${Object.keys(this.state)
+  .map((s) => `- ${s}`)
+  .join("\n")}
 
 ### Auto-Merge
 This PR will auto-merge after 3 days.
 
 ---
-*Generated by ChittyRouter Session Sync*`
+*Generated by ChittyRouter Session Sync*`,
       });
 
       // Enable auto-merge
       await this.github.pulls.updateBranch({
         owner: CHITTY_ORG,
         repo: this.sessionRepo,
-        pull_number: pr.number
+        pull_number: pr.number,
       });
 
       return {
         pr: pr.number,
         url: pr.html_url,
-        branch: this.branch
+        branch: this.branch,
       };
     } catch (error) {
-      console.error('Failed to create PR:', error);
+      console.error("Failed to create PR:", error);
       throw error;
     }
   }
@@ -540,7 +566,7 @@ This PR will auto-merge after 3 days.
    */
   async storeData(dataType, data, metadata = {}) {
     const timestamp = new Date().toISOString();
-    const dataPath = `data/${dataType}/${this.projectId}/${timestamp.split('T')[0]}/${data.id || Date.now()}.json`;
+    const dataPath = `data/${dataType}/${this.projectId}/${timestamp.split("T")[0]}/${data.id || Date.now()}.json`;
 
     try {
       // Store data in chittyos-data repo
@@ -548,28 +574,31 @@ This PR will auto-merge after 3 days.
         DATA_REPO,
         `data-${this.projectId}`,
         dataPath,
-        JSON.stringify({
-          ...data,
-          metadata: {
-            ...metadata,
-            projectId: this.projectId,
-            sessionId: this.sessionId,
-            storedAt: timestamp,
-            dataType
-          }
-        }, null, 2),
-        `Store ${dataType} data from ${this.projectId}`
+        JSON.stringify(
+          {
+            ...data,
+            metadata: {
+              ...metadata,
+              projectId: this.projectId,
+              sessionId: this.sessionId,
+              storedAt: timestamp,
+              dataType,
+            },
+          },
+          null,
+          2,
+        ),
+        `Store ${dataType} data from ${this.projectId}`,
       );
 
       return {
         stored: true,
         repo: DATA_REPO,
         path: dataPath,
-        timestamp
+        timestamp,
       };
-
     } catch (error) {
-      console.error('Failed to store data in chittyos-data:', error);
+      console.error("Failed to store data in chittyos-data:", error);
       throw error;
     }
   }
@@ -578,7 +607,13 @@ This PR will auto-merge after 3 days.
    * Utility: Commit file to GitHub (for session/project management)
    */
   async commitFile(path, content, message) {
-    return this.commitFileToRepo(SESSION_REPO, this.branch, path, content, message);
+    return this.commitFileToRepo(
+      SESSION_REPO,
+      this.branch,
+      path,
+      content,
+      message,
+    );
   }
 
   /**
@@ -594,7 +629,7 @@ This PR will auto-merge after 3 days.
           owner: CHITTY_ORG,
           repo,
           path,
-          ref: branch
+          ref: branch,
         });
         sha = existing.sha;
       } catch (error) {
@@ -606,9 +641,9 @@ This PR will auto-merge after 3 days.
         repo,
         path,
         message: `[${this.sessionId}] ${message}`,
-        content: Buffer.from(content).toString('base64'),
+        content: Buffer.from(content).toString("base64"),
         branch,
-        sha
+        sha,
       });
     } catch (error) {
       console.error(`Failed to commit ${path} to ${repo}:`, error);
@@ -625,10 +660,10 @@ This PR will auto-merge after 3 days.
         owner: CHITTY_ORG,
         repo: this.sessionRepo,
         path,
-        ref: this.branch
+        ref: this.branch,
       });
 
-      return Buffer.from(data.content, 'base64').toString('utf-8');
+      return Buffer.from(data.content, "base64").toString("utf-8");
     } catch (error) {
       if (error.status === 404) {
         return null;
@@ -641,18 +676,14 @@ This PR will auto-merge after 3 days.
    * Utility: Append to file
    */
   async appendToFile(path, content) {
-    let existing = '';
+    let existing = "";
     try {
-      existing = await this.getFileContent(path) || '';
+      existing = (await this.getFileContent(path)) || "";
     } catch (error) {
       // File doesn't exist
     }
 
-    await this.commitFile(
-      path,
-      existing + content,
-      `Append to ${path}`
-    );
+    await this.commitFile(path, existing + content, `Append to ${path}`);
   }
 
   /**
@@ -661,9 +692,9 @@ This PR will auto-merge after 3 days.
   async calculateHash(data) {
     const encoder = new TextEncoder();
     const dataBuffer = encoder.encode(JSON.stringify(data));
-    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", dataBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
   /**
@@ -676,9 +707,9 @@ This PR will auto-merge after 3 days.
       branch: this.branch,
       state: {
         services: Object.keys(this.state),
-        queueDepth: this.syncQueue.length
+        queueDepth: this.syncQueue.length,
       },
-      lastSync: this.state.lastSync || null
+      lastSync: this.state.lastSync || null,
     };
   }
 }
@@ -691,57 +722,63 @@ export default {
 
     try {
       // Initialize session
-      if (url.pathname === '/session/init' && request.method === 'POST') {
+      if (url.pathname === "/session/init" && request.method === "POST") {
         const body = await request.json();
         const result = await manager.initSession(body);
 
         return new Response(JSON.stringify(result), {
-          headers: { 'Content-Type': 'application/json' }
+          headers: { "Content-Type": "application/json" },
         });
       }
 
       // Save state
-      if (url.pathname === '/session/state' && request.method === 'POST') {
+      if (url.pathname === "/session/state" && request.method === "POST") {
         const body = await request.json();
         const result = await manager.saveState(
           body.service,
           body.data,
-          body.metadata
+          body.metadata,
         );
 
         return new Response(JSON.stringify(result), {
-          headers: { 'Content-Type': 'application/json' }
+          headers: { "Content-Type": "application/json" },
         });
       }
 
       // Sync atomic facts
-      if (url.pathname === '/session/atomic-facts' && request.method === 'POST') {
+      if (
+        url.pathname === "/session/atomic-facts" &&
+        request.method === "POST"
+      ) {
         const body = await request.json();
         const result = await manager.syncAtomicFacts(body.facts);
 
         return new Response(JSON.stringify(result), {
-          headers: { 'Content-Type': 'application/json' }
+          headers: { "Content-Type": "application/json" },
         });
       }
 
       // Get status
-      if (url.pathname === '/session/status' && request.method === 'GET') {
+      if (url.pathname === "/session/status" && request.method === "GET") {
         const status = manager.getStatus();
 
         return new Response(JSON.stringify(status), {
-          headers: { 'Content-Type': 'application/json' }
+          headers: { "Content-Type": "application/json" },
         });
       }
 
-      return new Response('Not Found', { status: 404 });
+      return new Response("Not Found", { status: 404 });
     } catch (error) {
-      console.error('Session sync error:', error);
-      return new Response(JSON.stringify({
-        error: error.message
-      }), {
-        headers: { 'Content-Type': 'application/json' },
-        status: 500
-      });
+      console.error("Session sync error:", error);
+      return new Response(
+        JSON.stringify({
+          error: error.message,
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+          status: 500,
+        },
+      );
     }
-  }
+  },
 };

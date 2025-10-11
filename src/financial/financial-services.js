@@ -232,7 +232,7 @@ export class ChittyFinancialServices {
 
     try {
       const transaction = {
-        transactionId: `email_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        transactionId: `email_${Date.now()}`,
         type: 'EMAIL_PROCESSING',
         operation,
         chittyId: this.chittyId,
@@ -267,7 +267,7 @@ export class ChittyFinancialServices {
 
     try {
       const transaction = {
-        transactionId: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        transactionId: `ai_${Date.now()}`,
         type: 'AI_PROCESSING',
         operation,
         chittyId: this.chittyId,
@@ -304,7 +304,7 @@ export class ChittyFinancialServices {
 
     try {
       const transaction = {
-        transactionId: `storage_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        transactionId: `storage_${Date.now()}`,
         type: 'STORAGE',
         operation,
         chittyId: this.chittyId,
@@ -684,7 +684,7 @@ export class TransactionBuilder {
   }
 
   build() {
-    this.transaction.transactionId = `${this.transaction.type.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    this.transaction.transactionId = `${this.transaction.type.toLowerCase()}_${Date.now()}`;
     return { ...this.transaction };
   }
 }

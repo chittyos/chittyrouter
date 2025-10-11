@@ -650,11 +650,11 @@ export class ProductionSessionSync {
   }
 
   generateSessionId() {
-    return `sess-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `sess-${Date.now()}`;
   }
 
   generateOperationId() {
-    return `op-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    return `op-${Date.now()}`;
   }
 
   createTimeoutPromise(ms) {

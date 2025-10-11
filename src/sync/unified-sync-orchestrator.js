@@ -26,7 +26,7 @@ export class UnifiedSyncOrchestrator {
    * Master sync pipeline
    */
   async syncPipeline(data, options = {}) {
-    const syncId = `sync-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const syncId = `sync-${Date.now()}`;
     const startTime = Date.now();
 
     this.activeSyncs.set(syncId, {

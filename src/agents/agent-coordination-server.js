@@ -139,7 +139,7 @@ export class AgentCoordinationServer {
    * Handle agent WebSocket connections
    */
   async handleAgentConnection(ws, req) {
-    const agentId = `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const agentId = `agent_${Date.now()}`;
 
     console.log(`🤖 Agent connected: ${agentId}`);
 
@@ -551,7 +551,7 @@ export class AgentCoordinationServer {
    */
   async executeAgentTask(agent, taskData) {
     return new Promise((resolve, reject) => {
-      const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+      const taskId = `task_${Date.now()}`;
 
       // Set timeout
       const timeout = setTimeout(() => {

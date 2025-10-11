@@ -1,0 +1,107 @@
+{
+  "name": "sync_google_groups",
+  "description": "Analyze Cloudflare email routing patterns and sync Google Groups settings across domains",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "cloudflare_account_id": {
+        "type": "string",
+        "description": "Cloudflare account ID to analyze email routing"
+      },
+      "source_group": {
+        "type": "string",
+        "description": "Source Google Group to copy settings from (e.g., mgmt@aribia.llc)",
+        "default": "mgmt@aribia.llc"
+      },
+      "domains": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "List of Google Workspace domains to sync (e.g., ['aribia.llc', 'chitty.cc'])"
+      },
+      "dry_run": {
+        "type": "boolean",
+        "description": "If true, only analyze without making changes",
+        "default": true
+      }
+    },
+    "required": ["cloudflare_account_id", "domains"]
+  },
+  "implementation": {
+    "steps": [
+      {
+        "name": "analyze_cloudflare_routing",
+        "description": "Query Cloudflare API for email routing rules and destination addresses",
+        "api_endpoints": [
+          "GET /accounts/{account_id}/email/routing/rules",
+          "GET /accounts/{account_id}/email/routing/addresses"
+        ]
+      },
+      {
+        "name": "list_google_groups",
+        "description": "Use GAM to list all groups in specified domains",
+        "command": "/Users/nb/bin/gam7/gam print groups domain {domain} fields email,name,settings"
+      },
+      {
+        "name": "extract_patterns",
+        "description": "Identify common email patterns (admin@, support@, legal@, etc.) across domains"
+      },
+      {
+        "name": "get_source_settings",
+        "description": "Get all settings from source group",
+        "command": "/Users/nb/bin/gam7/gam info group {source_group}"
+      },
+      {
+        "name": "sync_settings",
+        "description": "Apply source group settings to all matching groups",
+        "settings_to_sync": [
+          "who_can_post_message",
+          "who_can_view_group",
+          "who_can_join",
+          "allow_external_members",
+          "enable_collaborative_inbox"
+        ]
+      },
+      {
+        "name": "verify_cloudflare_destinations",
+        "description": "Check which Google Groups are verified as Cloudflare destinations",
+        "cross_reference": true
+      },
+      {
+        "name": "generate_report",
+        "description": "Create comprehensive report of sync status and recommendations"
+      }
+    ]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "groups_analyzed": {
+        "type": "number"
+      },
+      "groups_synced": {
+        "type": "number"
+      },
+      "cloudflare_destinations": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "email": { "type": "string" },
+            "verified": { "type": "boolean" },
+            "google_group_exists": { "type": "boolean" }
+          }
+        }
+      },
+      "missing_groups": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "recommendations": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    }
+  }
+}

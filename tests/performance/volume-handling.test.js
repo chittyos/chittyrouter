@@ -11,9 +11,9 @@ import { mockAI } from '../mocks/ai-responses.js';
 import { testEmails, createMockMessage, getRandomTestEmail } from '../data/test-emails.js';
 
 // Mock utilities for performance testing
-vi.mock('../../src/utils/chittyid-generator.js', () => ({
-  generateEmailChittyID: vi.fn().mockImplementation(() => {
-    return Promise.resolve(`CHITTY-PERF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+vi.mock('../../src/utils/chittyid-client.js', () => ({
+  requestEmailChittyID: vi.fn().mockImplementation(() => {
+    return Promise.resolve(`CHITTY-PERF-${Date.now()}`);
   })
 }));
 

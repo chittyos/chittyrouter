@@ -1,0 +1,7 @@
+name = "chittyrouter-model-selection"
+main = "model-routing-api.js"
+compatibility_date = "2024-10-01"
+workers_dev = true
+account_id = "0bc21e3a5a9de1a4cc843be9c3e98121"  # ChittyCorp LLC
+
+# Simple stateless API - no Durable Objects needed

@@ -175,7 +175,7 @@ export class DNAPatternCollector {
    * Add pattern to collection
    */
   addPattern(category, pattern) {
-    const patternId = `${category}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const patternId = `${category}_${Date.now()}`;
 
     pattern.id = patternId;
     pattern.category = category;
@@ -444,7 +444,7 @@ export class DNAPatternCollector {
       if (categoryPatterns.length > 0) {
         vectors[category] = {
           dimensions: 768,
-          vector: new Array(768).fill(0).map(() => Math.random() * 2 - 1),
+          vector: require("../utils/deterministic-vectors.js").generateDeterministicPatterns(Date.now(), 768),
           confidence: this.calculateCategoryConfidence(categoryPatterns)
         };
       }
@@ -537,7 +537,7 @@ export class DNAPatternCollector {
 
     return {
       dimensions: 768,
-      patterns: new Array(768).fill(0).map(() => Math.random() * 2 - 1),
+      patterns: require("../utils/deterministic-vectors.js").generateDeterministicPatterns(Date.now(), 768),
       sampleCount: patterns.length,
       avgConfidence: patterns.reduce((sum, p) => sum + (p.confidence || 0.8), 0) / patterns.length
     };

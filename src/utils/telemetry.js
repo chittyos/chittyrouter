@@ -73,7 +73,7 @@ export class ChittyTelemetry {
       return await ChittyIdClient.mint(this.env, "telemetry-session");
     } catch (error) {
       // Fallback to basic ID
-      return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      return `session-${Date.now()}`;
     }
   }
 

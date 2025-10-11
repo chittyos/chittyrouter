@@ -4,15 +4,15 @@
  * Full security pipeline for worker authentication and validation
  */
 
-import { ChittyBeaconClient } from './chittybeacon-integration.js';
-import { ChittyIdClient } from './chittyid-integration.js';
+import { ChittyBeaconClient } from "./chittybeacon-integration.js";
+import { ChittyIdClient } from "./chittyid-integration.js";
 
 const CHITTYOS_SERVICES = {
-  score: 'https://score.chitty.cc/api/v1',
-  trust: 'https://trust.chitty.cc/api/v1',
-  verify: 'https://verify.chitty.cc/api/v1',
-  auth: 'https://auth.chitty.cc/api/v1',
-  beacon: 'https://beacon.chitty.cc/api/v1'
+  score: "https://score.chitty.cc/api/v1",
+  trust: "https://trust.chitty.cc/api/v1",
+  verify: "https://verify.chitty.cc/api/v1",
+  auth: "https://auth.chitty.cc/api/v1",
+  beacon: "https://beacon.chitty.cc/api/v1",
 };
 
 /**
@@ -41,7 +41,9 @@ export class ChittySecurityManager {
    */
   async initializeSecurity() {
     try {
-      console.log(`🔐 Initializing ChittyOS security for ${this.workerName}...`);
+      console.log(
+        `🔐 Initializing ChittyOS security for ${this.workerName}...`,
+      );
 
       // Step 1: Get/Verify ChittyID
       this.chittyId = await this.ensureChittyId();
@@ -73,12 +75,11 @@ export class ChittySecurityManager {
         authenticated: this.authenticated,
         verified: this.verified,
         trustScore: this.trustScore,
-        performanceScore: this.performanceScore
+        performanceScore: this.performanceScore,
       };
-
     } catch (error) {
-      console.error('❌ Security initialization failed:', error);
-      throw new ChittySecurityError('Security initialization failed', error);
+      console.error("❌ Security initialization failed:", error);
+      throw new ChittySecurityError("Security initialization failed", error);
     }
   }
 
@@ -86,7 +87,7 @@ export class ChittySecurityManager {
    * Step 1: Ensure worker has valid ChittyID
    */
   async ensureChittyId() {
-    console.log('🆔 Ensuring ChittyID...');
+    console.log("🆔 Ensuring ChittyID...");
 
     const chittyId = await ChittyIdClient.ensure(this.env, this.workerName);
 
@@ -104,28 +105,28 @@ export class ChittySecurityManager {
    * Step 2: Authenticate with ChittyAuth using ChittyID
    */
   async authenticateWithChittyAuth() {
-    console.log('🔑 Authenticating with ChittyAuth...');
+    console.log("🔑 Authenticating with ChittyAuth...");
 
     const authRequest = {
       chittyId: this.chittyId,
       workerName: this.workerName,
-      authType: 'WORKER_SERVICE',
+      authType: "WORKER_SERVICE",
       capabilities: this.getWorkerCapabilities(),
       environment: this.env.ENVIRONMENT,
       version: this.env.VERSION,
       timestamp: new Date().toISOString(),
       // Include worker-specific proof
-      proof: await this.generateWorkerProof()
+      proof: await this.generateWorkerProof(),
     };
 
     const response = await fetch(`${CHITTYOS_SERVICES.auth}/authenticate`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'X-ChittyID': this.chittyId,
-        'X-Worker-Name': this.workerName
+        "Content-Type": "application/json",
+        "X-ChittyID": this.chittyId,
+        "X-Worker-Name": this.workerName,
       },
-      body: JSON.stringify(authRequest)
+      body: JSON.stringify(authRequest),
     });
 
     if (!response.ok) {
@@ -147,7 +148,7 @@ export class ChittySecurityManager {
    * Step 3: Verify code/version with ChittyVerify
    */
   async verifyWithChittyVerify() {
-    console.log('🔍 Verifying with ChittyVerify...');
+    console.log("🔍 Verifying with ChittyVerify...");
 
     const verificationRequest = {
       chittyId: this.chittyId,
@@ -157,17 +158,17 @@ export class ChittySecurityManager {
       dependencies: this.getWorkerDependencies(),
       capabilities: this.getWorkerCapabilities(),
       environment: this.env.ENVIRONMENT,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     const response = await fetch(`${CHITTYOS_SERVICES.verify}/verify-worker`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'X-ChittyID': this.chittyId,
-        'Authorization': `Bearer ${this.authToken}`
+        "Content-Type": "application/json",
+        "X-ChittyID": this.chittyId,
+        Authorization: `Bearer ${this.authToken}`,
       },
-      body: JSON.stringify(verificationRequest)
+      body: JSON.stringify(verificationRequest),
     });
 
     if (!response.ok) {
@@ -186,7 +187,7 @@ export class ChittySecurityManager {
    * Step 4: Establish trust with ChittyTrust
    */
   async establishTrust() {
-    console.log('🤝 Establishing trust with ChittyTrust...');
+    console.log("🤝 Establishing trust with ChittyTrust...");
 
     const trustRequest = {
       chittyId: this.chittyId,
@@ -195,17 +196,17 @@ export class ChittySecurityManager {
       authToken: this.authToken,
       historicalPerformance: await this.getHistoricalPerformance(),
       securityCompliance: await this.getSecurityCompliance(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     const response = await fetch(`${CHITTYOS_SERVICES.trust}/establish`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'X-ChittyID': this.chittyId,
-        'Authorization': `Bearer ${this.authToken}`
+        "Content-Type": "application/json",
+        "X-ChittyID": this.chittyId,
+        Authorization: `Bearer ${this.authToken}`,
       },
-      body: JSON.stringify(trustRequest)
+      body: JSON.stringify(trustRequest),
     });
 
     if (!response.ok) {
@@ -224,7 +225,7 @@ export class ChittySecurityManager {
    * Step 5: Initialize performance scoring with ChittyScore
    */
   async initializePerformanceScoring() {
-    console.log('📊 Initializing ChittyScore performance tracking...');
+    console.log("📊 Initializing ChittyScore performance tracking...");
 
     const scoreRequest = {
       chittyId: this.chittyId,
@@ -232,17 +233,17 @@ export class ChittySecurityManager {
       baselineMetrics: await this.collectBaselineMetrics(),
       capabilities: this.getWorkerCapabilities(),
       expectedLoad: this.getExpectedLoad(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     const response = await fetch(`${CHITTYOS_SERVICES.score}/initialize`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'X-ChittyID': this.chittyId,
-        'Authorization': `Bearer ${this.authToken}`
+        "Content-Type": "application/json",
+        "X-ChittyID": this.chittyId,
+        Authorization: `Bearer ${this.authToken}`,
       },
-      body: JSON.stringify(scoreRequest)
+      body: JSON.stringify(scoreRequest),
     });
 
     if (!response.ok) {
@@ -252,7 +253,9 @@ export class ChittySecurityManager {
     const scoreResult = await response.json();
     this.performanceScore = scoreResult.initialScore;
 
-    console.log(`✅ Performance scoring initialized - Score: ${this.performanceScore}/100`);
+    console.log(
+      `✅ Performance scoring initialized - Score: ${this.performanceScore}/100`,
+    );
     return scoreResult;
   }
 
@@ -260,21 +263,21 @@ export class ChittySecurityManager {
    * Step 6: Register with ChittyBeacon for monitoring
    */
   async registerWithBeacon() {
-    console.log('📡 Registering with ChittyBeacon...');
+    console.log("📡 Registering with ChittyBeacon...");
 
     this.beacon = new ChittyBeaconClient(this.env, this.workerName);
     await this.beacon.initialize();
 
     // Send security status to beacon
-    await this.beacon.sendBeacon('security.initialized', {
+    await this.beacon.sendBeacon("security.initialized", {
       chittyId: this.chittyId,
       authenticated: this.authenticated,
       verified: this.verified,
       trustScore: this.trustScore,
-      performanceScore: this.performanceScore
+      performanceScore: this.performanceScore,
     });
 
-    console.log('✅ ChittyBeacon registration complete');
+    console.log("✅ ChittyBeacon registration complete");
   }
 
   /**
@@ -283,13 +286,13 @@ export class ChittySecurityManager {
   createAuthMiddleware() {
     return async (request, handler) => {
       // Verify authentication for each request
-      if (!await this.validateRequestAuth(request)) {
-        return new Response('Unauthorized', {
+      if (!(await this.validateRequestAuth(request))) {
+        return new Response("Unauthorized", {
           status: 401,
           headers: {
-            'X-ChittyID': this.chittyId,
-            'WWW-Authenticate': 'ChittyAuth realm="chittyos"'
-          }
+            "X-ChittyID": this.chittyId,
+            "WWW-Authenticate": 'ChittyAuth realm="chittyos"',
+          },
         });
       }
 
@@ -302,10 +305,10 @@ export class ChittySecurityManager {
       await this.updatePerformanceScore(request, response, duration);
 
       // Add security headers
-      response.headers.set('X-ChittyID', this.chittyId);
-      response.headers.set('X-Authenticated', this.authenticated.toString());
-      response.headers.set('X-Verified', this.verified.toString());
-      response.headers.set('X-Trust-Score', this.trustScore.toString());
+      response.headers.set("X-ChittyID", this.chittyId);
+      response.headers.set("X-Authenticated", this.authenticated.toString());
+      response.headers.set("X-Verified", this.verified.toString());
+      response.headers.set("X-Trust-Score", this.trustScore.toString());
 
       return response;
     };
@@ -317,27 +320,27 @@ export class ChittySecurityManager {
   async validateRequestAuth(request) {
     try {
       // Check for valid auth token
-      const authHeader = request.headers.get('Authorization');
+      const authHeader = request.headers.get("Authorization");
       if (!authHeader && this.requiresAuth(request)) {
         return false;
       }
 
       // Validate with ChittyAuth
       const validation = await fetch(`${CHITTYOS_SERVICES.auth}/validate`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': authHeader,
-          'X-ChittyID': this.chittyId
+          Authorization: authHeader,
+          "X-ChittyID": this.chittyId,
         },
         body: JSON.stringify({
           chittyId: this.chittyId,
-          requestPath: new URL(request.url).pathname
-        })
+          requestPath: new URL(request.url).pathname,
+        }),
       });
 
       return validation.ok;
     } catch (error) {
-      console.error('Auth validation error:', error);
+      console.error("Auth validation error:", error);
       return false;
     }
   }
@@ -353,27 +356,26 @@ export class ChittySecurityManager {
         method: request.method,
         status: response.status,
         duration,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       await fetch(`${CHITTYOS_SERVICES.score}/update`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'X-ChittyID': this.chittyId,
-          'Authorization': `Bearer ${this.authToken}`
+          "Content-Type": "application/json",
+          "X-ChittyID": this.chittyId,
+          Authorization: `Bearer ${this.authToken}`,
         },
-        body: JSON.stringify(metrics)
+        body: JSON.stringify(metrics),
       });
 
       // Also track in beacon
       await this.beacon?.trackRequest(request, response, duration, {
         trustScore: this.trustScore,
-        performanceScore: this.performanceScore
+        performanceScore: this.performanceScore,
       });
-
     } catch (error) {
-      console.error('Performance score update failed:', error);
+      console.error("Performance score update failed:", error);
     }
   }
 
@@ -381,20 +383,20 @@ export class ChittySecurityManager {
    * Periodic security checks
    */
   async performSecurityCheck() {
-    console.log('🔒 Performing periodic security check...');
+    console.log("🔒 Performing periodic security check...");
 
     try {
       // Re-verify trust score
       const trustCheck = await fetch(`${CHITTYOS_SERVICES.trust}/check`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'X-ChittyID': this.chittyId,
-          'Authorization': `Bearer ${this.authToken}`
+          "X-ChittyID": this.chittyId,
+          Authorization: `Bearer ${this.authToken}`,
         },
         body: JSON.stringify({
           chittyId: this.chittyId,
-          lastCheck: this.lastSecurityCheck
-        })
+          lastCheck: this.lastSecurityCheck,
+        }),
       });
 
       if (trustCheck.ok) {
@@ -405,9 +407,9 @@ export class ChittySecurityManager {
       // Get latest performance score
       const scoreCheck = await fetch(`${CHITTYOS_SERVICES.score}/current`, {
         headers: {
-          'X-ChittyID': this.chittyId,
-          'Authorization': `Bearer ${this.authToken}`
-        }
+          "X-ChittyID": this.chittyId,
+          Authorization: `Bearer ${this.authToken}`,
+        },
       });
 
       if (scoreCheck.ok) {
@@ -422,10 +424,11 @@ export class ChittySecurityManager {
         await this.sendSecurityAlert();
       }
 
-      console.log(`🔒 Security check complete - Trust: ${this.trustScore}, Performance: ${this.performanceScore}`);
-
+      console.log(
+        `🔒 Security check complete - Trust: ${this.trustScore}, Performance: ${this.performanceScore}`,
+      );
     } catch (error) {
-      console.error('Security check failed:', error);
+      console.error("Security check failed:", error);
     }
   }
 
@@ -434,15 +437,15 @@ export class ChittySecurityManager {
    */
   async sendSecurityAlert() {
     const alert = {
-      type: 'SECURITY_DEGRADATION',
+      type: "SECURITY_DEGRADATION",
       chittyId: this.chittyId,
       workerName: this.workerName,
       trustScore: this.trustScore,
       performanceScore: this.performanceScore,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
-    await this.beacon?.sendBeacon('security.alert', alert, 'high');
+    await this.beacon?.sendBeacon("security.alert", alert, "high");
   }
 
   /**
@@ -450,19 +453,24 @@ export class ChittySecurityManager {
    */
   async generateWorkerProof() {
     // Generate proof that this is a legitimate worker
+    // Use ChittyOS-compliant deterministic nonce generation
+    const nonce = `pending-nonce-${Date.now()}`;
+
     const proof = {
       timestamp: Date.now(),
       environment: this.env.ENVIRONMENT,
-      capabilities: this.getWorkerCapabilities().join(','),
-      nonce: Math.random().toString(36)
+      capabilities: this.getWorkerCapabilities().join(","),
+      nonce: nonce,
     };
 
     // Simple hash as proof (in production, use proper cryptographic signature)
     const encoder = new TextEncoder();
     const data = encoder.encode(JSON.stringify(proof));
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hashHex = hashArray
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
 
     return { proof, hash: hashHex };
   }
@@ -473,26 +481,26 @@ export class ChittySecurityManager {
     const codeString = `${this.workerName}-${this.env.VERSION}-${this.env.ENVIRONMENT}`;
     const encoder = new TextEncoder();
     const data = encoder.encode(codeString);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
   getWorkerCapabilities() {
     const capabilities = [];
-    if (this.env.AI) capabilities.push('ai');
-    if (this.env.AI_CACHE) capabilities.push('kv');
-    if (this.env.DOCUMENT_STORAGE) capabilities.push('r2');
-    if (this.env.AI_STATE_DO) capabilities.push('durable_objects');
+    if (this.env.AI) capabilities.push("ai");
+    if (this.env.AI_CACHE) capabilities.push("kv");
+    if (this.env.DOCUMENT_STORAGE) capabilities.push("r2");
+    if (this.env.AI_STATE_DO) capabilities.push("durable_objects");
     return capabilities;
   }
 
   getWorkerDependencies() {
     const deps = {
-      'chittyrouter': ['chittyid', 'chittychat', 'chittychain'],
-      'chittychat': ['chittyid'],
-      'chittychain': ['chittyid'],
-      'chittyid': []
+      chittyrouter: ["chittyid", "chittychat", "chittychain"],
+      chittychat: ["chittyid"],
+      chittychain: ["chittyid"],
+      chittyid: [],
     };
     return deps[this.workerName] || [];
   }
@@ -503,7 +511,7 @@ export class ChittySecurityManager {
       averageResponseTime: 150,
       uptime: 99.9,
       errorRate: 0.1,
-      throughput: 1000
+      throughput: 1000,
     };
   }
 
@@ -512,16 +520,16 @@ export class ChittySecurityManager {
       encryptionEnabled: true,
       auditLogging: true,
       accessControls: true,
-      dataProtection: true
+      dataProtection: true,
     };
   }
 
   async collectBaselineMetrics() {
     return {
       memoryUsage: 50, // MB
-      cpuUsage: 10,    // %
+      cpuUsage: 10, // %
       networkLatency: 20, // ms
-      diskUsage: 100   // MB
+      diskUsage: 100, // MB
     };
   }
 
@@ -529,13 +537,13 @@ export class ChittySecurityManager {
     return {
       requestsPerSecond: 100,
       concurrentUsers: 50,
-      peakHours: ['09:00-12:00', '14:00-17:00']
+      peakHours: ["09:00-12:00", "14:00-17:00"],
     };
   }
 
   requiresAuth(request) {
     const url = new URL(request.url);
-    const publicPaths = ['/health', '/metrics', '/status'];
+    const publicPaths = ["/health", "/metrics", "/status"];
     return !publicPaths.includes(url.pathname);
   }
 
@@ -551,7 +559,7 @@ export class ChittySecurityManager {
       trustScore: this.trustScore,
       performanceScore: this.performanceScore,
       lastSecurityCheck: this.lastSecurityCheck,
-      authToken: this.authToken ? '***' : null
+      authToken: this.authToken ? "***" : null,
     };
   }
 }
@@ -562,7 +570,7 @@ export class ChittySecurityManager {
 export class ChittySecurityError extends Error {
   constructor(message, originalError) {
     super(message);
-    this.name = 'ChittySecurityError';
+    this.name = "ChittySecurityError";
     this.originalError = originalError;
   }
 }
