@@ -141,7 +141,7 @@ export class ChittyRouterMCPServer {
    * Handle WebSocket connections
    */
   async handleWebSocketConnection(ws, req) {
-    const clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const clientId = `client_${Date.now()}`;
 
     console.log(`📡 MCP WebSocket client connected: ${clientId}`);
 

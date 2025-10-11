@@ -468,8 +468,10 @@ async function generateDocumentChittyID(attachment) {
     });
   } catch (error) {
     console.error("ChittyID generation failed:", error);
-    // Return placeholder that indicates service failure
-    return `CHITTY-INFO-PENDING-${Date.now()}`;
+    // NO LOCAL GENERATION - Throw error instead of generating placeholder ID
+    throw new Error(
+      "Cannot proceed without valid ChittyID from id.chitty.cc. ChittyID service unavailable.",
+    );
   }
 }
 

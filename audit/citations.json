@@ -1,0 +1,105 @@
+[
+  {
+    "claim": "Email worker deployed and operational since October 3, 2025",
+    "source": "wrangler deployments list output",
+    "evidence_type": "deployment_logs",
+    "status": "mismatch",
+    "date_claimed": "2025-10-03",
+    "date_verified": "2025-10-04 05:20:48 UTC",
+    "quote_match": false,
+    "note": "Documentation claims Oct 3, deployment logs show Oct 4, 05:20 UTC as earliest deployment"
+  },
+  {
+    "claim": "Current deployment version: 9d6874e1-f28b-438b-a9a9-864c1e62158e from Oct 4, 2025",
+    "source": "wrangler deployments list",
+    "evidence_type": "deployment_logs",
+    "status": "verified",
+    "date_verified": "2025-10-04 05:20:48 UTC",
+    "quote_match": true,
+    "note": "Version ID confirmed in deployment logs"
+  },
+  {
+    "claim": "Processing time ~1520ms per email",
+    "source": "test-results/test-log.csv, SESSION-SUMMARY.md lines 27-34",
+    "evidence_type": "test_results",
+    "status": "verified",
+    "sample_size": 1,
+    "quote_match": true,
+    "note": "Single data point verified, but insufficient for performance baseline claim"
+  },
+  {
+    "claim": "100% accuracy and >90% target",
+    "source": "FINAL-STATUS-EMAIL-WORKER.md lines 39-45, 375-381",
+    "evidence_type": "test_results",
+    "status": "misleading",
+    "sample_size": 1,
+    "quote_match": false,
+    "note": "Accuracy percentage with n=1 sample violates basic statistical principles. Should state '1/1 successful' not '100%'"
+  },
+  {
+    "claim": "Catch-all rule handles ALL @chitty.cc emails",
+    "source": "Cloudflare Email Routing dashboard (referenced but not captured)",
+    "evidence_type": "configuration",
+    "status": "unverifiable",
+    "quote_match": false,
+    "note": "Dashboard configuration referenced but not included in evidence. Test coverage only for test@chitty.cc (1 address, not 'ALL')"
+  },
+  {
+    "claim": "10 automated tests in test suite",
+    "source": "tests/email-worker-suite.sh",
+    "evidence_type": "source_code",
+    "status": "mismatch",
+    "quote_match": false,
+    "note": "Test suite defines 10 tests but lines 74-108 explicitly state 'These tests require manual email sending' for tests 3-7. Only tests 1, 2, 8 are automated. Documentation overstates automation level."
+  },
+  {
+    "claim": "Test suite shows 2 passed, 3 manual/skip",
+    "source": "test-results/test-log.csv",
+    "evidence_type": "test_results",
+    "status": "verified",
+    "date": "2025-10-05 21:06:40",
+    "quote_match": true,
+    "note": "CSV shows: 2 PASS (Worker Health Check, Wrangler CLI), 1 SKIP (Email Routing Config), 2 MANUAL (Forwarding Check, Processing Time)"
+  },
+  {
+    "claim": "6 comprehensive guides created",
+    "source": "find command output for .md files in Arias V Bianchi folder",
+    "evidence_type": "file_listing",
+    "status": "verified",
+    "files_count": 6,
+    "quote_match": false,
+    "note": "6 files exist but 'comprehensive' is subjective exaggeration. Files are: EMAIL-ROUTING-CONFIG.md, FINAL-STATUS-EMAIL-WORKER.md, SESSION-SUMMARY.md, ENABLE-EMAIL-FORWARDING.md, EMAIL-WORKER-QUICK-START.md, VERIFICATION-CHECKLIST.md"
+  },
+  {
+    "claim": "Forwarding enabled in local code but not deployed",
+    "source": "git diff eb4ab19 HEAD -- src/workers/email-worker.js",
+    "evidence_type": "source_code",
+    "status": "verified",
+    "quote_match": true,
+    "note": "Diff confirms local code (HEAD) imports email-worker-enhancements.js and has ChittyID minting. Deployed version (eb4ab19) does NOT have these imports. Critical deployment gap confirmed."
+  },
+  {
+    "claim": "Operational in Test Mode with forwarding disabled in deployed version (Oct 4)",
+    "source": "git show eb4ab19:src/workers/email-worker.js, SESSION-SUMMARY.md lines 79-83",
+    "evidence_type": "source_code",
+    "status": "verified",
+    "quote_match": true,
+    "note": "Deployed version does not include forward error handling or ChittyID imports visible in current HEAD"
+  },
+  {
+    "claim": "25 minutes to production",
+    "source": "FINAL-STATUS-EMAIL-WORKER.md line 403",
+    "evidence_type": "estimate",
+    "status": "unsupported",
+    "quote_match": false,
+    "note": "No methodology provided. Estimate ignores deployment failure history (auth errors in git commits). No contingency time for troubleshooting."
+  },
+  {
+    "claim": "Logs show 'forwarding disabled for testing'",
+    "source": "Referenced in FINAL-STATUS-EMAIL-WORKER.md line 78 but not captured",
+    "evidence_type": "worker_logs",
+    "status": "unverifiable",
+    "quote_match": false,
+    "note": "Worker tail logs not included in evidence collection. Claim cannot be independently verified from provided artifacts."
+  }
+]

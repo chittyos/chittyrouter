@@ -14,6 +14,7 @@ import UnifiedServiceRouter, {
 // Import and re-export Durable Objects from other modules
 export { SyncStateDurableObject } from "./sync/unified-sync-orchestrator.js";
 export { AIStateDO } from "./ai/ai-state.js";
+export { PersistentAgent } from "./agents/persistent-agent.js";
 
 export default {
   async fetch(request, env, ctx) {
@@ -29,6 +30,11 @@ export default {
       // Router health endpoint (priority check)
       if (pathname === "/router/health") {
         return await handleServiceHealth(request, env);
+      }
+
+      // Platform routes (main chittyos-platform-live functionality) - PRIORITY
+      if (hostname.includes("platform") || pathname.startsWith("/platform")) {
+        return await handlePlatform(request, env, ctx);
       }
 
       // Check if this is a known ChittyOS service route
@@ -51,11 +57,6 @@ export default {
         if (schemaResponse) {
           return schemaResponse;
         }
-      }
-
-      // Platform routes (main chittyos-platform-live functionality)
-      if (hostname.includes("platform") || pathname.startsWith("/platform")) {
-        return await handlePlatform(request, env, ctx);
       }
 
       // Bridge service routes
@@ -358,6 +359,27 @@ async function handlePlatform(request, env, ctx) {
 
       const id = env.SYNC_STATE.idFromName("sync-global");
       const stub = env.SYNC_STATE.get(id);
+      return await stub.fetch(request);
+    }
+
+    // Persistent Agents via Durable Object
+    if (pathname.startsWith("/platform/agents")) {
+      if (!env.PERSISTENT_AGENTS) {
+        return new Response(
+          JSON.stringify({ error: "Persistent agents not available" }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      // Extract agent name from path: /platform/agents/{agentName}/{action}
+      const pathParts = pathname.split("/").filter((p) => p);
+      const agentName = pathParts[2] || "default";
+
+      const id = env.PERSISTENT_AGENTS.idFromName(agentName);
+      const stub = env.PERSISTENT_AGENTS.get(id);
       return await stub.fetch(request);
     }
 
@@ -694,11 +716,34 @@ export class SyncState {
         const body = await request.json();
         const { operation, data } = body;
 
+        // Import ChittyID utility for proper ID generation
+        const { ChittyIdClient } = await import(
+          "./utils/chittyid-integration.js"
+        );
+
+        // Generate ChittyID from authority service for sync operation
+        let syncId;
+        try {
+          const chittyIdResult = await ChittyIdClient.request(
+            "sync-operation",
+            {
+              purpose: `Sync queue operation: ${operation}`,
+            },
+            this.env,
+          );
+          syncId = chittyIdResult.chittyId;
+        } catch (error) {
+          console.error("Failed to mint ChittyID for sync operation:", error);
+          throw new Error(
+            "Cannot queue sync operation without valid ChittyID from id.chitty.cc",
+          );
+        }
+
         this.syncQueue.push({
           operation,
           data,
           queuedAt: new Date().toISOString(),
-          id: `sync-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+          id: syncId,
         });
 
         await this.state.storage.put("syncQueue", this.syncQueue);

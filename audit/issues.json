@@ -1,0 +1,66 @@
+[
+  {
+    "type": "deployment_misrepresentation",
+    "claim": "Email worker deployed and operational since October 3, 2025 with forwarding enabled",
+    "location": "FINAL-STATUS-EMAIL-WORKER.md lines 62-64, 83-84",
+    "severity": "critical",
+    "evidence": "Deployment list shows Oct 4 version 9d6874e1-f28b-438b-a9a9-864c1e62158e is active. Git diff shows local code has forwarding enabled (line 566) but deployed version from eb4ab19 does NOT have enhancements imported. Documentation states 'forwarding disabled for testing' in logs.",
+    "suggested_fix": "Change to: 'Deployed version (Oct 4) has forwarding DISABLED. Local code (Oct 6) updated with forwarding enabled but NOT YET DEPLOYED. Current operational status: Test Mode only.'"
+  },
+  {
+    "type": "statistical_error",
+    "claim": "100% accuracy and >90% target for AI Classification",
+    "location": "FINAL-STATUS-EMAIL-WORKER.md lines 39-45, SESSION-SUMMARY.md lines 92",
+    "severity": "high",
+    "evidence": "Test log shows 1 test email only: 'nb@chitty.local → test@chitty.cc'. No statistical validity with n=1 sample.",
+    "suggested_fix": "Replace '100% accuracy' with 'Initial test successful (1/1 emails classified correctly). Statistical validation requires minimum n=30 sample size.'"
+  },
+  {
+    "type": "exaggeration",
+    "claim": "Comprehensive testing framework with 10 automated tests",
+    "location": "FINAL-STATUS-EMAIL-WORKER.md lines 48-51, tests/email-worker-suite.sh",
+    "severity": "medium",
+    "evidence": "Test suite defines 10 tests but execution log shows: 2 PASS, 1 SKIP, 2 MANUAL. Tests 3-7 (AI classification scenarios) explicitly require manual email sending with note 'These tests require manual email sending'.",
+    "suggested_fix": "Change to: 'Test suite contains 10 test cases: 2 automated (health check, CLI availability), 3 require manual verification, 5 require manual email sending. Automated test execution: 2/2 passed.'"
+  },
+  {
+    "type": "unsupported_claim",
+    "claim": "Processing time ~1520ms per email",
+    "location": "FINAL-STATUS-EMAIL-WORKER.md line 15, SESSION-SUMMARY.md line 143",
+    "severity": "medium",
+    "evidence": "Single log entry shows 1520ms for one test email. No mean, median, or distribution data.",
+    "suggested_fix": "Change to: 'Single test email processed in 1520ms. Performance baseline requires additional testing to establish mean and variance.'"
+  },
+  {
+    "type": "unsupported_claim",
+    "claim": "Catch-all rule handles ALL @chitty.cc emails (unlimited email addresses)",
+    "location": "FINAL-STATUS-EMAIL-WORKER.md lines 19-25, SESSION-SUMMARY.md lines 17-23",
+    "severity": "low",
+    "evidence": "Cloudflare dashboard confirmation exists for catch-all rule, but actual test coverage limited to test@chitty.cc only. Other addresses untested.",
+    "suggested_fix": "Add caveat: 'Catch-all rule configured in Cloudflare dashboard. Tested with test@chitty.cc successfully. Additional addresses (legal@, contracts@, etc.) configured in routing logic but not yet tested with actual emails.'"
+  },
+  {
+    "type": "scope_creep",
+    "claim": "6 comprehensive guides created",
+    "location": "FINAL-STATUS-EMAIL-WORKER.md lines 196-203",
+    "severity": "low",
+    "evidence": "6 markdown files created, but several are procedural checklists and quick-start guides rather than 'comprehensive guides'. Word 'comprehensive' appears 11 times across documents.",
+    "suggested_fix": "Change to: '6 documentation files created: 2 quick-start guides, 2 configuration references, 2 status summaries.'"
+  },
+  {
+    "type": "missing_context",
+    "claim": "25 minutes to production",
+    "location": "FINAL-STATUS-EMAIL-WORKER.md line 403",
+    "severity": "medium",
+    "evidence": "Estimate assumes: (1) verification emails arrive immediately, (2) deployment succeeds without issues. Git history shows deployment auth errors. No mention of troubleshooting time.",
+    "suggested_fix": "Change to: 'Estimated 25 minutes for address verification and deployment, assuming no technical issues. Previous deployment attempts encountered auth errors; troubleshooting time not included in estimate.'"
+  },
+  {
+    "type": "logical_contradiction",
+    "claim": "Current Status: Operational in Test Mode vs Forwarding enabled",
+    "location": "Multiple: FINAL-STATUS-EMAIL-WORKER.md lines 5, 62-64, 73-76, 387",
+    "severity": "high",
+    "evidence": "Document simultaneously claims 'Operational in Test Mode' (line 5), 'Local Code: Forwarding enabled' (line 62), and 'NO forwarding to destination addresses' (line 74). These statements contradict each other without clear timeline distinction.",
+    "suggested_fix": "Create clear timeline: 'DEPLOYED VERSION (Oct 4): Test mode, forwarding disabled. LOCAL CODE (Oct 6): Forwarding enabled but not deployed. CURRENT OPERATIONAL STATUS: Test mode only.'"
+  }
+]

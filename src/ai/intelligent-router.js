@@ -11,6 +11,7 @@ import {
 import { ChittyChatProjectSync } from "../sync/chittychat-project-sync.js";
 import AIModelConfig from "../utils/ai-model-config.js";
 import { requestEmailChittyID } from "../utils/chittyid-client.js";
+import { AIGatewayClient } from "./ai-gateway-client.js";
 
 export class ChittyRouterAI {
   constructor(ai, env) {
@@ -18,6 +19,7 @@ export class ChittyRouterAI {
     this.env = env;
     this.chittyChat = new ChittyChatProjectSync(env);
     this.aiConfig = new AIModelConfig(env);
+    this.aiGateway = new AIGatewayClient(env); // Multi-provider AI Gateway
   }
 
   /**

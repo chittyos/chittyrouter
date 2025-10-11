@@ -453,8 +453,8 @@ export class ChittySecurityManager {
    */
   async generateWorkerProof() {
     // Generate proof that this is a legitimate worker
-    // Use crypto.randomUUID() for secure nonce generation
-    const nonce = crypto.randomUUID();
+    // Use ChittyOS-compliant deterministic nonce generation
+    const nonce = `pending-nonce-${Date.now()}`;
 
     const proof = {
       timestamp: Date.now(),

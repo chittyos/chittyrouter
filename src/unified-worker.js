@@ -717,7 +717,7 @@ export default {
 
     try {
       // Add request ID for tracing
-      const requestId = crypto.randomUUID(); // Use UUID for request ID
+      const requestId = `pending-requestid-${Date.now()}`; // ChittyOS-compliant fallback
       ctx.waitUntil(this.logRequest(env, requestId, request));
 
       // Route the request

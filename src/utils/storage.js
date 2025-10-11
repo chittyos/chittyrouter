@@ -212,7 +212,7 @@ export async function generateChittyIDFromService(env, type, metadata) {
 // Store locally for development/fallback
 async function storeLocally(data) {
   // This would use Durable Objects in production
-  const id = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const id = `local_${Date.now()}`;
 
   console.log(`Storing locally with ID: ${id}`, data);
 

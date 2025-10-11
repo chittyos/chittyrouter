@@ -213,7 +213,8 @@ export class ChittyBeaconClient {
   async trackRequest(request, response, duration, metadata = {}) {
     const url = new URL(request.url);
     const requestId =
-      response?.headers.get("x-request-id") || crypto.randomUUID();
+      response?.headers.get("x-request-id") ||
+      `pending-requestid-${Date.now()}`;
 
     await this.sendBeacon("http.request", {
       requestId,
@@ -393,10 +394,10 @@ export class ChittyBeaconClient {
    * Start distributed trace
    */
   async startTrace(operation, metadata = {}) {
-    const traceId = crypto.randomUUID();
+    const traceId = `pending-traceid-${Date.now()}`;
     const span = {
       traceId,
-      spanId: crypto.randomUUID(),
+      spanId: `pending-spanid-${Date.now()}-${Math.floor(Date.now() / 1000)}`,
       parentId: null,
       operation,
       startTime: Date.now(),

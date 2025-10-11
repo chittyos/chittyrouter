@@ -6,6 +6,7 @@
 
 import { LangChainAIService } from "../services/langchain-ai.js";
 import { ChittyCasesService } from "../services/chittycases-integration.js";
+import ChittyIDClient from "@chittyos/chittyid-client";
 
 export class ChittyRouterGateway {
   constructor(env) {
@@ -14,6 +15,9 @@ export class ChittyRouterGateway {
     this.chittyRouter = env.CHITTY_ROUTER;
     this.langChainAI = new LangChainAIService(env);
     this.chittyCases = new ChittyCasesService(env);
+    this.chittyIdClient = new ChittyIDClient({
+      apiKey: env.CHITTY_ID_TOKEN,
+    });
   }
 
   /**
@@ -309,7 +313,7 @@ export class ChittyRouterGateway {
       technical: "Technical capability verification",
     };
 
-    return await this.env.CHITTY_TRUST.evaluate(
+return await this.env.CHITTY_TRUST.evaluate(;
       entity,
       trustDimensions,
       context,
@@ -706,7 +710,16 @@ export class ChittyRouterGateway {
 
       // Store in vector database
       if (this.env.CHITTY_VECTORS && embedding) {
-        const vectorId = `route_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        // POLICY: Use ChittyID service - NEVER generate locally
+        const vectorId = await this.chittyIdClient.mint({
+          entity: "INFO",
+          name: `Vector embedding for ${emailData.to}`,
+          metadata: {
+            type: "vector_embedding",
+            route: emailData.to,
+            timestamp: Date.now(),
+          },
+        });
         await this.env.CHITTY_VECTORS.upsert([
           {
             id: vectorId,
@@ -948,7 +961,7 @@ export class ChittyRouterGateway {
     if (breaker.state === "open") {
       if (now - breaker.lastFailTime < 60000) {
         // 1 minute timeout
-        throw new Error(
+throw new Error(;
           "Circuit breaker is open - service temporarily unavailable",
         );
       } else {
