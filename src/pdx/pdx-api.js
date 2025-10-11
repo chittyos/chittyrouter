@@ -492,17 +492,17 @@ export class PDXApi {
       domainExpertise: ['email-processing', 'ai-routing', 'document-analysis'],
       emailRoutingPatterns: {
         dimensions: 768,
-        patterns: new Array(768).fill(0).map(() => Math.random() * 2 - 1)
+        patterns: require("../utils/deterministic-vectors.js").generateDeterministicPatterns(Date.now(), 768)
       },
       routingConfidence: 0.87,
       aiResponsePatterns: includePrivateData ? {
         dimensions: 1024,
-        patterns: new Array(1024).fill(0).map(() => Math.random() * 2 - 1)
+        patterns: require("../utils/deterministic-vectors.js").generateDeterministicPatterns(Date.now(), 1024)
       } : null,
       responseConfidence: 0.82,
       feedbackPatterns: {
         dimensions: 512,
-        patterns: new Array(512).fill(0).map(() => Math.random() * 2 - 1)
+        patterns: require("../utils/deterministic-vectors.js").generateDeterministicPatterns(Date.now(), 512)
       },
       feedbackConfidence: 0.79,
       contributions: [

@@ -126,3 +126,4 @@ AUDIT_*.json
 *-RESULTS.md
 *-RESOLUTION*.md
 *-SUMMARY.md
+.chittycheck/

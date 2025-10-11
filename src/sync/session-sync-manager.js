@@ -7,7 +7,7 @@
 
 import { Octokit } from "@octokit/rest";
 import getRepositoryManager from "./repository-manager.js";
-import { mintId } from "../utils/mint-id.js";
+import { mintId } from "../utils/chittyid-adapter.js";
 
 const CHITTY_ORG = "ChittyOS";
 const SESSION_REPO = "chittychat-data"; // For project management and sessions

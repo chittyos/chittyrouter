@@ -3,10 +3,10 @@
  * Universal Standard for AI DNA Portability v1.0
  */
 
-import { ChittyIdClient } from '../utils/chittyid-integration.js';
-import { mintId } from '../utils/mint-id.js';
-import { ChittyP256Signatures } from '../crypto/p256-signatures.js';
-import { ChittyFinancialServices } from '../financial/financial-services.js';
+import { ChittyIdClient } from "../utils/chittyid-integration.js";
+import { mintId } from "../utils/mint-id.js";
+import { ChittyP256Signatures } from "../crypto/p256-signatures.js";
+import { ChittyFinancialServices } from "../financial/financial-services.js";
 
 /**
  * PDX Package Builder and Manager
@@ -18,7 +18,7 @@ export class PDXCore {
     this.signatureManager = null;
     this.financialServices = null;
     this.initialized = false;
-    this.version = '1.0';
+    this.version = "1.0";
   }
 
   /**
@@ -26,7 +26,7 @@ export class PDXCore {
    */
   async initialize() {
     try {
-      console.log('🧬 Initializing PDX (Portable DNA eXchange) Core...');
+      console.log("🧬 Initializing PDX (Portable DNA eXchange) Core...");
 
       // Initialize ChittyID client
       this.chittyIdClient = new ChittyIdClient();
@@ -41,12 +41,11 @@ export class PDXCore {
       await this.financialServices.initialize();
 
       this.initialized = true;
-      console.log('✅ PDX Core initialized - AI DNA portability enabled');
+      console.log("✅ PDX Core initialized - AI DNA portability enabled");
 
       return { initialized: true, version: this.version };
-
     } catch (error) {
-      console.error('❌ PDX Core initialization failed:', error);
+      console.error("❌ PDX Core initialization failed:", error);
       throw error;
     }
   }
@@ -56,36 +55,39 @@ export class PDXCore {
    */
   async createPDXPackage(dnaData, options = {}) {
     if (!this.initialized) {
-      throw new Error('PDX Core not initialized');
+      throw new Error("PDX Core not initialized");
     }
 
     try {
-      const packageId = await mintId('pdx', 'pdx_package', this.env);
+      const packageId = await mintId("pdx", "pdx_package", this.env);
 
       // Get ChittyID for package issuer
-      const issuerChittyId = await this.chittyIdClient.request?.('chittyrouter-pdx') ||
-                             await this.chittyIdClient.ensure?.(this.env, 'chittyrouter-pdx') ||
-                             'CHITTY-PDX-ROUTER-001';
+      const issuerChittyId =
+        (await this.chittyIdClient.request?.("chittyrouter-pdx")) ||
+        (await this.chittyIdClient.ensure?.(this.env, "chittyrouter-pdx")) ||
+        "CHITTY-PDX-ROUTER-001";
 
       // Create PDX header
       const header = this.createPDXHeader({
         packageId,
         issuerChittyId,
         subjectChittyId: dnaData.ownerChittyId || issuerChittyId,
-        options
+        options,
       });
 
       // Build DNA profile from collected patterns
       const dnaProfile = this.buildDNAProfile(dnaData);
 
       // Collect and process contributions
-      const contributions = await this.processContributions(dnaData.contributions || []);
+      const contributions = await this.processContributions(
+        dnaData.contributions || [],
+      );
 
       // Generate cryptographic proofs
       const proofs = await this.generateProofBundle(dnaProfile, contributions);
 
       // Create license terms
-      const licenses = this.createLicenseTerms(options.licenses || 'CDCL');
+      const licenses = this.createLicenseTerms(options.licenses || "CDCL");
 
       // Create metadata
       const metadata = this.createPDXMetadata(dnaData, options);
@@ -97,7 +99,7 @@ export class PDXCore {
         contributions,
         proofs,
         licenses,
-        metadata
+        metadata,
       };
 
       // Calculate integrity checksum
@@ -110,9 +112,8 @@ export class PDXCore {
       console.log(`🧬 PDX Package created: ${packageId}`);
 
       return pdxPackage;
-
     } catch (error) {
-      console.error('Failed to create PDX package:', error);
+      console.error("Failed to create PDX package:", error);
       throw error;
     }
   }
@@ -130,14 +131,14 @@ export class PDXCore {
       expiresAt: options.expiresAt || null,
       issuer: {
         chittyId: issuerChittyId,
-        systemName: 'ChittyRouter AI Gateway',
-        systemVersion: '2.0.0-ai'
+        systemName: "ChittyRouter AI Gateway",
+        systemVersion: "2.0.0-ai",
       },
       subject: {
         chittyId: subjectChittyId,
-        personaId: options.personaId || `persona_${Date.now()}`
+        personaId: options.personaId || `persona_${Date.now()}`,
       },
-      checksum: null // Will be calculated after package creation
+      checksum: null, // Will be calculated after package creation
     };
   }
 
@@ -147,11 +148,14 @@ export class PDXCore {
   buildDNAProfile(dnaData) {
     return {
       personaId: dnaData.personaId || `persona_${Date.now()}`,
-      domainExpertise: dnaData.domainExpertise || ['email-processing', 'ai-routing'],
+      domainExpertise: dnaData.domainExpertise || [
+        "email-processing",
+        "ai-routing",
+      ],
       decisionPatterns: this.extractDecisionPatterns(dnaData),
       modelDeltas: this.extractModelDeltas(dnaData),
       behaviorSignature: this.createBehaviorSignature(dnaData),
-      temporalCoherence: this.calculateTemporalCoherence(dnaData)
+      temporalCoherence: this.calculateTemporalCoherence(dnaData),
     };
   }
 
@@ -168,8 +172,8 @@ export class PDXCore {
         dimensions: 768, // Common embedding size
         embedding: this.encryptPatternVector(dnaData.emailRoutingPatterns),
         confidence: dnaData.routingConfidence || 0.85,
-        contextTags: ['email', 'routing', 'classification'],
-        privacyLevel: 'SELECTIVE'
+        contextTags: ["email", "routing", "classification"],
+        privacyLevel: "SELECTIVE",
       });
     }
 
@@ -179,9 +183,9 @@ export class PDXCore {
         vectorId: `pattern_ai_response_${Date.now()}`,
         dimensions: 1024,
         embedding: this.encryptPatternVector(dnaData.aiResponsePatterns),
-        confidence: dnaData.responseConfidence || 0.80,
-        contextTags: ['ai', 'response', 'generation'],
-        privacyLevel: 'PRIVATE'
+        confidence: dnaData.responseConfidence || 0.8,
+        contextTags: ["ai", "response", "generation"],
+        privacyLevel: "PRIVATE",
       });
     }
 
@@ -192,8 +196,8 @@ export class PDXCore {
         dimensions: 512,
         embedding: this.encryptPatternVector(dnaData.feedbackPatterns),
         confidence: dnaData.feedbackConfidence || 0.75,
-        contextTags: ['feedback', 'improvement', 'learning'],
-        privacyLevel: 'PUBLIC'
+        contextTags: ["feedback", "improvement", "learning"],
+        privacyLevel: "PUBLIC",
       });
     }
 
@@ -204,11 +208,12 @@ export class PDXCore {
    * Encrypt pattern vectors for privacy
    */
   encryptPatternVector(pattern) {
-    // In production, this would use proper encryption
-    // For now, return a mock encrypted vector
-    return new Array(pattern.dimensions || 768).fill(0).map(() =>
-      Math.random() * 2 - 1 // Random values between -1 and 1
-    );
+    // Use deterministic vector generation based on pattern hash
+    const {
+      generateDeterministicPatterns,
+    } = require("../utils/deterministic-vectors.js");
+    const seed = pattern.id || pattern.name || Date.now().toString();
+    return generateDeterministicPatterns(seed, pattern.dimensions || 768);
   }
 
   /**
@@ -219,15 +224,15 @@ export class PDXCore {
 
     if (dnaData.fineTuningData) {
       deltas.push({
-        baseModel: '@cf/meta/llama-3.1-8b-instruct',
-        deltaType: 'FINE_TUNE',
+        baseModel: "@cf/meta/llama-3.1-8b-instruct",
+        deltaType: "FINE_TUNE",
         deltaData: this.encryptModelWeights(dnaData.fineTuningData),
         performanceGains: {
           accuracyImprovement: dnaData.accuracyGain || 0.05,
           speedImprovement: dnaData.speedGain || 0.02,
-          qualityScore: dnaData.qualityScore || 0.87
+          qualityScore: dnaData.qualityScore || 0.87,
         },
-        validationResults: dnaData.validationResults || []
+        validationResults: dnaData.validationResults || [],
       });
     }
 
@@ -241,8 +246,8 @@ export class PDXCore {
     // In production, this would use proper encryption
     return {
       encryptedData: btoa(JSON.stringify(weights)),
-      encryptionMethod: 'AES-256-GCM',
-      keyId: 'key_' + Date.now()
+      encryptionMethod: "AES-256-GCM",
+      keyId: "key_" + Date.now(),
     };
   }
 
@@ -255,19 +260,19 @@ export class PDXCore {
       riskProfile: {
         riskTolerance: dnaData.riskTolerance || 0.3,
         safetyScore: dnaData.safetyScore || 0.95,
-        biasDetection: dnaData.biasMetrics || {}
+        biasDetection: dnaData.biasMetrics || {},
       },
       ethicalAlignment: {
-        fairnessScore: dnaData.fairnessScore || 0.90,
+        fairnessScore: dnaData.fairnessScore || 0.9,
         transparencyLevel: dnaData.transparencyLevel || 0.85,
-        accountabilityScore: dnaData.accountabilityScore || 0.88
+        accountabilityScore: dnaData.accountabilityScore || 0.88,
       },
       qualityMetrics: {
         consistency: dnaData.consistencyScore || 0.92,
         reliability: dnaData.reliabilityScore || 0.89,
-        adaptability: dnaData.adaptabilityScore || 0.78
+        adaptability: dnaData.adaptabilityScore || 0.78,
       },
-      coherenceScore: dnaData.coherenceScore || 0.85
+      coherenceScore: dnaData.coherenceScore || 0.85,
     };
   }
 
@@ -284,7 +289,8 @@ export class PDXCore {
       return Math.abs(sample.score - samples[index - 1].score);
     });
 
-    const avgVariation = variations.reduce((a, b) => a + b, 0) / variations.length;
+    const avgVariation =
+      variations.reduce((a, b) => a + b, 0) / variations.length;
     return Math.max(0, 1 - avgVariation); // Higher coherence = lower variation
   }
 
@@ -295,26 +301,27 @@ export class PDXCore {
     const processedContributions = [];
 
     for (const contribution of contributions) {
-      const contributionId = await this.chittyIdClient.request?.('contribution') ||
-                            `contrib_${Date.now()}`;
+      const contributionId =
+        (await this.chittyIdClient.request?.("contribution")) ||
+        `contrib_${Date.now()}`;
 
       processedContributions.push({
         contributionId,
-        type: contribution.type || 'TRAINING_DATA',
-        domain: contribution.domain || 'email-processing',
+        type: contribution.type || "TRAINING_DATA",
+        domain: contribution.domain || "email-processing",
         timestamp: contribution.timestamp || new Date().toISOString(),
         impactWeight: contribution.impactWeight || 0.1,
         evidenceHash: await this.hashContributionEvidence(contribution),
         attribution: {
-          role: contribution.role || 'CREATOR',
+          role: contribution.role || "CREATOR",
           weight: contribution.attributionWeight || 1.0,
           loyaltyRate: contribution.loyaltyRate || 0.05, // 5% default
           decayFunction: {
-            type: 'EXPONENTIAL',
+            type: "EXPONENTIAL",
             halfLife: 365, // days
-            minRate: 0.01 // minimum 1%
-          }
-        }
+            minRate: 0.01, // minimum 1%
+          },
+        },
       });
     }
 
@@ -328,16 +335,16 @@ export class PDXCore {
     const evidence = JSON.stringify({
       type: contribution.type,
       data: contribution.data,
-      timestamp: contribution.timestamp
+      timestamp: contribution.timestamp,
     });
 
     const encoder = new TextEncoder();
     const data = encoder.encode(evidence);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
 
     return Array.from(new Uint8Array(hashBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
   }
 
   /**
@@ -349,75 +356,78 @@ export class PDXCore {
     // Proof of DNA ownership
     const ownershipProof = await this.signatureManager.signChittyIdVerification(
       dnaProfile.personaId,
-      { type: 'DNA_OWNERSHIP', timestamp: new Date().toISOString() }
+      { type: "DNA_OWNERSHIP", timestamp: new Date().toISOString() },
     );
 
     proofs.push({
-      proofType: 'OWNERSHIP',
-      algorithm: 'ECDSA-P256-SHA256',
+      proofType: "OWNERSHIP",
+      algorithm: "ECDSA-P256-SHA256",
       signature: ownershipProof.signature,
-      publicKey: ownershipProof.publicKey
+      publicKey: ownershipProof.publicKey,
     });
 
     // Proof of contribution integrity
     for (const contribution of contributions) {
-      const contributionProof = await this.signatureManager.signChittyIdVerification(
-        contribution.contributionId,
-        { evidenceHash: contribution.evidenceHash }
-      );
+      const contributionProof =
+        await this.signatureManager.signChittyIdVerification(
+          contribution.contributionId,
+          { evidenceHash: contribution.evidenceHash },
+        );
 
       proofs.push({
-        proofType: 'CONTRIBUTION_INTEGRITY',
+        proofType: "CONTRIBUTION_INTEGRITY",
         contributionId: contribution.contributionId,
         signature: contributionProof.signature,
-        publicKey: contributionProof.publicKey
+        publicKey: contributionProof.publicKey,
       });
     }
 
     return {
       zkProofs: proofs,
       integrityProofs: [],
-      attributionProofs: []
+      attributionProofs: [],
     };
   }
 
   /**
    * Create license terms (defaults to CDCL)
    */
-  createLicenseTerms(licenseType = 'CDCL') {
-    if (licenseType === 'CDCL') {
-      return [{
-        licenseType: 'CDCL',
-        version: '1.0',
-        grantScope: {
-          permissions: ['READ', 'DERIVE', 'TRAIN'],
-          restrictions: ['COMMERCIAL_USE_REQUIRES_PAYMENT']
-        },
-        territorialScope: ['GLOBAL'],
-        fieldOfUse: ['AI_TRAINING', 'MODEL_IMPROVEMENT', 'RESEARCH'],
-        exclusions: ['MILITARY', 'SURVEILLANCE', 'DISCRIMINATION'],
-        compensationTerms: {
-          loyaltyRate: 0.05, // 5% of revenue
-          minimumPayment: 0.01, // $0.01 minimum
-          paymentCurrency: 'USDC',
-          paymentFrequency: 'MONTHLY',
-          performanceMultiplier: {
-            baseMultiplier: 1.0,
-            qualityBonusRate: 0.1,
-            popularityBonusRate: 0.05
-          }
-        },
-        terminationConditions: {
-          noticePeriod: 30, // 30 days notice
-          gracePeriod: 90, // 90 days to transition
-          dataRetention: {
-            maxRetentionDays: 365,
-            deletionRequiredAfterTermination: true
+  createLicenseTerms(licenseType = "CDCL") {
+    if (licenseType === "CDCL") {
+      return [
+        {
+          licenseType: "CDCL",
+          version: "1.0",
+          grantScope: {
+            permissions: ["READ", "DERIVE", "TRAIN"],
+            restrictions: ["COMMERCIAL_USE_REQUIRES_PAYMENT"],
           },
-          migrationSupport: true
+          territorialScope: ["GLOBAL"],
+          fieldOfUse: ["AI_TRAINING", "MODEL_IMPROVEMENT", "RESEARCH"],
+          exclusions: ["MILITARY", "SURVEILLANCE", "DISCRIMINATION"],
+          compensationTerms: {
+            loyaltyRate: 0.05, // 5% of revenue
+            minimumPayment: 0.01, // $0.01 minimum
+            paymentCurrency: "USDC",
+            paymentFrequency: "MONTHLY",
+            performanceMultiplier: {
+              baseMultiplier: 1.0,
+              qualityBonusRate: 0.1,
+              popularityBonusRate: 0.05,
+            },
+          },
+          terminationConditions: {
+            noticePeriod: 30, // 30 days notice
+            gracePeriod: 90, // 90 days to transition
+            dataRetention: {
+              maxRetentionDays: 365,
+              deletionRequiredAfterTermination: true,
+            },
+            migrationSupport: true,
+          },
+          governingLaw: "Delaware, USA",
         },
-        governingLaw: 'Delaware, USA'
-      }];
+      ];
     }
 
     return []; // Other license types not implemented yet
@@ -429,26 +439,26 @@ export class PDXCore {
   createPDXMetadata(dnaData, options) {
     return {
       creatorInfo: {
-        name: options.creatorName || 'Anonymous',
+        name: options.creatorName || "Anonymous",
         email: options.creatorEmail || null,
-        organization: options.organization || 'ChittyRouter User'
+        organization: options.organization || "ChittyRouter User",
       },
       technicalInfo: {
-        modelArchitecture: dnaData.modelArchitecture || 'transformer',
-        trainingFramework: dnaData.framework || 'cloudflare-ai',
+        modelArchitecture: dnaData.modelArchitecture || "transformer",
+        trainingFramework: dnaData.framework || "cloudflare-ai",
         datasetInfo: dnaData.datasetInfo || {},
-        computeRequirements: dnaData.computeRequirements || {}
+        computeRequirements: dnaData.computeRequirements || {},
       },
       qualityMetrics: {
         validationScore: dnaData.validationScore || 0.85,
         testResults: dnaData.testResults || [],
-        benchmarkScores: dnaData.benchmarkScores || {}
+        benchmarkScores: dnaData.benchmarkScores || {},
       },
       usageStats: {
         totalInferences: dnaData.totalInferences || 0,
         averageLatency: dnaData.averageLatency || 0,
-        successRate: dnaData.successRate || 0.95
-      }
+        successRate: dnaData.successRate || 0.95,
+      },
     };
   }
 
@@ -463,18 +473,21 @@ export class PDXCore {
       contributions: pdxPackage.contributions,
       proofs: pdxPackage.proofs,
       licenses: pdxPackage.licenses,
-      metadata: pdxPackage.metadata
+      metadata: pdxPackage.metadata,
     };
 
-    const canonicalString = JSON.stringify(checksumData, Object.keys(checksumData).sort());
+    const canonicalString = JSON.stringify(
+      checksumData,
+      Object.keys(checksumData).sort(),
+    );
 
     const encoder = new TextEncoder();
     const data = encoder.encode(canonicalString);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
 
     return Array.from(new Uint8Array(hashBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
   }
 
   /**
@@ -485,19 +498,22 @@ export class PDXCore {
       packageId: pdxPackage.header.packageId,
       checksum: pdxPackage.header.checksum,
       issuer: pdxPackage.header.issuer,
-      subject: pdxPackage.header.subject
+      subject: pdxPackage.header.subject,
     };
 
-    const signature = await this.signatureManager.signChittyIdRequest(packageData);
+    const signature =
+      await this.signatureManager.signChittyIdRequest(packageData);
 
-    return [{
-      signatureType: 'PACKAGE_INTEGRITY',
-      algorithm: 'ECDSA-P256-SHA256',
-      signature: signature.signature,
-      publicKey: signature.publicKey,
-      timestamp: signature.timestamp,
-      signer: pdxPackage.header.issuer
-    }];
+    return [
+      {
+        signatureType: "PACKAGE_INTEGRITY",
+        algorithm: "ECDSA-P256-SHA256",
+        signature: signature.signature,
+        publicKey: signature.publicKey,
+        timestamp: signature.timestamp,
+        signer: pdxPackage.header.issuer,
+      },
+    ];
   }
 
   /**
@@ -508,30 +524,36 @@ export class PDXCore {
       isValid: true,
       errors: [],
       warnings: [],
-      score: 1.0
+      score: 1.0,
     };
 
     try {
       // Validate structure
-      if (!pdxPackage.header || !pdxPackage.dnaProfile || !pdxPackage.contributions) {
-        validation.errors.push('Missing required package components');
+      if (
+        !pdxPackage.header ||
+        !pdxPackage.dnaProfile ||
+        !pdxPackage.contributions
+      ) {
+        validation.errors.push("Missing required package components");
         validation.isValid = false;
       }
 
       // Validate version
       if (pdxPackage.header.version !== this.version) {
-        validation.warnings.push(`Version mismatch: expected ${this.version}, got ${pdxPackage.header.version}`);
+        validation.warnings.push(
+          `Version mismatch: expected ${this.version}, got ${pdxPackage.header.version}`,
+        );
         validation.score *= 0.9;
       }
 
       // Validate checksum
       const calculatedChecksum = await this.calculatePackageChecksum({
         ...pdxPackage,
-        signatures: undefined // Exclude signatures from checksum calculation
+        signatures: undefined, // Exclude signatures from checksum calculation
       });
 
       if (calculatedChecksum !== pdxPackage.header.checksum) {
-        validation.errors.push('Package checksum validation failed');
+        validation.errors.push("Package checksum validation failed");
         validation.isValid = false;
       }
 
@@ -541,19 +563,21 @@ export class PDXCore {
           const isValidSignature = await this.signatureManager.verifySignature(
             {
               packageId: pdxPackage.header.packageId,
-              checksum: pdxPackage.header.checksum
+              checksum: pdxPackage.header.checksum,
             },
             signature.signature,
-            signature.publicKey
+            signature.publicKey,
           );
 
           if (!isValidSignature.valid) {
-            validation.errors.push(`Invalid signature: ${signature.signatureType}`);
+            validation.errors.push(
+              `Invalid signature: ${signature.signatureType}`,
+            );
             validation.isValid = false;
           }
         }
       } else {
-        validation.warnings.push('Package is not signed');
+        validation.warnings.push("Package is not signed");
         validation.score *= 0.8;
       }
 
@@ -561,11 +585,10 @@ export class PDXCore {
       if (pdxPackage.header.expiresAt) {
         const expirationDate = new Date(pdxPackage.header.expiresAt);
         if (expirationDate < new Date()) {
-          validation.errors.push('Package has expired');
+          validation.errors.push("Package has expired");
           validation.isValid = false;
         }
       }
-
     } catch (error) {
       validation.errors.push(`Validation error: ${error.message}`);
       validation.isValid = false;
@@ -581,18 +604,18 @@ export class PDXCore {
     return {
       initialized: this.initialized,
       version: this.version,
-      specification: 'PDX v1.0',
+      specification: "PDX v1.0",
       capabilities: [
-        'DNA_EXPORT',
-        'DNA_IMPORT',
-        'PACKAGE_VALIDATION',
-        'CRYPTOGRAPHIC_PROOFS',
-        'ATTRIBUTION_TRACKING',
-        'LICENSE_MANAGEMENT'
+        "DNA_EXPORT",
+        "DNA_IMPORT",
+        "PACKAGE_VALIDATION",
+        "CRYPTOGRAPHIC_PROOFS",
+        "ATTRIBUTION_TRACKING",
+        "LICENSE_MANAGEMENT",
       ],
-      supportedLicenses: ['CDCL'],
-      encryptionMethods: ['AES-256-GCM', 'ECDSA-P256'],
-      timestamp: new Date().toISOString()
+      supportedLicenses: ["CDCL"],
+      encryptionMethods: ["AES-256-GCM", "ECDSA-P256"],
+      timestamp: new Date().toISOString(),
     };
   }
 }
@@ -607,18 +630,18 @@ export class PDXValidator {
 
   async validateStructure(pkg) {
     const requiredFields = [
-      'header',
-      'header.version',
-      'header.packageId',
-      'header.createdAt',
-      'header.issuer',
-      'header.subject',
-      'header.checksum',
-      'dnaProfile',
-      'contributions',
-      'proofs',
-      'licenses',
-      'metadata'
+      "header",
+      "header.version",
+      "header.packageId",
+      "header.createdAt",
+      "header.issuer",
+      "header.subject",
+      "header.checksum",
+      "dnaProfile",
+      "contributions",
+      "proofs",
+      "licenses",
+      "metadata",
     ];
 
     const errors = [];
@@ -632,22 +655,26 @@ export class PDXValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings: []
+      warnings: [],
     };
   }
 
   getNestedValue(obj, path) {
-    return path.split('.').reduce((current, key) =>
-      current && current[key] !== undefined ? current[key] : null, obj
-    );
+    return path
+      .split(".")
+      .reduce(
+        (current, key) =>
+          current && current[key] !== undefined ? current[key] : null,
+        obj,
+      );
   }
 
   async validateSignatures(pkg) {
     if (!pkg.signatures || pkg.signatures.length === 0) {
       return {
         isValid: false,
-        errors: ['Package must be signed'],
-        warnings: []
+        errors: ["Package must be signed"],
+        warnings: [],
       };
     }
 
@@ -658,7 +685,7 @@ export class PDXValidator {
         const isValid = await this.pdxCore.signatureManager.verifySignature(
           { packageId: pkg.header.packageId, checksum: pkg.header.checksum },
           signature.signature,
-          signature.publicKey
+          signature.publicKey,
         );
 
         if (!isValid.valid) {
@@ -672,7 +699,7 @@ export class PDXValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings: []
+      warnings: [],
     };
   }
 }

@@ -3,7 +3,7 @@
  * Provides session management and cross-platform sync as a service
  */
 
-import { mintId } from "../utils/mint-id.js";
+import { mintId } from "../utils/chittyid-adapter.js";
 
 export class SessionService {
   constructor(env) {

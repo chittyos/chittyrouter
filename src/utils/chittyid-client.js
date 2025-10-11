@@ -9,7 +9,7 @@ import ChittyIDClient from "@chittyos/chittyid-client";
 // Initialize standard client
 const client = new ChittyIDClient({
   serviceUrl: process.env.CHITTYID_SERVICE_URL || "https://id.chitty.cc/v1",
-  apiKey: process.env.CHITTYID_API_KEY,
+  apiKey: process.env.CHITTY_ID_TOKEN || process.env.CHITTYID_API_KEY,
 });
 
 // Request ChittyID minting for emails
