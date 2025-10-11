@@ -4,7 +4,7 @@
  */
 
 import { ChittyIdClient } from "../utils/chittyid-integration.js";
-import { mintId } from "../utils/mint-id.js";
+import { mintId } from "../utils/chittyid-adapter.js";
 import { ChittyP256Signatures } from "../crypto/p256-signatures.js";
 import { ChittyFinancialServices } from "../financial/financial-services.js";
 
