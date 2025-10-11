@@ -116,3 +116,13 @@ Temporary Items
 .apdiskchittyrouter-nested/
 *.bak
 *.original
+
+# Documentation/Reports (temporary)
+*-REPORT.md
+*-STATUS*.md
+AUDIT_*.json
+*-CHECKLIST.md
+*-GUIDE.md
+*-RESULTS.md
+*-RESOLUTION*.md
+*-SUMMARY.md
