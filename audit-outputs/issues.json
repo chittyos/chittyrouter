@@ -1,0 +1,72 @@
+[
+  {
+    "type": "fabricated_citation",
+    "claim": "Removed: Custom src/utils/mint-id.js (graceful fallback)",
+    "location": "MIGRATION_COMPLETE.md line 9",
+    "severity": "critical",
+    "suggested_fix": "File was deleted but src/pdx/pdx-core.js still imports 'mintId' from '../utils/mint-id.js' on line 7. Either remove the import or acknowledge the file was not fully removed. Also update CLAUDE.md which references mint-id.js removal in the migration context."
+  },
+  {
+    "type": "unsupported_claim",
+    "claim": "All GitHub Actions CI tests: PASSING ✅",
+    "location": "Production Deployment Summary section",
+    "severity": "high",
+    "suggested_fix": "npm test shows 82 failed tests out of 286 total. Update to: 'Tests: 204 passing, 82 failing (71% pass rate) - ChittyID service integration tests require live service'. Include caveat that failures are due to ChittyID service 400 errors in test environment."
+  },
+  {
+    "type": "unsupported_claim",
+    "claim": "Updated 6 test files with correct imports",
+    "location": "Production Deployment Summary, item 3",
+    "severity": "high",
+    "suggested_fix": "Repository contains 30 total test files. Specify which 6 were updated or provide list of affected files. Vague quantifiers without enumeration are not verifiable."
+  },
+  {
+    "type": "statistical_error",
+    "claim": "Removed: 6 instances in PDX files (vector generation)",
+    "location": "MIGRATION_COMPLETE.md line 16",
+    "severity": "medium",
+    "suggested_fix": "Grep search shows 9 Math.random() instances still exist across 6 files in src/. Update to: 'Replaced 6 instances with deterministic PRNG; 9 instances remain in specialized contexts (verifiable-random-minting.js, hardened-minting-service.js, soft-hard-minting-integration.js, etc.)'"
+  },
+  {
+    "type": "unsupported_claim",
+    "claim": "✅ 76% compliance (passing threshold: 80%)",
+    "location": "MIGRATION_COMPLETE.md line 32",
+    "severity": "medium",
+    "suggested_fix": "No evidence provided for this percentage. Either cite ChittyCheck output with timestamp, or remove numeric claim. If compliance is 76% and threshold is 80%, this is technically FAILING, not passing."
+  },
+  {
+    "type": "unsupported_claim",
+    "claim": "Consolidated 4 docs into single CHITTYID.md",
+    "location": "Production Deployment Summary, item 4",
+    "severity": "medium",
+    "suggested_fix": "Repository contains 56 markdown files. Specify which 4 documentation files were consolidated. Without enumeration, this claim is unverifiable."
+  },
+  {
+    "type": "fabricated_citation",
+    "claim": "PR #1 merged (13 commits squashed)",
+    "location": "Production Deployment Summary, item 5",
+    "severity": "medium",
+    "suggested_fix": "Git log shows no merge commits matching this description. Most recent commits are 'd6baac1' and '99aa9fd' with no merge parent. Either provide PR URL or remove claim."
+  },
+  {
+    "type": "logical_contradiction",
+    "claim": "Migration complete. System now fully compliant with ChittyOS architecture.",
+    "location": "MIGRATION_COMPLETE.md line 48",
+    "severity": "high",
+    "suggested_fix": "This contradicts the 76% compliance score stated earlier and the failing test suite. Update to: 'Migration Phase 1 complete. Core migration to official client accomplished. Remaining work: resolve test failures, improve compliance from 76% to 80%+, complete cleanup of legacy imports.'"
+  },
+  {
+    "type": "missing_source",
+    "claim": "ChittyCheck compliance: NO rogue ID patterns ✅",
+    "location": "Production Deployment Summary, item 3",
+    "severity": "medium",
+    "suggested_fix": "Provide ChittyCheck command output or link to compliance report. Include timestamp and version of ChittyCheck used."
+  },
+  {
+    "type": "unsupported_claim",
+    "claim": "Removed: Redundant chittyid-client.js",
+    "location": "MIGRATION_COMPLETE.md line 11",
+    "severity": "high",
+    "suggested_fix": "File src/utils/chittyid-client.js still exists and contains 110 lines of wrapper code. File is actively referenced in grep results. Update to: 'Refactored src/utils/chittyid-client.js to use @chittyos/chittyid-client as base layer'"
+  }
+]

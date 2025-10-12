@@ -1,0 +1,107 @@
+# Wrangler configuration for ChittyOS Todo Hub
+# Omnidirectional todo synchronization service
+
+name = "chittyos-todo-hub"
+main = "src/todo-hub-worker.js"
+compatibility_date = "2024-10-01"
+account_id = "0bc21e3a5a9de1a4cc843be9c3e98121"
+
+# Workers Paid Plan features
+workers_dev = true
+
+# Routes for todohub.chitty.cc
+routes = [
+  { pattern = "todohub.chitty.cc/*", zone_name = "chitty.cc" }
+]
+
+# D1 Database binding for todos
+[[d1_databases]]
+binding = "DB"
+database_name = "chittyos-todos"
+database_id = "edb47ac4-debf-456d-a963-c90fb05f5960"
+
+# KV namespace for caching (optional - commented out for now)
+# [[kv_namespaces]]
+# binding = "TODO_CACHE"
+# id = "<KV_NAMESPACE_ID>"
+# preview_id = "<KV_PREVIEW_NAMESPACE_ID>"
+
+# Durable Objects for WebSocket state (future enhancement)
+# [[durable_objects.bindings]]
+# name = "TODO_BROADCAST"
+# class_name = "TodoBroadcastDO"
+# script_name = "chittyos-todo-hub"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+TODO_HUB_URL = "https://todohub.chitty.cc"
+CHITTYID_SERVICE_URL = "https://id.chitty.cc/v1"
+LOG_LEVEL = "info"
+
+# Secrets (set via wrangler secret put)
+# CHITTY_ID_TOKEN - ChittyID service token
+# SECRET_CHITTY_ID_TOKEN - Backup token
+
+# Build configuration (commented out - no build needed for now)
+# [build]
+# command = "npm run build"
+
+# Triggers for scheduled tasks (future)
+# [triggers]
+# crons = ["*/30 * * * *"]  # Run cleanup every 30 minutes
+
+# Limits (commented out - not available on free plan)
+# [limits]
+# cpu_ms = 50
+
+# Development configuration
+[env.development]
+name = "chittyos-todo-hub-dev"
+workers_dev = true
+
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "chittyos-todos-dev"
+database_id = "<DEV_DB_ID>"
+
+[env.development.vars]
+ENVIRONMENT = "development"
+TODO_HUB_URL = "https://dev-sync.chitty.cc"
+LOG_LEVEL = "debug"
+
+# Staging configuration
+[env.staging]
+name = "chittyos-todo-hub-staging"
+routes = [
+  { pattern = "staging-sync.chitty.cc/*", zone_name = "chitty.cc" }
+]
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "chittyos-todos-staging"
+database_id = "<STAGING_DB_ID>"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+TODO_HUB_URL = "https://staging-sync.chitty.cc"
+LOG_LEVEL = "debug"
+
+# Production configuration (inherits from root)
+[env.production]
+name = "chittyos-todo-hub-production"
+workers_dev = false
+routes = [
+  { pattern = "todohub.chitty.cc/*", zone_name = "chitty.cc" }
+]
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "chittyos-todos"
+database_id = "edb47ac4-debf-456d-a963-c90fb05f5960"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+TODO_HUB_URL = "https://todohub.chitty.cc"
+CHITTYID_SERVICE_URL = "https://id.chitty.cc/v1"
+LOG_LEVEL = "info"

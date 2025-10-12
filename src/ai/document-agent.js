@@ -394,7 +394,7 @@ function determineAnalysisType(documentType) {
 /**
  * Fallback document analysis when AI fails
  */
-async function fallbackDocumentAnalysis(attachment, emailContext) {
+async function fallbackDocumentAnalysis(attachment) {
   const filename = attachment.name.toLowerCase();
 
   // Basic classification by extension

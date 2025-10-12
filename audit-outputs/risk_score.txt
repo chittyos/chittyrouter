@@ -1,0 +1,15 @@
+68/100 - HIGH RISK (BLOCK PUBLICATION)
+
+Breakdown:
+- Sourcing quality: 12/40 (multiple fabricated/contradicted claims about file removal)
+- Numerical accuracy: 14/25 (test pass rate misrepresented, Math.random count off by 50%)
+- Logical consistency: 16/25 (compliance score shows failure but claimed as pass; "complete" contradicts 76% score)
+- Domain risk modifier: +10 (technical documentation where accuracy is critical for downstream consumers)
+
+Primary risks:
+1. CRITICAL: Claims files removed when still in use (mint-id.js imported by pdx-core.js)
+2. HIGH: Test suite 71% pass rate misrepresented as "all passing"
+3. HIGH: Migration claimed "complete" despite 76% compliance (below 80% threshold)
+4. MEDIUM: Unverifiable numeric claims (6 test files, 4 docs, PR #1)
+
+Recommendation: BLOCK publication until high-priority contradictions resolved. Documentation as written would mislead consumers about actual migration state.

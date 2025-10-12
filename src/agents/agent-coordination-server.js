@@ -3,10 +3,10 @@
  * Manages multi-agent workflows and coordination on port 8080
  */
 
-import { createServer } from 'node:http';
-import { WebSocketServer } from 'ws';
-import { ChittyIdClient } from '../utils/chittyid-integration.js';
-import { ChittySecurityManager } from '../utils/chittyos-security-integration.js';
+import { createServer } from "node:http";
+import { WebSocketServer } from "ws";
+import { ChittyIdClient } from "../utils/chittyid-integration.js";
+import { ChittySecurityManager } from "../utils/chittyos-security-integration.js";
 
 /**
  * Agent Coordination Server
@@ -14,7 +14,7 @@ import { ChittySecurityManager } from '../utils/chittyos-security-integration.js
 export class AgentCoordinationServer {
   constructor(env) {
     this.env = env;
-    this.port = parseInt(env.AGENT_COORDINATION_PORT || '8080');
+    this.port = parseInt(env.AGENT_COORDINATION_PORT || "8080");
     this.server = null;
     this.wss = null;
     this.agents = new Map();
@@ -30,14 +30,20 @@ export class AgentCoordinationServer {
    */
   async initialize() {
     try {
-      console.log('🤖 Initializing Agent Coordination Server...');
+      console.log("🤖 Initializing Agent Coordination Server...");
 
       // Get ChittyID for coordination server
-      this.chittyId = await ChittyIdClient.ensure(this.env, 'agent-coordinator');
+      this.chittyId = await ChittyIdClient.ensure(
+        this.env,
+        "agent-coordinator",
+      );
       console.log(`🆔 Agent Coordinator ChittyID: ${this.chittyId}`);
 
       // Initialize security
-      this.securityManager = new ChittySecurityManager(this.env, 'agent-coordinator');
+      this.securityManager = new ChittySecurityManager(
+        this.env,
+        "agent-coordinator",
+      );
       await this.securityManager.initialize();
 
       // Create HTTP server
@@ -48,18 +54,22 @@ export class AgentCoordinationServer {
       // Create WebSocket server for real-time coordination
       this.wss = new WebSocketServer({
         server: this.server,
-        path: '/coordination'
+        path: "/coordination",
       });
 
       // Handle WebSocket connections
-      this.wss.on('connection', (ws, req) => {
-        this.handleAgentConnection(ws, req);
+      this.wss.on("connection", (ws) => {
+        this.handleAgentConnection(ws);
       });
 
       // Start server
       this.server.listen(this.port, () => {
-        console.log(`🚀 Agent Coordination Server listening on port ${this.port}`);
-        console.log(`🤖 Agent WebSocket endpoint: ws://localhost:${this.port}/coordination`);
+        console.log(
+          `🚀 Agent Coordination Server listening on port ${this.port}`,
+        );
+        console.log(
+          `🤖 Agent WebSocket endpoint: ws://localhost:${this.port}/coordination`,
+        );
       });
 
       // Register default agents
@@ -67,9 +77,11 @@ export class AgentCoordinationServer {
 
       this.initialized = true;
       return { initialized: true, port: this.port, chittyId: this.chittyId };
-
     } catch (error) {
-      console.error('❌ Failed to initialize Agent Coordination Server:', error);
+      console.error(
+        "❌ Failed to initialize Agent Coordination Server:",
+        error,
+      );
       throw error;
     }
   }
@@ -81,13 +93,19 @@ export class AgentCoordinationServer {
     const url = new URL(req.url, `http://localhost:${this.port}`);
 
     // Add CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-ChittyID');
-    res.setHeader('X-ChittyID', this.chittyId);
-    res.setHeader('X-Service', 'agent-coordinator');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, OPTIONS",
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-ChittyID",
+    );
+    res.setHeader("X-ChittyID", this.chittyId);
+    res.setHeader("X-Service", "agent-coordinator");
 
-    if (req.method === 'OPTIONS') {
+    if (req.method === "OPTIONS") {
       res.writeHead(200);
       res.end();
       return;
@@ -95,42 +113,43 @@ export class AgentCoordinationServer {
 
     try {
       // Security check for protected endpoints
-      if (url.pathname !== '/health' && url.pathname !== '/agents/status') {
+      if (url.pathname !== "/health" && url.pathname !== "/agents/status") {
         const authResult = await this.securityManager?.validateRequest(req);
         if (!authResult?.valid) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Unauthorized', code: 'AUTH_REQUIRED' }));
+          res.writeHead(401, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
+          );
           return;
         }
       }
 
       switch (url.pathname) {
-        case '/health':
+        case "/health":
           await this.handleHealthCheck(req, res);
           break;
-        case '/agents':
+        case "/agents":
           await this.handleAgentsEndpoint(req, res);
           break;
-        case '/agents/status':
+        case "/agents/status":
           await this.handleAgentsStatus(req, res);
           break;
-        case '/workflows':
+        case "/workflows":
           await this.handleWorkflowsEndpoint(req, res);
           break;
-        case '/coordinate':
+        case "/coordinate":
           await this.handleCoordinationEndpoint(req, res);
           break;
-        case '/execute':
+        case "/execute":
           await this.handleExecutionEndpoint(req, res);
           break;
         default:
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Not Found' }));
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Not Found" }));
       }
-
     } catch (error) {
-      console.error('Agent Coordination HTTP error:', error);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
+      console.error("Agent Coordination HTTP error:", error);
+      res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: error.message }));
     }
   }
@@ -138,7 +157,7 @@ export class AgentCoordinationServer {
   /**
    * Handle agent WebSocket connections
    */
-  async handleAgentConnection(ws, req) {
+  async handleAgentConnection(ws) {
     const agentId = `agent_${Date.now()}`;
 
     console.log(`🤖 Agent connected: ${agentId}`);
@@ -150,31 +169,33 @@ export class AgentCoordinationServer {
       connected: Date.now(),
       authenticated: false,
       capabilities: [],
-      status: 'connected'
+      status: "connected",
     };
 
     this.agents.set(agentId, agent);
 
     // Handle messages from agent
-    ws.on('message', async (data) => {
+    ws.on("message", async (data) => {
       await this.handleAgentMessage(agentId, data);
     });
 
     // Handle agent disconnect
-    ws.on('close', () => {
+    ws.on("close", () => {
       console.log(`🤖 Agent disconnected: ${agentId}`);
       this.agents.delete(agentId);
       this.broadcastAgentStatus();
     });
 
     // Send welcome message
-    ws.send(JSON.stringify({
-      type: 'welcome',
-      coordinator: 'chittyrouter-agent-coordinator',
-      chittyId: this.chittyId,
-      agentId,
-      timestamp: new Date().toISOString()
-    }));
+    ws.send(
+      JSON.stringify({
+        type: "welcome",
+        coordinator: "chittyrouter-agent-coordinator",
+        chittyId: this.chittyId,
+        agentId,
+        timestamp: new Date().toISOString(),
+      }),
+    );
   }
 
   /**
@@ -192,43 +213,48 @@ export class AgentCoordinationServer {
       console.log(`📨 Agent message from ${agentId}:`, message.type);
 
       switch (message.type) {
-        case 'register':
+        case "register":
           await this.handleAgentRegistration(agentId, message);
           break;
-        case 'status_update':
+        case "status_update":
           await this.handleAgentStatusUpdate(agentId, message);
           break;
-        case 'task_complete':
+        case "task_complete":
           await this.handleTaskCompletion(agentId, message);
           break;
-        case 'task_failed':
+        case "task_failed":
           await this.handleTaskFailure(agentId, message);
           break;
-        case 'request_coordination':
+        case "request_coordination":
           await this.handleCoordinationRequest(agentId, message);
           break;
-        case 'heartbeat':
-          agent.ws.send(JSON.stringify({
-            type: 'heartbeat_ack',
-            timestamp: new Date().toISOString()
-          }));
+        case "heartbeat":
+          agent.ws.send(
+            JSON.stringify({
+              type: "heartbeat_ack",
+              timestamp: new Date().toISOString(),
+            }),
+          );
           break;
         default:
-          agent.ws.send(JSON.stringify({
-            type: 'error',
-            error: 'Unknown message type',
-            receivedType: message.type
-          }));
+          agent.ws.send(
+            JSON.stringify({
+              type: "error",
+              error: "Unknown message type",
+              receivedType: message.type,
+            }),
+          );
       }
-
     } catch (error) {
       console.error(`Agent message error for ${agentId}:`, error);
       const agent = this.agents.get(agentId);
       if (agent) {
-        agent.ws.send(JSON.stringify({
-          type: 'error',
-          error: error.message
-        }));
+        agent.ws.send(
+          JSON.stringify({
+            type: "error",
+            error: error.message,
+          }),
+        );
       }
     }
   }
@@ -245,7 +271,7 @@ export class AgentCoordinationServer {
       const { name, capabilities, version, chittyId } = message;
 
       if (!name || !capabilities || !Array.isArray(capabilities)) {
-        throw new Error('Invalid registration: name and capabilities required');
+        throw new Error("Invalid registration: name and capabilities required");
       }
 
       // Update agent info
@@ -254,30 +280,36 @@ export class AgentCoordinationServer {
       agent.version = version;
       agent.chittyId = chittyId;
       agent.authenticated = true;
-      agent.status = 'ready';
+      agent.status = "ready";
       agent.registeredAt = new Date().toISOString();
 
       // Send registration confirmation
-      agent.ws.send(JSON.stringify({
-        type: 'registered',
-        agentId,
-        coordinator: this.chittyId,
-        assigned_capabilities: capabilities,
-        timestamp: new Date().toISOString()
-      }));
+      agent.ws.send(
+        JSON.stringify({
+          type: "registered",
+          agentId,
+          coordinator: this.chittyId,
+          assigned_capabilities: capabilities,
+          timestamp: new Date().toISOString(),
+        }),
+      );
 
-      console.log(`✅ Agent registered: ${name} with capabilities:`, capabilities);
+      console.log(
+        `✅ Agent registered: ${name} with capabilities:`,
+        capabilities,
+      );
 
       // Broadcast updated agent status
       this.broadcastAgentStatus();
-
     } catch (error) {
       console.error(`Agent registration error for ${agentId}:`, error);
-      agent.ws.send(JSON.stringify({
-        type: 'registration_failed',
-        error: error.message,
-        timestamp: new Date().toISOString()
-      }));
+      agent.ws.send(
+        JSON.stringify({
+          type: "registration_failed",
+          error: error.message,
+          timestamp: new Date().toISOString(),
+        }),
+      );
     }
   }
 
@@ -286,25 +318,31 @@ export class AgentCoordinationServer {
    */
   async handleHealthCheck(req, res) {
     const health = {
-      service: 'agent-coordinator',
-      status: 'healthy',
+      service: "agent-coordinator",
+      status: "healthy",
       port: this.port,
       chittyId: this.chittyId,
       agents: {
         total: this.agents.size,
-        authenticated: Array.from(this.agents.values()).filter(a => a.authenticated).length,
-        ready: Array.from(this.agents.values()).filter(a => a.status === 'ready').length
+        authenticated: Array.from(this.agents.values()).filter(
+          (a) => a.authenticated,
+        ).length,
+        ready: Array.from(this.agents.values()).filter(
+          (a) => a.status === "ready",
+        ).length,
       },
       workflows: {
         total: this.workflows.size,
-        active: Array.from(this.workflows.values()).filter(w => w.status === 'running').length
+        active: Array.from(this.workflows.values()).filter(
+          (w) => w.status === "running",
+        ).length,
       },
       coordinations: this.activeCoordinations.size,
       uptime: process.uptime(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(health, null, 2));
   }
 
@@ -312,8 +350,8 @@ export class AgentCoordinationServer {
    * Handle agents endpoint
    */
   async handleAgentsEndpoint(req, res) {
-    if (req.method === 'GET') {
-      const agents = Array.from(this.agents.values()).map(agent => ({
+    if (req.method === "GET") {
+      const agents = Array.from(this.agents.values()).map((agent) => ({
         id: agent.id,
         name: agent.name,
         capabilities: agent.capabilities,
@@ -321,14 +359,14 @@ export class AgentCoordinationServer {
         version: agent.version,
         chittyId: agent.chittyId,
         connected: agent.connected,
-        registeredAt: agent.registeredAt
+        registeredAt: agent.registeredAt,
       }));
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ agents, total: agents.length }));
     } else {
-      res.writeHead(405, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+      res.writeHead(405, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Method Not Allowed" }));
     }
   }
 
@@ -340,23 +378,29 @@ export class AgentCoordinationServer {
       coordinator: {
         chittyId: this.chittyId,
         port: this.port,
-        uptime: process.uptime()
+        uptime: process.uptime(),
       },
       agents: {
         total: this.agents.size,
         by_status: this.getAgentsByStatus(),
-        by_capability: this.getAgentsByCapability()
+        by_capability: this.getAgentsByCapability(),
       },
       workflows: {
         total: this.workflows.size,
-        active: Array.from(this.workflows.values()).filter(w => w.status === 'running').length,
-        completed: Array.from(this.workflows.values()).filter(w => w.status === 'completed').length,
-        failed: Array.from(this.workflows.values()).filter(w => w.status === 'failed').length
+        active: Array.from(this.workflows.values()).filter(
+          (w) => w.status === "running",
+        ).length,
+        completed: Array.from(this.workflows.values()).filter(
+          (w) => w.status === "completed",
+        ).length,
+        failed: Array.from(this.workflows.values()).filter(
+          (w) => w.status === "failed",
+        ).length,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(status, null, 2));
   }
 
@@ -364,24 +408,23 @@ export class AgentCoordinationServer {
    * Handle coordination endpoint
    */
   async handleCoordinationEndpoint(req, res) {
-    if (req.method !== 'POST') {
-      res.writeHead(405, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+    if (req.method !== "POST") {
+      res.writeHead(405, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Method Not Allowed" }));
       return;
     }
 
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', async () => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", async () => {
       try {
         const coordinationRequest = JSON.parse(body);
         const result = await this.coordinateAgents(coordinationRequest);
 
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(result));
-
       } catch (error) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: error.message }));
       }
     });
@@ -403,11 +446,11 @@ export class AgentCoordinationServer {
       requestedAgents: agents,
       data,
       options,
-      status: 'running',
+      status: "running",
       results: {},
       errors: {},
       startTime: Date.now(),
-      assignedAgents: []
+      assignedAgents: [],
     };
 
     this.activeCoordinations.set(coordinationId, coordination);
@@ -417,11 +460,14 @@ export class AgentCoordinationServer {
       const availableAgents = this.findAgentsWithCapabilities(agents);
 
       if (availableAgents.length < agents.length) {
-        const missingCapabilities = agents.filter(cap =>
-          !availableAgents.some(agent => agent.capabilities.includes(cap))
+        const missingCapabilities = agents.filter(
+          (cap) =>
+            !availableAgents.some((agent) => agent.capabilities.includes(cap)),
         );
 
-        throw new Error(`Missing agents with capabilities: ${missingCapabilities.join(', ')}`);
+        throw new Error(
+          `Missing agents with capabilities: ${missingCapabilities.join(", ")}`,
+        );
       }
 
       coordination.assignedAgents = availableAgents;
@@ -434,7 +480,7 @@ export class AgentCoordinationServer {
         results = await this.executeParallelCoordination(coordination);
       }
 
-      coordination.status = 'completed';
+      coordination.status = "completed";
       coordination.results = results;
       coordination.endTime = Date.now();
       coordination.duration = coordination.endTime - coordination.startTime;
@@ -444,21 +490,20 @@ export class AgentCoordinationServer {
 
       return {
         coordinationId,
-        status: 'completed',
+        status: "completed",
         results,
         duration: coordination.duration,
-        assignedAgents: coordination.assignedAgents.map(a => ({
+        assignedAgents: coordination.assignedAgents.map((a) => ({
           id: a.id,
           name: a.name,
-          capabilities: a.capabilities
+          capabilities: a.capabilities,
         })),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       console.error(`Coordination failed: ${coordinationId}:`, error);
 
-      coordination.status = 'failed';
+      coordination.status = "failed";
       coordination.error = error.message;
       coordination.endTime = Date.now();
 
@@ -466,9 +511,9 @@ export class AgentCoordinationServer {
 
       return {
         coordinationId,
-        status: 'failed',
+        status: "failed",
         error: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
   }
@@ -480,12 +525,12 @@ export class AgentCoordinationServer {
     const { assignedAgents, data, workflow } = coordination;
     const promises = [];
 
-    assignedAgents.forEach(agent => {
+    assignedAgents.forEach((agent) => {
       const promise = this.executeAgentTask(agent, {
         workflow,
         data,
         coordinationId: coordination.id,
-        taskType: 'parallel'
+        taskType: "parallel",
       });
       promises.push(promise);
     });
@@ -497,10 +542,10 @@ export class AgentCoordinationServer {
     results.forEach((result, index) => {
       const agent = assignedAgents[index];
 
-      if (result.status === 'fulfilled') {
+      if (result.status === "fulfilled") {
         coordinationResults[agent.name] = result.value;
       } else {
-        errors[agent.name] = result.reason?.message || 'Unknown error';
+        errors[agent.name] = result.reason?.message || "Unknown error";
       }
     });
 
@@ -525,8 +570,8 @@ export class AgentCoordinationServer {
           workflow,
           data: currentData,
           coordinationId: coordination.id,
-          taskType: 'sequential',
-          previousResults: results
+          taskType: "sequential",
+          previousResults: results,
         });
 
         results[agent.name] = result;
@@ -534,9 +579,8 @@ export class AgentCoordinationServer {
         // Pass results to next agent
         currentData = {
           ...currentData,
-          previousResults: results
+          previousResults: results,
         };
-
       } catch (error) {
         coordination.errors[agent.name] = error.message;
         throw error;
@@ -566,9 +610,9 @@ export class AgentCoordinationServer {
           if (message.taskId === taskId) {
             clearTimeout(timeout);
 
-            if (message.type === 'task_complete') {
+            if (message.type === "task_complete") {
               resolve(message.result);
-            } else if (message.type === 'task_failed') {
+            } else if (message.type === "task_failed") {
               reject(new Error(message.error));
             }
           }
@@ -577,15 +621,17 @@ export class AgentCoordinationServer {
         }
       };
 
-      agent.ws.on('message', messageHandler);
+      agent.ws.on("message", messageHandler);
 
       // Send task to agent
-      agent.ws.send(JSON.stringify({
-        type: 'execute_task',
-        taskId,
-        ...taskData,
-        timestamp: new Date().toISOString()
-      }));
+      agent.ws.send(
+        JSON.stringify({
+          type: "execute_task",
+          taskId,
+          ...taskData,
+          timestamp: new Date().toISOString(),
+        }),
+      );
     });
   }
 
@@ -593,13 +639,17 @@ export class AgentCoordinationServer {
    * Find agents with required capabilities
    */
   findAgentsWithCapabilities(requiredCapabilities) {
-    const availableAgents = Array.from(this.agents.values()).filter(agent =>
-      agent.authenticated && agent.status === 'ready'
+    const availableAgents = Array.from(this.agents.values()).filter(
+      (agent) => agent.authenticated && agent.status === "ready",
     );
 
-    return requiredCapabilities.map(capability =>
-      availableAgents.find(agent => agent.capabilities.includes(capability))
-    ).filter(Boolean);
+    return requiredCapabilities
+      .map((capability) =>
+        availableAgents.find((agent) =>
+          agent.capabilities.includes(capability),
+        ),
+      )
+      .filter(Boolean);
   }
 
   /**
@@ -608,15 +658,15 @@ export class AgentCoordinationServer {
   async registerDefaultAgents() {
     // This would typically register known agents
     // For now, just log that we're ready for agent connections
-    console.log('🤖 Agent Coordinator ready for agent registrations');
-    console.log('📋 Expected capabilities:', [
-      'email-processing',
-      'ai-routing',
-      'document-analysis',
-      'priority-assessment',
-      'response-generation',
-      'triage',
-      'attachment-processing'
+    console.log("🤖 Agent Coordinator ready for agent registrations");
+    console.log("📋 Expected capabilities:", [
+      "email-processing",
+      "ai-routing",
+      "document-analysis",
+      "priority-assessment",
+      "response-generation",
+      "triage",
+      "attachment-processing",
     ]);
   }
 
@@ -626,8 +676,8 @@ export class AgentCoordinationServer {
   getAgentsByStatus() {
     const statusGroups = {};
 
-    Array.from(this.agents.values()).forEach(agent => {
-      const status = agent.status || 'unknown';
+    Array.from(this.agents.values()).forEach((agent) => {
+      const status = agent.status || "unknown";
       if (!statusGroups[status]) {
         statusGroups[status] = [];
       }
@@ -643,9 +693,9 @@ export class AgentCoordinationServer {
   getAgentsByCapability() {
     const capabilityGroups = {};
 
-    Array.from(this.agents.values()).forEach(agent => {
+    Array.from(this.agents.values()).forEach((agent) => {
       if (agent.capabilities && Array.isArray(agent.capabilities)) {
-        agent.capabilities.forEach(capability => {
+        agent.capabilities.forEach((capability) => {
           if (!capabilityGroups[capability]) {
             capabilityGroups[capability] = [];
           }
@@ -662,18 +712,23 @@ export class AgentCoordinationServer {
    */
   broadcastAgentStatus() {
     const statusUpdate = {
-      type: 'agent_status_update',
+      type: "agent_status_update",
       total_agents: this.agents.size,
-      authenticated_agents: Array.from(this.agents.values()).filter(a => a.authenticated).length,
-      timestamp: new Date().toISOString()
+      authenticated_agents: Array.from(this.agents.values()).filter(
+        (a) => a.authenticated,
+      ).length,
+      timestamp: new Date().toISOString(),
     };
 
-    Array.from(this.agents.values()).forEach(agent => {
+    Array.from(this.agents.values()).forEach((agent) => {
       if (agent.authenticated) {
         try {
           agent.ws.send(JSON.stringify(statusUpdate));
         } catch (error) {
-          console.error(`Failed to send status update to agent ${agent.id}:`, error);
+          console.error(
+            `Failed to send status update to agent ${agent.id}:`,
+            error,
+          );
         }
       }
     });
@@ -684,18 +739,21 @@ export class AgentCoordinationServer {
    */
   broadcastCoordinationUpdate(coordination) {
     const update = {
-      type: 'coordination_update',
+      type: "coordination_update",
       coordinationId: coordination.id,
       status: coordination.status,
       duration: coordination.duration,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
-    coordination.assignedAgents.forEach(agent => {
+    coordination.assignedAgents.forEach((agent) => {
       try {
         agent.ws.send(JSON.stringify(update));
       } catch (error) {
-        console.error(`Failed to send coordination update to agent ${agent.id}:`, error);
+        console.error(
+          `Failed to send coordination update to agent ${agent.id}:`,
+          error,
+        );
       }
     });
   }
@@ -705,7 +763,7 @@ export class AgentCoordinationServer {
    */
   async stop() {
     if (this.server) {
-      console.log('🛑 Stopping Agent Coordination Server...');
+      console.log("🛑 Stopping Agent Coordination Server...");
 
       // Close all agent connections
       this.agents.forEach((agent) => {
@@ -721,7 +779,7 @@ export class AgentCoordinationServer {
       // Close HTTP server
       return new Promise((resolve) => {
         this.server.close(() => {
-          console.log('✅ Agent Coordination Server stopped');
+          console.log("✅ Agent Coordination Server stopped");
           resolve();
         });
       });

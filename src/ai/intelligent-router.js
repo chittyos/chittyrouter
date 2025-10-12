@@ -524,7 +524,7 @@ export class ChittyRouterAI {
    */
   async healthCheck() {
     try {
-      const testResponse = await this.ai.run("@cf/meta/llama-3.1-8b-instruct", {
+      await this.ai.run("@cf/meta/llama-3.1-8b-instruct", {
         messages: [{ role: "user", content: "Test AI health" }],
       });
 

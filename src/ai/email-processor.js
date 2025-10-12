@@ -401,7 +401,7 @@ export class EmailProcessor {
   /**
    * Fallback case extraction when AI fails
    */
-  fallbackCaseExtraction(to, subject) {
+  fallbackCaseExtraction(to) {
     // Traditional regex patterns as fallback
     const lawsuitPattern = to.match(/([a-zA-Z-]+)-v-([a-zA-Z-]+)@/);
     if (lawsuitPattern) {

@@ -1,6 +1,6 @@
 // Gateway Worker - Routes requests to appropriate service workers
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
     const hostname = url.hostname;
     const pathname = url.pathname;

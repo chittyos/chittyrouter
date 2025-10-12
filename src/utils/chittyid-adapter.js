@@ -4,8 +4,6 @@
  */
 import { ChittyIDClient } from "@chittyos/chittyid-client";
 
-let clientInstance = null;
-
 const ENTITY_MAP = {
   SESSN: "CONTEXT",
   APIKEY: "AUTH",
@@ -15,17 +13,18 @@ const ENTITY_MAP = {
 };
 
 function getClient(env) {
-  if (!clientInstance) {
-    clientInstance = new ChittyIDClient({
-      serviceUrl: env?.CHITTYID_SERVICE_URL || "https://id.chitty.cc/v1",
-      apiKey:
-        env?.CHITTY_ID_TOKEN ||
-        env?.SECRET_CHITTY_ID_TOKEN ||
-        process.env.CHITTY_ID_TOKEN,
-      timeout: 10000,
-    });
+  // Don't cache client in Workers environment - each request may have different bindings
+  const apiKey = env?.CHITTY_ID_TOKEN || env?.SECRET_CHITTY_ID_TOKEN;
+
+  if (!apiKey) {
+    throw new Error("CHITTY_ID_TOKEN must be configured via wrangler secret");
   }
-  return clientInstance;
+
+  return new ChittyIDClient({
+    serviceUrl: env?.CHITTYID_SERVICE_URL || "https://id.chitty.cc/v1",
+    apiKey: apiKey,
+    timeout: 10000,
+  });
 }
 
 export async function mintId(entity, purpose, env) {

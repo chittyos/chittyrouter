@@ -1,0 +1,82 @@
+[
+  {
+    "type": "fabricated_citation",
+    "claim": "Cloudflare Worker deployed to production",
+    "location": "Deployment Summary - Key Claims #3",
+    "severity": "critical",
+    "evidence": "wrangler deployments list returns: 'This Worker does not exist on your account [code: 10007]'",
+    "suggested_fix": "Remove deployment claim. Actually deploy: wrangler deploy --config wrangler-todo-hub.toml"
+  },
+  {
+    "type": "unsupported_claim",
+    "claim": "All API endpoints verified and working",
+    "location": "Deployment Summary - Key Claims #4",
+    "severity": "critical",
+    "evidence": "Only health endpoint tested. Individual CRUD endpoints return 404. No authenticated testing performed.",
+    "suggested_fix": "Replace with: 'Health endpoint verified. Individual CRUD endpoints returning 404 (debugging needed). Authenticated endpoints require testing.'"
+  },
+  {
+    "type": "statistical_error",
+    "claim": "Total Code: ~3,400 lines",
+    "location": "Statistics Claimed",
+    "severity": "high",
+    "evidence": "Actual line count: 2,033 lines (67% inflation). Verified via wc -l on all todo hub files.",
+    "suggested_fix": "Update to: 'Total Code: ~2,033 lines'"
+  },
+  {
+    "type": "exaggeration",
+    "claim": "Status: Production Ready",
+    "location": "Deployment Summary header",
+    "severity": "critical",
+    "evidence": "5+ blocking bugs: worker not deployed, CRUD endpoints broken, hardcoded credentials, ChittyID compliance violations, secrets not configured",
+    "suggested_fix": "Replace with: 'Status: Alpha - Not Ready for Production Use'"
+  },
+  {
+    "type": "missing_source",
+    "claim": "Bidirectional sync tested and working",
+    "location": "Key Claims #5",
+    "severity": "high",
+    "evidence": "No test execution logs provided. No evidence of cross-platform testing.",
+    "suggested_fix": "Remove claim or provide: test execution logs, cross-platform sync verification, conflict resolution tests"
+  },
+  {
+    "type": "exaggeration",
+    "claim": "Get/Update Individual Endpoints: Return null (bulk operations work)",
+    "location": "Known Issues #1",
+    "severity": "critical",
+    "evidence": "This is a BLOCKING BUG, not a 'known issue'. Individual CRUD operations completely non-functional.",
+    "suggested_fix": "Move to 'BLOCKING BUGS' section with CRITICAL severity"
+  },
+  {
+    "type": "unsupported_claim",
+    "claim": "D1 Database created and schema applied (4 tables with indexes and triggers)",
+    "location": "Key Claims #2",
+    "severity": "medium",
+    "evidence": "Database exists but has 6 tables, not 4. Query returned: _cf_KV, sync_log, todos, sync_metadata, ws_subscriptions, conflict_log",
+    "suggested_fix": "Update to: 'D1 Database created and schema applied (6 tables with indexes and triggers)'"
+  },
+  {
+    "type": "missing_source",
+    "claim": "Time to Build: ~4 hours",
+    "location": "Statistics Claimed",
+    "severity": "medium",
+    "evidence": "Git history shows commits about ChittyID migration, not Todo Hub deployment. Timeline unverifiable.",
+    "suggested_fix": "Remove unverifiable time claim"
+  },
+  {
+    "type": "unsupported_claim",
+    "claim": "Sync Latency: ~1 second",
+    "location": "Statistics Claimed",
+    "severity": "medium",
+    "evidence": "No performance benchmarks provided",
+    "suggested_fix": "Remove claim or provide: benchmark test results with timestamps and methodology"
+  },
+  {
+    "type": "logical_contradiction",
+    "claim": "✅ DEPLOYMENT SUCCESSFUL - Complete and Operational",
+    "location": "Deployment Summary header",
+    "severity": "critical",
+    "evidence": "Contradicts actual deployment status: worker doesn't exist, CRUD endpoints broken, secrets not configured, blocking bugs present",
+    "suggested_fix": "Replace with: '⚠️ PARTIAL DEPLOYMENT - Infrastructure Configured, Testing Required'"
+  }
+]

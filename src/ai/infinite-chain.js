@@ -184,7 +184,7 @@ export class InfiniteModelChain {
   /**
    * Select next model based on chain history and requirements
    */
-  selectNextModel(chain, requirements, currentResult) {
+  selectNextModel(chain, requirements) {
     const usedSpecialties = chain.map((r) => r.model.specialty);
 
     // Priority order: draft → creativity → knowledge → reasoning → multimodal

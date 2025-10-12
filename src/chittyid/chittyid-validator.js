@@ -7,7 +7,7 @@
  * CLI demo format: ^[0-9]{2}-[0-9]-[A-Z]{3}-[0-9]{4}-[A-Z]-[0-9]{6}-[0-9]+-[0-9]+$
  */
 
-import crypto from "node:crypto";
+// crypto import removed - not used in current implementation
 import ChittyIDClient from "@chittyos/chittyid-client";
 
 const CHITTYID_ALLOWED_CODES = new Set([

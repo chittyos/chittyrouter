@@ -21,14 +21,16 @@ const CHITTYOS_SERVICES = {
   id: {
     domain: "id.chitty.cc",
     worker: "chittyid-service",
-    description: "ChittyID central authority (pipeline-only)",
-    routes: ["/v1/mint", "/v1/validate", "/health"],
+    description: "ChittyID central authority",
+    routes: ["/v1/mint", "/v1/validate", "/health", "/api/*"],
+    external: true, // Pass through to external service, don't route internally
   },
   auth: {
     domain: "auth.chitty.cc",
     worker: "chittyauth",
     description: "Authentication & OAuth",
     routes: ["/oauth/*", "/jwt/*", "/mcp/*"],
+    external: true, // Pass through to deployed service
   },
 
   // Data & Schema
@@ -37,12 +39,14 @@ const CHITTYOS_SERVICES = {
     worker: "chittyschema",
     description: "Universal data framework",
     routes: ["/api/v1/*", "/sync/*", "/health"],
+    external: true, // Pass through to deployed service
   },
   canon: {
     domain: "canon.chitty.cc",
     worker: "chittycanon",
     description: "Canonical data management",
     routes: ["/resolve/*", "/validate/*"],
+    external: true, // Pass through to deployed service
   },
 
   // Service Discovery & Registry
@@ -51,6 +55,7 @@ const CHITTYOS_SERVICES = {
     worker: "chittyregistry",
     description: "Service discovery & health",
     routes: ["/services/*", "/health/*", "/register"],
+    external: true, // Pass through to deployed service
   },
 
   // Communication & Sync
@@ -281,6 +286,12 @@ Respond with ONLY the service key (e.g., "auth", "schema", "cases").`;
    * Forward request to service worker
    */
   async forwardToService(request, service) {
+    // For external services (like ChittyID), always pass through via HTTP
+    if (service.external === true) {
+      console.log(`🔄 Passing through to external service: ${service.domain}`);
+      return await this.fetchService(request, service.domain);
+    }
+
     // For self-routing (chittyrouter), handle internally
     if (service.worker === "chittyrouter") {
       return await this.handleLocalService(request, service);

@@ -14,7 +14,7 @@ export class AgentOrchestrator {
    * Execute complex tasks using multiple coordinated AI agents
    */
   async executeTask(taskData) {
-    console.log('🎯 Agent orchestrator executing task:', taskData.type);
+    console.log("🎯 Agent orchestrator executing task:", taskData.type);
 
     try {
       const taskId = `task-${Date.now()}`;
@@ -33,15 +33,14 @@ export class AgentOrchestrator {
         success: true,
         result,
         agents_used: requiredAgents,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
-      console.error('❌ Agent orchestration failed:', error);
+      console.error("❌ Agent orchestration failed:", error);
       return {
         success: false,
         error: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
   }
@@ -51,15 +50,39 @@ export class AgentOrchestrator {
    */
   determineRequiredAgents(taskData) {
     const agentMap = {
-      'case_analysis': ['legal_analyzer', 'document_processor', 'timeline_builder'],
-      'document_review': ['document_analyzer', 'compliance_checker', 'risk_assessor'],
-      'client_communication': ['message_composer', 'tone_analyzer', 'response_generator'],
-      'court_preparation': ['deadline_tracker', 'document_organizer', 'calendar_coordinator'],
-      'evidence_processing': ['evidence_analyzer', 'chain_builder', 'verification_agent'],
-      'intake_processing': ['triage_agent', 'client_classifier', 'routing_optimizer']
+      case_analysis: [
+        "legal_analyzer",
+        "document_processor",
+        "timeline_builder",
+      ],
+      document_review: [
+        "document_analyzer",
+        "compliance_checker",
+        "risk_assessor",
+      ],
+      client_communication: [
+        "message_composer",
+        "tone_analyzer",
+        "response_generator",
+      ],
+      court_preparation: [
+        "deadline_tracker",
+        "document_organizer",
+        "calendar_coordinator",
+      ],
+      evidence_processing: [
+        "evidence_analyzer",
+        "chain_builder",
+        "verification_agent",
+      ],
+      intake_processing: [
+        "triage_agent",
+        "client_classifier",
+        "routing_optimizer",
+      ],
     };
 
-    return agentMap[taskData.type] || ['general_assistant'];
+    return agentMap[taskData.type] || ["general_assistant"];
   }
 
   /**
@@ -86,40 +109,47 @@ export class AgentOrchestrator {
   async createAgent(agentType) {
     const agentConfigs = {
       legal_analyzer: {
-        role: 'Legal Analysis Specialist',
-        expertise: 'Case law, precedents, legal strategy',
-        prompt_prefix: 'You are a legal analysis expert. Analyze legal documents and cases with precision.'
+        role: "Legal Analysis Specialist",
+        expertise: "Case law, precedents, legal strategy",
+        prompt_prefix:
+          "You are a legal analysis expert. Analyze legal documents and cases with precision.",
       },
       document_processor: {
-        role: 'Document Processing Specialist',
-        expertise: 'Document classification, extraction, organization',
-        prompt_prefix: 'You are a document processing expert. Classify and extract key information from legal documents.'
+        role: "Document Processing Specialist",
+        expertise: "Document classification, extraction, organization",
+        prompt_prefix:
+          "You are a document processing expert. Classify and extract key information from legal documents.",
       },
       timeline_builder: {
-        role: 'Legal Timeline Specialist',
-        expertise: 'Chronological analysis, deadline tracking',
-        prompt_prefix: 'You are a timeline specialist. Build chronological sequences and track important dates.'
+        role: "Legal Timeline Specialist",
+        expertise: "Chronological analysis, deadline tracking",
+        prompt_prefix:
+          "You are a timeline specialist. Build chronological sequences and track important dates.",
       },
       compliance_checker: {
-        role: 'Compliance Verification Specialist',
-        expertise: 'Regulatory compliance, legal requirements',
-        prompt_prefix: 'You are a compliance expert. Verify legal and regulatory compliance.'
+        role: "Compliance Verification Specialist",
+        expertise: "Regulatory compliance, legal requirements",
+        prompt_prefix:
+          "You are a compliance expert. Verify legal and regulatory compliance.",
       },
       message_composer: {
-        role: 'Legal Communication Specialist',
-        expertise: 'Professional legal communication, client relations',
-        prompt_prefix: 'You are a legal communication expert. Compose professional, clear legal communications.'
+        role: "Legal Communication Specialist",
+        expertise: "Professional legal communication, client relations",
+        prompt_prefix:
+          "You are a legal communication expert. Compose professional, clear legal communications.",
       },
       evidence_analyzer: {
-        role: 'Evidence Analysis Specialist',
-        expertise: 'Evidence evaluation, chain of custody, admissibility',
-        prompt_prefix: 'You are an evidence analysis expert. Evaluate evidence quality and admissibility.'
+        role: "Evidence Analysis Specialist",
+        expertise: "Evidence evaluation, chain of custody, admissibility",
+        prompt_prefix:
+          "You are an evidence analysis expert. Evaluate evidence quality and admissibility.",
       },
       triage_agent: {
-        role: 'Legal Triage Specialist',
-        expertise: 'Priority assessment, case categorization',
-        prompt_prefix: 'You are a legal triage expert. Assess priority and categorize legal matters.'
-      }
+        role: "Legal Triage Specialist",
+        expertise: "Priority assessment, case categorization",
+        prompt_prefix:
+          "You are a legal triage expert. Assess priority and categorize legal matters.",
+      },
     };
 
     const config = agentConfigs[agentType] || agentConfigs.legal_analyzer;
@@ -128,7 +158,7 @@ export class AgentOrchestrator {
       type: agentType,
       config,
       id: `${agentType}-${Date.now()}`,
-      status: 'initialized'
+      status: "initialized",
     };
   }
 
@@ -151,14 +181,18 @@ export class AgentOrchestrator {
 
         console.log(`🔧 Executing step: ${step.description}`);
 
-        const stepResult = await this.executeAgentStep(agent, step, taskData, results);
+        const stepResult = await this.executeAgentStep(
+          agent,
+          step,
+          taskData,
+          results,
+        );
         results[step.name] = stepResult;
 
         // Check if step has dependencies that failed
         if (stepResult.error && step.critical) {
           throw new Error(`Critical step failed: ${step.description}`);
         }
-
       } catch (error) {
         console.error(`Step '${step.description}' failed:`, error);
         results[step.name] = { error: error.message };
@@ -172,89 +206,98 @@ export class AgentOrchestrator {
   /**
    * Create workflow based on task type
    */
-  createWorkflow(taskType, taskData) {
+  createWorkflow(taskType) {
     const workflows = {
       case_analysis: {
         steps: [
           {
-            name: 'analyze_case',
-            agent: 'legal_analyzer',
-            description: 'Analyze case details and legal implications',
-            critical: true
+            name: "analyze_case",
+            agent: "legal_analyzer",
+            description: "Analyze case details and legal implications",
+            critical: true,
           },
           {
-            name: 'process_documents',
-            agent: 'document_processor',
-            description: 'Process and categorize case documents',
-            critical: false
+            name: "process_documents",
+            agent: "document_processor",
+            description: "Process and categorize case documents",
+            critical: false,
           },
           {
-            name: 'build_timeline',
-            agent: 'timeline_builder',
-            description: 'Create chronological case timeline',
-            critical: false
-          }
-        ]
+            name: "build_timeline",
+            agent: "timeline_builder",
+            description: "Create chronological case timeline",
+            critical: false,
+          },
+        ],
       },
       document_review: {
         steps: [
           {
-            name: 'analyze_document',
-            agent: 'document_analyzer',
-            description: 'Analyze document content and structure',
-            critical: true
+            name: "analyze_document",
+            agent: "document_analyzer",
+            description: "Analyze document content and structure",
+            critical: true,
           },
           {
-            name: 'check_compliance',
-            agent: 'compliance_checker',
-            description: 'Verify regulatory compliance',
-            critical: true
+            name: "check_compliance",
+            agent: "compliance_checker",
+            description: "Verify regulatory compliance",
+            critical: true,
           },
           {
-            name: 'assess_risk',
-            agent: 'risk_assessor',
-            description: 'Assess potential legal risks',
-            critical: false
-          }
-        ]
+            name: "assess_risk",
+            agent: "risk_assessor",
+            description: "Assess potential legal risks",
+            critical: false,
+          },
+        ],
       },
       client_communication: {
         steps: [
           {
-            name: 'analyze_request',
-            agent: 'triage_agent',
-            description: 'Analyze client communication request',
-            critical: true
+            name: "analyze_request",
+            agent: "triage_agent",
+            description: "Analyze client communication request",
+            critical: true,
           },
           {
-            name: 'compose_response',
-            agent: 'message_composer',
-            description: 'Compose appropriate response',
-            critical: true
-          }
-        ]
-      }
+            name: "compose_response",
+            agent: "message_composer",
+            description: "Compose appropriate response",
+            critical: true,
+          },
+        ],
+      },
     };
 
-    return workflows[taskType] || {
-      steps: [{
-        name: 'general_analysis',
-        agent: 'legal_analyzer',
-        description: 'General legal analysis',
-        critical: true
-      }]
-    };
+    return (
+      workflows[taskType] || {
+        steps: [
+          {
+            name: "general_analysis",
+            agent: "legal_analyzer",
+            description: "General legal analysis",
+            critical: true,
+          },
+        ],
+      }
+    );
   }
 
   /**
    * Execute individual agent step
    */
   async executeAgentStep(agent, step, taskData, previousResults) {
-    const prompt = this.buildAgentPrompt(agent, step, taskData, previousResults);
+    const prompt = this.buildAgentPrompt(
+      agent,
+      step,
+      taskData,
+      previousResults,
+    );
 
     try {
-      const response = await this.ai.run('@cf/meta/llama-3.1-8b-instruct', {
-        messages: [{ role: 'user', content: prompt }]
+      const response = await this.ai.run("@cf/meta/llama-3.1-8b-instruct", {
+        messages: [{ role: "user", content: prompt }],
       });
 
       return {
@@ -262,16 +305,15 @@ export class AgentOrchestrator {
         result: response.response,
         agent: agent.type,
         step: step.name,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       return {
         success: false,
         error: error.message,
         agent: agent.type,
         step: step.name,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
   }
@@ -280,7 +322,7 @@ export class AgentOrchestrator {
    * Build specialized prompt for agent
    */
   buildAgentPrompt(agent, step, taskData, previousResults) {
-    let prompt = agent.config.prompt_prefix + '\n\n';
+    let prompt = agent.config.prompt_prefix + "\n\n";
 
     prompt += `TASK: ${step.description}\n\n`;
 
@@ -305,7 +347,7 @@ export class AgentOrchestrator {
       completed_steps: Object.keys(results).length,
       success_rate: this.calculateSuccessRate(results),
       results,
-      recommendations: this.generateRecommendations(results)
+      recommendations: this.generateRecommendations(results),
     };
 
     return summary;
@@ -316,8 +358,8 @@ export class AgentOrchestrator {
    */
   calculateSuccessRate(results) {
     const total = Object.keys(results).length;
-    const successful = Object.values(results).filter(r => r.success).length;
-    return total > 0 ? (successful / total) : 0;
+    const successful = Object.values(results).filter((r) => r.success).length;
+    return total > 0 ? successful / total : 0;
   }
 
   /**
@@ -333,7 +375,7 @@ export class AgentOrchestrator {
     }
 
     if (recommendations.length === 0) {
-      recommendations.push('All workflow steps completed successfully');
+      recommendations.push("All workflow steps completed successfully");
     }
 
     return recommendations;
@@ -346,7 +388,7 @@ export class AgentOrchestrator {
     return {
       active_agents: this.activeAgents.size,
       agent_types: Array.from(this.activeAgents.keys()),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -355,6 +397,6 @@ export class AgentOrchestrator {
    */
   cleanupAgents() {
     this.activeAgents.clear();
-    console.log('🧹 Agent cleanup completed');
+    console.log("🧹 Agent cleanup completed");
   }
 }

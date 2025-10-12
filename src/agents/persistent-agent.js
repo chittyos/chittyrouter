@@ -92,7 +92,7 @@ class AgentMemory {
     return data ? JSON.parse(data) : null;
   }
 
-  async getSemanticMemory(taskType, limit) {
+  async getSemanticMemory() {
     if (!this.env.AGENT_SEMANTIC_MEMORY) return [];
 
     // TODO: Generate embedding for current task
@@ -403,7 +403,7 @@ export class PersistentAgent {
   /**
    * Get agent statistics
    */
-  async handleStats(request) {
+  async handleStats() {
     const stats = (await this.state.storage.get("aggregate_stats")) || {};
     const modelScores = (await this.state.storage.get("model_scores")) || {};
 

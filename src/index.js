@@ -32,6 +32,14 @@ export default {
         return await handleServiceHealth(request, env);
       }
 
+      // Email worker route (high priority)
+      if (pathname.startsWith("/email")) {
+        if (env.EMAIL_WORKER) {
+          return env.EMAIL_WORKER.fetch(request);
+        }
+        return new Response("Email worker not configured", { status: 503 });
+      }
+
       // Platform routes (main chittyos-platform-live functionality) - PRIORITY
       if (hostname.includes("platform") || pathname.startsWith("/platform")) {
         return await handlePlatform(request, env, ctx);

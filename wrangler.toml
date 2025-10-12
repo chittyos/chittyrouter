@@ -105,6 +105,11 @@ index_name = "agent-memory-index"
 binding = "AGENT_EPISODIC_MEMORY"
 bucket_name = "chittyos-agent-episodes"
 
+# Service Bindings
+[[services]]
+binding = "EMAIL_WORKER"
+service = "chittyos-email-worker"
+
 # Migrations for Durable Objects (using SQLite for free plan)
 [[migrations]]
 tag = "v1"

@@ -22,7 +22,11 @@ id = "695c3bef12ca4c298c56630b51b94d9b"
 binding = "RATE_LIMITS"
 id = "ac0875d7e6ee4e99b8a6cf4c36e065f3"
 
-# Optional R2 binding for email archival (create bucket if needed)
-# [[r2_buckets]]
-# binding = "EMAIL_ARCHIVE"
-# bucket_name = "email-archive-chittyos"
+# R2 binding for email archival (bucket created 2025-10-11)
+[[r2_buckets]]
+binding = "EMAIL_ARCHIVE"
+bucket_name = "email-archive-chittyos"
+
+# Cron trigger for weekly impact reports
+[triggers]
+crons = ["0 9 * * 1"]  # Every Monday at 9am UTC

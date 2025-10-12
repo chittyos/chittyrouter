@@ -1,0 +1,128 @@
+[
+  {
+    "claim": "Removed: Custom src/utils/mint-id.js",
+    "url": "file://src/pdx/pdx-core.js:7",
+    "title": "PDX Core - imports mintId from mint-id.js",
+    "date": "2025-10-11",
+    "status": "mismatch",
+    "quote_match": false,
+    "note": "File claimed as removed but is still imported in pdx-core.js line 7: 'import { mintId } from \"../utils/mint-id.js\";'"
+  },
+  {
+    "claim": "Removed: Redundant chittyid-client.js",
+    "url": "file://src/utils/chittyid-client.js",
+    "title": "ChittyID Client Wrapper - 110 lines of active code",
+    "date": "2025-10-11",
+    "status": "mismatch",
+    "quote_match": false,
+    "note": "File exists with substantial wrapper code. Not removed, refactored to use official client as dependency."
+  },
+  {
+    "claim": "All GitHub Actions CI tests: PASSING ✅",
+    "url": "command://npm test",
+    "title": "Test suite results",
+    "date": "2025-10-11T14:02:05",
+    "status": "mismatch",
+    "quote_match": false,
+    "note": "Test output shows: '82 failed | 204 passed (286)' with errors from ChittyID service 400 Bad Request"
+  },
+  {
+    "claim": "Removed: 6 instances in PDX files",
+    "url": "command://grep Math.random() src/",
+    "title": "Math.random() usage search",
+    "date": "2025-10-11",
+    "status": "mismatch",
+    "quote_match": false,
+    "note": "Grep shows 9 instances across 6 files, not 6 instances removed. Files: verifiable-random-minting.js (3), hardened-minting-service.js (2), deterministic-vectors.js (1), soft-hard-minting-integration.js (1), notion-atomic-facts-sync.js (1), enhanced-session-sync.js (1)"
+  },
+  {
+    "claim": "76% compliance (passing threshold: 80%)",
+    "url": null,
+    "title": "ChittyCheck compliance score",
+    "date": "2025-10-11",
+    "status": "unverifiable",
+    "quote_match": false,
+    "note": "No ChittyCheck output provided. Also, 76% is below 80% threshold, making this technically failing, not passing."
+  },
+  {
+    "claim": "Updated 6 test files with correct imports",
+    "url": "command://find . -name '*.test.js' -o -name '*.spec.js' | wc -l",
+    "title": "Test file count",
+    "date": "2025-10-11",
+    "status": "verified",
+    "quote_match": true,
+    "note": "Repository contains 30 test files. Claim of '6 updated' is plausible but specific files not enumerated for verification."
+  },
+  {
+    "claim": "Consolidated 4 docs into single CHITTYID.md",
+    "url": "command://ls -la *.md | wc -l",
+    "title": "Documentation file count",
+    "date": "2025-10-11",
+    "status": "verified",
+    "quote_match": false,
+    "note": "56 markdown files exist in repository. Unclear which 4 were consolidated. CHITTYID.md exists (verified)."
+  },
+  {
+    "claim": "PR #1 merged (13 commits squashed)",
+    "url": "command://git log --oneline --merges",
+    "title": "Git merge commit history",
+    "date": "2025-10-11",
+    "status": "unverifiable",
+    "quote_match": false,
+    "note": "No merge commits found in recent git history. Recent commits are d6baac1 and 99aa9fd with no merge indicators."
+  },
+  {
+    "claim": "Using: @chittyos/chittyid-client@1.0.0 (official package)",
+    "url": "file://package.json",
+    "title": "Package dependencies",
+    "date": "2025-10-11",
+    "status": "verified",
+    "quote_match": true,
+    "note": "Confirmed via npm list: 'chittyrouter@2.0.0-ai └── @chittyos/chittyid-client@1.0.0'"
+  },
+  {
+    "claim": "Added: src/utils/chittyid-adapter.js (entity type mapping)",
+    "url": "file://src/utils/chittyid-adapter.js",
+    "title": "ChittyID Adapter module",
+    "date": "2025-10-11T12:22",
+    "status": "verified",
+    "quote_match": true,
+    "note": "File exists, 1309 bytes, created Oct 11 12:22"
+  },
+  {
+    "claim": "Added: src/utils/deterministic-vectors.js (seeded PRNG)",
+    "url": "file://src/utils/deterministic-vectors.js",
+    "title": "Deterministic vectors utility",
+    "date": "2025-10-11T12:22",
+    "status": "verified",
+    "quote_match": true,
+    "note": "File exists, 1725 bytes, created Oct 11 12:22"
+  },
+  {
+    "claim": "Production Status: HEALTHY ✅",
+    "url": "https://router.chitty.cc/health",
+    "title": "ChittyRouter production health",
+    "date": "2025-10-11",
+    "status": "verified",
+    "quote_match": true,
+    "note": "Health check returns: {\"service\":\"chittyrouter\",\"status\":\"healthy\",\"mode\":\"unified-routing\",\"version\":\"2.1.0\",\"services\":20}"
+  },
+  {
+    "claim": "Version ID: 381ed7f1-2063-4a42-b7c2-fd7a6ef3aab0",
+    "url": "command://wrangler deployments list --name chittyrouter-production",
+    "title": "Wrangler deployment list",
+    "date": "2025-10-06",
+    "status": "unverifiable",
+    "quote_match": false,
+    "note": "Deployment list shows versions from Oct 6 (23c9b2f8, 18b89abc) but not the claimed version ID. May be from different deployment or dated."
+  },
+  {
+    "claim": "ChittyCheck compliance: NO rogue ID patterns ✅",
+    "url": null,
+    "title": "ChittyCheck rogue pattern detection",
+    "date": "2025-10-11",
+    "status": "unverifiable",
+    "quote_match": false,
+    "note": "No ChittyCheck output provided. Cannot verify absence of rogue patterns without running tool."
+  }
+]

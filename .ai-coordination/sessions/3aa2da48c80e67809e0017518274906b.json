@@ -1,0 +1,16 @@
+{
+  "id": "3aa2da48c80e67809e0017518274906b",
+  "name": "project-sync-mgmgyjfb",
+  "pid": 14005,
+  "hostname": "chitty.local",
+  "startTime": 1760198868699,
+  "lastHeartbeat": 1760198868699,
+  "status": "terminated",
+  "metadata": {
+    "model": "claude",
+    "type": "project-sync"
+  },
+  "tasks": [],
+  "locks": [],
+  "endTime": 1760198868809
+}
