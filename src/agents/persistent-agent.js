@@ -4,6 +4,7 @@
  */
 
 import { AIGatewayClient } from "../ai/ai-gateway-client.js";
+import { ContextualMemory } from "./contextual-memory.js";
 
 /**
  * AgentMemory - Multi-tier memory system
@@ -199,6 +200,10 @@ export class PersistentAgent {
     this.state = state;
     this.env = env;
     this.memory = new AgentMemory(state, env);
+    this.contextualMemory = new ContextualMemory(this.memory, {
+      maxContextMessages: 10,
+      includeSystemContext: true,
+    });
     this.aiGateway = new AIGatewayClient(env);
     this.learning = new LearningEngine(env);
   }
@@ -245,11 +250,15 @@ export class PersistentAgent {
     try {
       const { prompt, taskType, context } = await request.json();
 
-      // Build memory context
-      const memoryContext = await this.memory.recall({
-        taskType,
-        limit: 5,
-      });
+      // Build conversation history from memory (ChittyContextual integration)
+      const { messages, contextMetadata } =
+        await this.contextualMemory.buildConversationHistory(prompt, {
+          taskType,
+          limit: 5,
+        });
+
+      // Analyze prompt for entities and topics
+      const promptAnalysis = await this.contextualMemory.analyzePrompt(prompt);
 
       // Get optimal provider based on learning
       const modelScores = (await this.state.storage.get("model_scores")) || {};
@@ -259,11 +268,16 @@ export class PersistentAgent {
         modelScores,
       );
 
-      // Execute with AI Gateway
-      const response = await this.aiGateway.complete(prompt, {
+      // Execute with AI Gateway using conversation history
+      const response = await this.aiGateway.complete(messages, {
         complexity: this.assessComplexity(taskType),
         preferredProvider,
-        context: { ...context, memory: memoryContext },
+        context: {
+          ...context,
+          entities: promptAnalysis.entities,
+          topics: promptAnalysis.topics,
+          contextMetadata,
+        },
       });
 
       // Store in memory
