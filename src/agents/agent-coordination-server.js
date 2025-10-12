@@ -228,6 +228,12 @@ export class AgentCoordinationServer {
         case "request_coordination":
           await this.handleCoordinationRequest(agentId, message);
           break;
+        case "evidence_ingestion":
+          await this.handleEvidenceIngestion(agentId, message);
+          break;
+        case "reindex_request":
+          await this.handleReindexRequest(agentId, message);
+          break;
         case "heartbeat":
           agent.ws.send(
             JSON.stringify({
@@ -656,9 +662,70 @@ export class AgentCoordinationServer {
    * Register default ChittyRouter agents
    */
   async registerDefaultAgents() {
-    // This would typically register known agents
-    // For now, just log that we're ready for agent connections
-    console.log("🤖 Agent Coordinator ready for agent registrations");
+    console.log("🤖 Registering default ChittyRouter agents...");
+
+    // Register Universal Ingestion Agent
+    await this.registerAgent({
+      name: "universal-ingestion",
+      type: "evidence-processor",
+      capabilities: [
+        "probabilistic-evidence-analysis",
+        "entity-extraction",
+        "chittyid-minting",
+        "cryptographic-hashing",
+        "vector-indexing",
+        "blockchain-queuing",
+      ],
+      priority: "critical",
+      description:
+        "Universal ingestion agent - treats everything as potential evidence with probabilistic scoring",
+    });
+
+    // Register Evidence Reindexing Agent
+    await this.registerAgent({
+      name: "evidence-reindexer",
+      type: "maintenance",
+      capabilities: [
+        "periodic-reindexing",
+        "probability-drift-tracking",
+        "evidence-elevation",
+        "similarity-matching",
+      ],
+      priority: "high",
+      description:
+        "Periodic reindexing agent - re-evaluates evidence probability as context changes",
+    });
+
+    // Register Document Analysis Agent
+    await this.registerAgent({
+      name: "document-analyzer",
+      type: "ai-processor",
+      capabilities: [
+        "pdf-ocr",
+        "entity-extraction",
+        "signature-detection",
+        "metadata-parsing",
+      ],
+      priority: "high",
+      description:
+        "Document analysis agent - processes PDFs and extracts structured data",
+    });
+
+    // Register Email Classification Agent
+    await this.registerAgent({
+      name: "email-classifier",
+      type: "ai-processor",
+      capabilities: [
+        "email-parsing",
+        "sender-recipient-extraction",
+        "attachment-detection",
+        "thread-reconstruction",
+      ],
+      priority: "high",
+      description: "Email classification agent - analyzes email communications",
+    });
+
+    console.log(`✅ Registered ${this.agents.size} default agents`);
     console.log("📋 Expected capabilities:", [
       "email-processing",
       "ai-routing",
@@ -756,6 +823,75 @@ export class AgentCoordinationServer {
         );
       }
     });
+  }
+
+  /**
+   * Handle evidence ingestion request
+   */
+  async handleEvidenceIngestion(agentId, message) {
+    const agent = this.agents.get(agentId);
+    if (!agent) return;
+
+    console.log(`📥 Evidence ingestion request from ${agentId}`);
+
+    // Route to universal ingestion agent
+    const ingestionAgent = Array.from(this.agents.values()).find(
+      (a) => a.name === "universal-ingestion",
+    );
+
+    if (ingestionAgent) {
+      ingestionAgent.ws.send(
+        JSON.stringify({
+          type: "ingest_evidence",
+          data: message.data,
+          requesterId: agentId,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    }
+
+    agent.ws.send(
+      JSON.stringify({
+        type: "evidence_queued",
+        success: true,
+        timestamp: new Date().toISOString(),
+      }),
+    );
+  }
+
+  /**
+   * Handle reindex request
+   */
+  async handleReindexRequest(agentId, message) {
+    const agent = this.agents.get(agentId);
+    if (!agent) return;
+
+    console.log(`🔄 Reindex request from ${agentId} for ${message.chittyId}`);
+
+    // Route to reindexing agent
+    const reindexAgent = Array.from(this.agents.values()).find(
+      (a) => a.name === "evidence-reindexer",
+    );
+
+    if (reindexAgent) {
+      reindexAgent.ws.send(
+        JSON.stringify({
+          type: "reindex",
+          chittyId: message.chittyId,
+          requesterId: agentId,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    }
+
+    agent.ws.send(
+      JSON.stringify({
+        type: "reindex_queued",
+        success: true,
+        chittyId: message.chittyId,
+        timestamp: new Date().toISOString(),
+      }),
+    );
   }
 
   /**
