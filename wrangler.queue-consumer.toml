@@ -1,0 +1,55 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "chittyrouter-blockchain-consumer"
+main = "src/pipeline/blockchain-queue-consumer.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Account configuration
+account_id = "bbf9fcd845e78035b7a135c481e88541"
+
+# Queue consumer configuration
+[[queues.consumers]]
+queue = "blockchain-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "blockchain-dlq"
+
+# Environment variables
+[vars]
+LEDGER_API = "https://ledger.chitty.cc"
+EVIDENCE_API = "https://evidence.chitty.cc"
+REGISTRY_URL = "https://registry.chitty.cc"
+
+# KV namespaces
+[[kv_namespaces]]
+binding = "PLATFORM_STORAGE"
+id = "YOUR_PLATFORM_STORAGE_KV_ID"
+
+[[kv_namespaces]]
+binding = "METRICS_STORAGE"
+id = "YOUR_METRICS_STORAGE_KV_ID"
+
+# Queues
+[[queues.producers]]
+binding = "BLOCKCHAIN_QUEUE"
+queue = "blockchain-queue"
+
+[[queues.producers]]
+binding = "BLOCKCHAIN_DLQ"
+queue = "blockchain-dlq"
+
+[[queues.producers]]
+binding = "ERROR_TRACKING"
+queue = "error-tracking"
+
+# AI binding
+[ai]
+binding = "AI"
+
+# Secrets (set via wrangler secret put)
+# CHITTY_ID_TOKEN
+# API_KEY
+# CHITTY_REGISTRY_TOKEN
+# CHITTY_VERIFY_TOKEN
+# CHITTY_CHECK_TOKEN

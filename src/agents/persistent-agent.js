@@ -4,6 +4,7 @@
  */
 
 import { AIGatewayClient } from "../ai/ai-gateway-client.js";
+import { ContextualMemory } from "./contextual-memory.js";
 
 /**
  * AgentMemory - Multi-tier memory system
@@ -199,6 +200,10 @@ export class PersistentAgent {
     this.state = state;
     this.env = env;
     this.memory = new AgentMemory(state, env);
+    this.contextualMemory = new ContextualMemory(this.memory, {
+      maxContextMessages: 10,
+      includeSystemContext: true,
+    });
     this.aiGateway = new AIGatewayClient(env);
     this.learning = new LearningEngine(env);
   }
@@ -245,11 +250,15 @@ export class PersistentAgent {
     try {
       const { prompt, taskType, context } = await request.json();
 
-      // Build memory context
-      const memoryContext = await this.memory.recall({
-        taskType,
-        limit: 5,
-      });
+      // Build conversation history from memory (ChittyContextual integration)
+      const { messages, contextMetadata } =
+        await this.contextualMemory.buildConversationHistory(prompt, {
+          taskType,
+          limit: 5,
+        });
+
+      // Analyze prompt for entities and topics
+      const promptAnalysis = await this.contextualMemory.analyzePrompt(prompt);
 
       // Get optimal provider based on learning
       const modelScores = (await this.state.storage.get("model_scores")) || {};
@@ -259,11 +268,16 @@ export class PersistentAgent {
         modelScores,
       );
 
-      // Execute with AI Gateway
-      const response = await this.aiGateway.complete(prompt, {
+      // Execute with AI Gateway using conversation history
+      const response = await this.aiGateway.complete(messages, {
         complexity: this.assessComplexity(taskType),
         preferredProvider,
-        context: { ...context, memory: memoryContext },
+        context: {
+          ...context,
+          entities: promptAnalysis.entities,
+          topics: promptAnalysis.topics,
+          contextMetadata,
+        },
       });
 
       // Store in memory
@@ -298,7 +312,7 @@ export class PersistentAgent {
 
       // Self-heal if needed
       if (!response.success) {
-        return this.selfHeal(prompt, taskType, response);
+        return this.selfHeal(messages, taskType, response);
       }
 
       return new Response(
@@ -348,7 +362,7 @@ export class PersistentAgent {
   /**
    * Self-healing - automatic recovery from failures
    */
-  async selfHeal(prompt, taskType, failedResponse) {
+  async selfHeal(messages, taskType, failedResponse) {
     console.log(`🔧 Self-healing after ${failedResponse.provider} failure`);
 
     // Get fallback provider
@@ -356,7 +370,7 @@ export class PersistentAgent {
 
     for (const fallback of fallbackProviders) {
       try {
-        const retryResponse = await this.aiGateway.complete(prompt, {
+        const retryResponse = await this.aiGateway.complete(messages, {
           complexity: this.assessComplexity(taskType),
           preferredProvider: fallback,
         });

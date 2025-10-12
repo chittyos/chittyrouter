@@ -6,8 +6,9 @@
 export class AIGatewayClient {
   constructor(env) {
     this.env = env;
-    this.accountId = env.CLOUDFLARE_ACCOUNT_ID || '0bc21e3a5a9de1a4cc843be9c3e98121';
-    this.gatewayId = env.AI_GATEWAY_ID || 'chittyos-ai-gateway';
+    this.accountId =
+      env.CLOUDFLARE_ACCOUNT_ID || "0bc21e3a5a9de1a4cc843be9c3e98121";
+    this.gatewayId = env.AI_GATEWAY_ID || "chittyos-ai-gateway";
     this.baseUrl = `https://gateway.ai.cloudflare.com/v1/${this.accountId}/${this.gatewayId}`;
 
     // Provider configurations
@@ -15,40 +16,40 @@ export class AIGatewayClient {
       openai: {
         url: `${this.baseUrl}/openai`,
         apiKey: env.OPENAI_API_KEY,
-        models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+        models: ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"],
         costPer1kTokens: { input: 0.03, output: 0.06 }, // GPT-4
       },
       anthropic: {
         url: `${this.baseUrl}/anthropic`,
         apiKey: env.ANTHROPIC_API_KEY,
-        models: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'],
+        models: ["claude-3-opus", "claude-3-sonnet", "claude-3-haiku"],
         costPer1kTokens: { input: 0.015, output: 0.075 }, // Claude-3-Opus
       },
       google: {
         url: `${this.baseUrl}/google-ai`,
         apiKey: env.GOOGLE_AI_API_KEY,
-        models: ['gemini-pro', 'gemini-pro-vision'],
+        models: ["gemini-pro", "gemini-pro-vision"],
         costPer1kTokens: { input: 0.0005, output: 0.0015 }, // Gemini Pro
       },
       huggingface: {
         url: `${this.baseUrl}/huggingface`,
         apiKey: env.HUGGINGFACE_API_KEY,
-        models: ['mistralai/Mixtral-8x7B-Instruct-v0.1'],
+        models: ["mistralai/Mixtral-8x7B-Instruct-v0.1"],
         costPer1kTokens: { input: 0.0002, output: 0.0002 },
       },
       mistral: {
         url: `${this.baseUrl}/mistral`,
         apiKey: env.MISTRAL_API_KEY,
-        models: ['mistral-large', 'mistral-medium', 'mistral-small'],
+        models: ["mistral-large", "mistral-medium", "mistral-small"],
         costPer1kTokens: { input: 0.008, output: 0.024 }, // Mistral Large
       },
       workersai: {
-        url: 'direct', // Direct Workers AI binding
+        url: "direct", // Direct Workers AI binding
         apiKey: null, // No key needed - uses binding
         models: [
-          '@cf/meta/llama-4-scout-17b-16e-instruct',
-          '@cf/openai/gpt-oss-120b',
-          '@cf/google/gemma-3-12b-it',
+          "@cf/meta/llama-4-scout-17b-16e-instruct",
+          "@cf/openai/gpt-oss-120b",
+          "@cf/google/gemma-3-12b-it",
         ],
         costPer1kTokens: { input: 0, output: 0 }, // Free tier
       },
@@ -56,26 +57,32 @@ export class AIGatewayClient {
 
     // Task complexity routing
     this.taskRouting = {
-      simple: ['workersai'],
-      moderate: ['workersai', 'mistral', 'google'],
-      complex: ['anthropic', 'openai'],
-      vision: ['google', 'workersai'],
-      specialized: ['huggingface', 'workersai'],
+      simple: ["workersai"],
+      moderate: ["workersai", "mistral", "google"],
+      complex: ["anthropic", "openai"],
+      vision: ["google", "workersai"],
+      specialized: ["huggingface", "workersai"],
     };
   }
 
   /**
    * Route AI request through gateway with intelligent provider selection
+   * @param {string|Array} promptOrMessages - Either a string prompt or array of messages
    */
-  async complete(prompt, options = {}) {
+  async complete(promptOrMessages, options = {}) {
     const {
-      complexity = 'moderate',
+      complexity = "moderate",
       maxTokens = 1000,
       temperature = 0.7,
       preferredProvider = null,
       cacheKey = null,
       fallbackChain = true,
     } = options;
+
+    // Convert to messages array if needed
+    const messages = Array.isArray(promptOrMessages)
+      ? promptOrMessages
+      : [{ role: "user", content: promptOrMessages }];
 
     // Determine provider based on task complexity
     const providers = preferredProvider
@@ -89,7 +96,7 @@ export class AIGatewayClient {
       try {
         console.log(`🤖 Trying provider: ${providerName}`);
 
-        const result = await this._callProvider(providerName, prompt, {
+        const result = await this._callProvider(providerName, messages, {
           maxTokens,
           temperature,
           cacheKey,
@@ -120,13 +127,15 @@ export class AIGatewayClient {
     }
 
     // All providers failed
-    throw new Error(`All AI providers failed. Last error: ${lastError?.message}`);
+    throw new Error(
+      `All AI providers failed. Last error: ${lastError?.message}`,
+    );
   }
 
   /**
    * Call specific provider through gateway
    */
-  async _callProvider(providerName, prompt, options) {
+  async _callProvider(providerName, messages, options) {
     const provider = this.providers[providerName];
 
     if (!provider) {
@@ -134,22 +143,22 @@ export class AIGatewayClient {
     }
 
     // Workers AI - direct binding (no gateway)
-    if (providerName === 'workersai') {
-      return await this._callWorkersAI(prompt, options);
+    if (providerName === "workersai") {
+      return await this._callWorkersAI(messages, options);
     }
 
     // External providers - route through AI Gateway
-    return await this._callGateway(providerName, prompt, options);
+    return await this._callGateway(providerName, messages, options);
   }
 
   /**
    * Call Cloudflare Workers AI directly (free tier)
    */
-  async _callWorkersAI(prompt, options) {
-    const model = options.model || '@cf/meta/llama-4-scout-17b-16e-instruct';
+  async _callWorkersAI(messages, options) {
+    const model = options.model || "@cf/meta/llama-4-scout-17b-16e-instruct";
 
     const response = await this.env.AI.run(model, {
-      messages: [{ role: 'user', content: prompt }],
+      messages: messages,
       max_tokens: options.maxTokens,
       temperature: options.temperature || 0.7,
     });
@@ -167,19 +176,23 @@ export class AIGatewayClient {
   /**
    * Call external provider through AI Gateway
    */
-  async _callGateway(providerName, prompt, options) {
+  async _callGateway(providerName, messages, options) {
     const provider = this.providers[providerName];
     const url = provider.url;
 
     // Build provider-specific request format
-    const requestBody = this._buildProviderRequest(providerName, prompt, options);
+    const requestBody = this._buildProviderRequest(
+      providerName,
+      messages,
+      options,
+    );
 
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${provider.apiKey}`,
-        'Content-Type': 'application/json',
-        'cf-aig-cache-key': options.cacheKey || null, // Enable caching
+        Authorization: `Bearer ${provider.apiKey}`,
+        "Content-Type": "application/json",
+        "cf-aig-cache-key": options.cacheKey || null, // Enable caching
       },
       body: JSON.stringify(requestBody),
     });
@@ -190,7 +203,7 @@ export class AIGatewayClient {
     }
 
     const data = await response.json();
-    const cached = response.headers.get('cf-aig-cache-status') === 'HIT';
+    const cached = response.headers.get("cf-aig-cache-status") === "HIT";
 
     return {
       response: this._extractResponse(providerName, data),
@@ -202,25 +215,28 @@ export class AIGatewayClient {
   /**
    * Build provider-specific request format
    */
-  _buildProviderRequest(providerName, prompt, options) {
+  _buildProviderRequest(providerName, messages, options) {
     switch (providerName) {
-      case 'openai':
+      case "openai":
         return {
-          model: options.model || 'gpt-4-turbo',
-          messages: [{ role: 'user', content: prompt }],
+          model: options.model || "gpt-4-turbo",
+          messages: messages,
           max_tokens: options.maxTokens,
           temperature: options.temperature,
         };
 
-      case 'anthropic':
+      case "anthropic":
         return {
-          model: options.model || 'claude-3-sonnet-20240229',
-          messages: [{ role: 'user', content: prompt }],
+          model: options.model || "claude-3-sonnet-20240229",
+          messages: messages,
           max_tokens: options.maxTokens,
           temperature: options.temperature,
         };
 
-      case 'google':
+      case "google":
+        // Google requires a different format - convert messages
+        const lastMessage = messages[messages.length - 1];
+        const prompt = lastMessage.content;
         return {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
@@ -229,17 +245,19 @@ export class AIGatewayClient {
           },
         };
 
-      case 'mistral':
+      case "mistral":
         return {
-          model: options.model || 'mistral-medium',
-          messages: [{ role: 'user', content: prompt }],
+          model: options.model || "mistral-medium",
+          messages: messages,
           max_tokens: options.maxTokens,
           temperature: options.temperature,
         };
 
-      case 'huggingface':
+      case "huggingface":
+        // HuggingFace expects plain text - use last user message
+        const lastUserMsg = messages[messages.length - 1];
         return {
-          inputs: prompt,
+          inputs: lastUserMsg.content,
           parameters: {
             max_new_tokens: options.maxTokens,
             temperature: options.temperature,
@@ -256,15 +274,15 @@ export class AIGatewayClient {
    */
   _extractResponse(providerName, data) {
     switch (providerName) {
-      case 'openai':
+      case "openai":
         return data.choices[0].message.content;
-      case 'anthropic':
+      case "anthropic":
         return data.content[0].text;
-      case 'google':
+      case "google":
         return data.candidates[0].content.parts[0].text;
-      case 'mistral':
+      case "mistral":
         return data.choices[0].message.content;
-      case 'huggingface':
+      case "huggingface":
         return data[0].generated_text;
       default:
         return data;
@@ -276,18 +294,18 @@ export class AIGatewayClient {
    */
   _extractUsage(providerName, data) {
     switch (providerName) {
-      case 'openai':
-      case 'mistral':
+      case "openai":
+      case "mistral":
         return {
           inputTokens: data.usage.prompt_tokens,
           outputTokens: data.usage.completion_tokens,
         };
-      case 'anthropic':
+      case "anthropic":
         return {
           inputTokens: data.usage.input_tokens,
           outputTokens: data.usage.output_tokens,
         };
-      case 'google':
+      case "google":
         return {
           inputTokens: data.usageMetadata.promptTokenCount,
           outputTokens: data.usageMetadata.candidatesTokenCount,
@@ -302,8 +320,10 @@ export class AIGatewayClient {
    */
   _calculateCost(providerName, usage) {
     const provider = this.providers[providerName];
-    const inputCost = (usage.inputTokens / 1000) * provider.costPer1kTokens.input;
-    const outputCost = (usage.outputTokens / 1000) * provider.costPer1kTokens.output;
+    const inputCost =
+      (usage.inputTokens / 1000) * provider.costPer1kTokens.input;
+    const outputCost =
+      (usage.outputTokens / 1000) * provider.costPer1kTokens.output;
     return inputCost + outputCost;
   }
 
@@ -312,22 +332,25 @@ export class AIGatewayClient {
    */
   async _trackUsage(providerName, usage) {
     // Store in KV or Durable Object for analytics
-    const key = `ai_usage:${providerName}:${new Date().toISOString().split('T')[0]}`;
+    const key = `ai_usage:${providerName}:${new Date().toISOString().split("T")[0]}`;
 
     try {
-      const current = await this.env.AI_USAGE_KV?.get(key, 'json') || {
+      const current = (await this.env.AI_USAGE_KV?.get(key, "json")) || {
         calls: 0,
         inputTokens: 0,
         outputTokens: 0,
       };
 
-      await this.env.AI_USAGE_KV?.put(key, JSON.stringify({
-        calls: current.calls + 1,
-        inputTokens: current.inputTokens + usage.inputTokens,
-        outputTokens: current.outputTokens + usage.outputTokens,
-      }));
+      await this.env.AI_USAGE_KV?.put(
+        key,
+        JSON.stringify({
+          calls: current.calls + 1,
+          inputTokens: current.inputTokens + usage.inputTokens,
+          outputTokens: current.outputTokens + usage.outputTokens,
+        }),
+      );
     } catch (error) {
-      console.warn('Failed to track usage:', error);
+      console.warn("Failed to track usage:", error);
     }
   }
 
@@ -341,15 +364,20 @@ export class AIGatewayClient {
     for (let i = 0; i < days; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = date.toISOString().split("T")[0];
 
       for (const providerName of Object.keys(this.providers)) {
         const key = `ai_usage:${providerName}:${dateStr}`;
-        const data = await this.env.AI_USAGE_KV?.get(key, 'json');
+        const data = await this.env.AI_USAGE_KV?.get(key, "json");
 
         if (data) {
           if (!stats[providerName]) {
-            stats[providerName] = { calls: 0, inputTokens: 0, outputTokens: 0, cost: 0 };
+            stats[providerName] = {
+              calls: 0,
+              inputTokens: 0,
+              outputTokens: 0,
+              cost: 0,
+            };
           }
           stats[providerName].calls += data.calls;
           stats[providerName].inputTokens += data.inputTokens;

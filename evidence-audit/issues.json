@@ -1,0 +1,72 @@
+[
+  {
+    "type": "missing_infrastructure",
+    "claim": "Autonomous evidence pipeline with NO human classification required",
+    "location": "src/ai/universal-ingestion-agent.js:17-18, src/ai/auto-classification-agent.js:19, src/ai/pattern-forecasting-agent.js:18-19",
+    "severity": "critical",
+    "suggested_fix": "Add wrangler.toml bindings: [[kv_namespaces]] binding=\"PLATFORM_STORAGE\", [[vectorize]] binding=\"PLATFORM_VECTORS\", [[queues]] binding=\"BLOCKCHAIN_QUEUE\""
+  },
+  {
+    "type": "unsupported_claim",
+    "claim": "System is operational and deployed",
+    "location": "User told system is operational when asked 'is this real'",
+    "severity": "critical",
+    "suggested_fix": "Clarify deployment status: 'Prototype with 60% completion toward operational autonomy. Not yet deployed to production.'"
+  },
+  {
+    "type": "missing_implementation",
+    "claim": "Integration: agent-coordination-server.js with evidence_ingestion/reindex_request handlers",
+    "location": "src/agents/agent-coordination-server.js:831-860, 865-880",
+    "severity": "high",
+    "suggested_fix": "Implement WebSocket clients for agents OR refactor to in-process instantiation. Current handlers route to non-existent agents."
+  },
+  {
+    "type": "logical_contradiction",
+    "claim": "Vector indexing for similarity search",
+    "location": "src/ai/pattern-forecasting-agent.js:513-523",
+    "severity": "high",
+    "suggested_fix": "Fix vector query: Generate embedding first using @cf/baai/bge-base-en-v1.5, then query with embedding vector (not chittyId string)"
+  },
+  {
+    "type": "missing_source",
+    "claim": "Temporal reindexing adjusts probability as context changes",
+    "location": "src/ai/universal-ingestion-agent.js:129-175",
+    "severity": "high",
+    "suggested_fix": "Add cron trigger: [[triggers.crons]] cron=\"0 */6 * * *\" schedule=\"reindex-evidence\". Method exists but is never scheduled."
+  },
+  {
+    "type": "exaggeration",
+    "claim": "ALWAYS preserves everything",
+    "location": "src/ai/universal-ingestion-agent.js:72",
+    "severity": "medium",
+    "suggested_fix": "Qualify claim: 'Preserves everything when service dependencies are available. Implements fallback to pending-IDs on ChittyID service failure.'"
+  },
+  {
+    "type": "fabricated_citation",
+    "claim": "Blockchain queuing for high-priority evidence",
+    "location": "src/ai/universal-ingestion-agent.js:275-282",
+    "severity": "medium",
+    "suggested_fix": "Implement blockchain queue consumer and ChittyChain anchoring. Current implementation is stub: env.BLOCKCHAIN_QUEUE.send() with no receiver."
+  },
+  {
+    "type": "missing_source",
+    "claim": "Searchable indexing by label, category, schema type",
+    "location": "src/ai/auto-classification-agent.js:361-421",
+    "severity": "medium",
+    "suggested_fix": "Replace KV array-based indexing with production search (Vectorize semantic search or D1 full-text indexes). Current implementation has race conditions on concurrent writes."
+  },
+  {
+    "type": "statistical_error",
+    "claim": "12 AI calls per evidence item (6 pattern + 5 classification + 1 probabilistic)",
+    "location": "Pattern analysis runs 6 AI calls in parallel without batching",
+    "severity": "medium",
+    "suggested_fix": "Add cost controls: Batch similar analyses, implement caching for repeated patterns, add rate limiting per chittyId"
+  },
+  {
+    "type": "missing_source",
+    "claim": "No environment variable documentation for required ChittyID integration",
+    "location": "src/ai/universal-ingestion-agent.js:220-223 uses CHITTYID_SERVICE_URL and CHITTY_ID_TOKEN",
+    "severity": "low",
+    "suggested_fix": "Create .env.example documenting: CHITTYID_SERVICE_URL=https://id.chitty.cc and CHITTY_ID_TOKEN=mcp_auth_..."
+  }
+]

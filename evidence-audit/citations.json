@@ -1,0 +1,92 @@
+[
+  {
+    "claim": "Three AI agents: UniversalIngestionAgent (283 lines), AutoClassificationAgent (442 lines), PatternForecastingAgent (567 lines)",
+    "url": "file:///src/ai/",
+    "title": "Evidence Pipeline Agent Implementations",
+    "date": "2025-10-12",
+    "status": "verified",
+    "quote_match": true,
+    "note": "Line counts verified via wc -l: 283, 442, 567 exactly"
+  },
+  {
+    "claim": "Git commits: f737116, d759630 (6 hours ago)",
+    "url": "git://f737116ddeee761411323135c384aa6db14f5997",
+    "title": "feat: Auto-classification + pattern forecasting agents",
+    "date": "2025-10-12T06:09:58-05:00",
+    "status": "verified",
+    "quote_match": true,
+    "note": "Commit exists with 1,280 line additions matching claimed features"
+  },
+  {
+    "claim": "Design doc: docs/AUTONOMOUS-EVIDENCE-PIPELINE.md",
+    "url": "file:///docs/AUTONOMOUS-EVIDENCE-PIPELINE.md",
+    "title": "Autonomous Evidence Pipeline Design",
+    "date": "2025-10-12",
+    "status": "verified",
+    "quote_match": true,
+    "note": "291-line design document exists and matches implementation"
+  },
+  {
+    "claim": "Uses Cloudflare AI with Llama 4 Scout 17B model",
+    "url": "file:///src/ai/universal-ingestion-agent.js#L41",
+    "title": "AI Model: @cf/meta/llama-4-scout-17b-16e-instruct",
+    "date": "2025-10-12",
+    "status": "verified",
+    "quote_match": true,
+    "note": "All three agents consistently use this model"
+  },
+  {
+    "claim": "ALWAYS mints ChittyID from id.chitty.cc service",
+    "url": "https://id.chitty.cc/v1/mint",
+    "title": "ChittyID Service v2.0.0",
+    "date": "2025-10-12T11:15:28.563Z",
+    "status": "verified",
+    "quote_match": true,
+    "note": "Service is live and healthy. Code implements minting with fallback to pending-{type}-{timestamp} on failure."
+  },
+  {
+    "claim": "Integration: agent-coordination-server.js with evidence_ingestion/reindex_request handlers",
+    "url": "file:///src/agents/agent-coordination-server.js#L831-860",
+    "title": "Agent Coordination Message Handlers",
+    "date": "2025-10-12",
+    "status": "mismatch",
+    "quote_match": false,
+    "note": "Handlers exist but route to uninstantiated agents. WebSocket client implementations missing."
+  },
+  {
+    "claim": "Autonomous evidence pipeline with NO human classification required",
+    "url": "file:///docs/AUTONOMOUS-EVIDENCE-PIPELINE.md",
+    "title": "Autonomous Evidence Pipeline Design",
+    "date": "2025-10-12",
+    "status": "mismatch",
+    "quote_match": false,
+    "note": "Design document claims autonomous operation, but implementation lacks production bindings, tests, and deployment"
+  },
+  {
+    "claim": "Temporal reindexing adjusts probability as context changes",
+    "url": "file:///src/ai/universal-ingestion-agent.js#L129-175",
+    "title": "UniversalIngestionAgent.reindex() method",
+    "date": "2025-10-12",
+    "status": "mismatch",
+    "quote_match": false,
+    "note": "Method implemented but never scheduled. No cron trigger in wrangler.toml."
+  },
+  {
+    "claim": "Blockchain queuing for high-priority evidence",
+    "url": "file:///src/ai/universal-ingestion-agent.js#L275-282",
+    "title": "queueForBlockchain() method",
+    "date": "2025-10-12",
+    "status": "mismatch",
+    "quote_match": false,
+    "note": "Stub implementation sends to queue, but no BLOCKCHAIN_QUEUE binding exists and no consumer processes it"
+  },
+  {
+    "claim": "Vector indexing for similarity search",
+    "url": "file:///src/ai/pattern-forecasting-agent.js#L513-523",
+    "title": "getHistoricalContext() vector query",
+    "date": "2025-10-12",
+    "status": "mismatch",
+    "quote_match": false,
+    "note": "Implementation error: Queries vectors.query(chittyId) with string instead of embedding vector. Will always return empty."
+  }
+]
