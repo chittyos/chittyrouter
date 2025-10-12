@@ -3,11 +3,15 @@
  * Converts agent memory into conversation history for AI context injection
  */
 
+import { GovernanceContext } from "./governance-context.js";
+
 export class ContextualMemory {
   constructor(memory, options = {}) {
     this.memory = memory;
     this.maxContextMessages = options.maxContextMessages || 10;
     this.includeSystemContext = options.includeSystemContext !== false;
+    this.governance = new GovernanceContext(options.governance || {});
+    this.enableGovernance = options.enableGovernance !== false;
   }
 
   /**
@@ -70,11 +74,17 @@ export class ContextualMemory {
       content: currentPrompt,
     });
 
+    // Enrich with governance context if enabled
+    if (this.enableGovernance && options.context) {
+      messages = await this.governance.enrichContext(messages, options.context);
+    }
+
     return {
       messages,
       contextMetadata: {
         recentInteractions: memoryContext.recent?.recentMessages?.length || 0,
         similarExperiences: memoryContext.similar?.length || 0,
+        governanceEnriched: this.enableGovernance && !!options.context?.case_id,
         retrievedAt: memoryContext.retrieved_at,
       },
     };
