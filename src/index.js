@@ -15,6 +15,13 @@ import UnifiedServiceRouter, {
 export { SyncStateDurableObject } from "./sync/unified-sync-orchestrator.js";
 export { AIStateDO } from "./ai/ai-state.js";
 export { PersistentAgent } from "./agents/persistent-agent.js";
+export { ChittyRouterMCP } from "./mcp/chittyrouter-mcp-agent.js";  // NEW: Cloudflare native MCP
+
+// Import Universal Intake
+import { UniversalIntake } from "./intake/universal-intake.js";
+
+// Initialize Universal Intake once
+let universalIntake = null;
 
 export default {
   async fetch(request, env, ctx) {
@@ -22,11 +29,21 @@ export default {
     const hostname = url.hostname;
     const pathname = url.pathname;
 
+    // Initialize universal intake if not already done
+    if (!universalIntake) {
+      universalIntake = new UniversalIntake(env);
+    }
+
     // Initialize unified router
     const router = new UnifiedServiceRouter(env);
 
     // Route based on subdomain or path
     try {
+      // Universal Intake endpoint (NEW!)
+      if (pathname.startsWith("/intake")) {
+        return await handleIntake(request, env, universalIntake);
+      }
+
       // Router health endpoint (priority check)
       if (pathname === "/router/health") {
         return await handleServiceHealth(request, env);
@@ -185,6 +202,52 @@ async function handleLanding(request, env, ctx) {
   return new Response("ChittyOS Ultimate Worker - Unified Platform", {
     headers: { "content-type": "text/plain" },
   });
+}
+
+/**
+ * Handle Universal Intake requests (NEW!)
+ */
+async function handleIntake(request, env, intake) {
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+
+  // POST /intake - Main ingestion endpoint
+  if (request.method === "POST" && pathname === "/intake") {
+    try {
+      const body = await request.json();
+      const result = await intake.ingest(body.input || body, body.options);
+
+      return new Response(JSON.stringify(result, null, 2), {
+        status: result.success ? 200 : 500,
+        headers: { "Content-Type": "application/json" }
+      });
+    } catch (error) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: error.message
+      }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+  }
+
+  // GET /intake/health - Health check
+  if (request.method === "GET" && pathname === "/intake/health") {
+    return new Response(JSON.stringify({
+      status: "healthy",
+      service: "universal-intake",
+      supportedTypes: [
+        "email", "pdf", "voice", "api", "json",
+        "url", "sms", "image", "video", "text"
+      ],
+      timestamp: new Date().toISOString()
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  return new Response("Intake endpoint not found", { status: 404 });
 }
 
 async function handleLitigation(request, env, ctx) {

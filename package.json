@@ -38,9 +38,11 @@
     "@neondatabase/serverless": "^1.0.1",
     "@notionhq/client": "^5.1.0",
     "@octokit/rest": "^22.0.0",
+    "agents": "latest",
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "mimetext": "^3.0.27"
+    "mimetext": "^3.0.27",
+    "zod": "^3.22.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240909.0",
