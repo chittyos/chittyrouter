@@ -3,10 +3,66 @@
  * ChittyRouter → EvidenceEnvelope → AtomicFacts → Notion Database
  */
 
-import { Client as NotionClient } from '@notionhq/client';
+// Workers-compatible Notion client (uses fetch instead of SDK)
+class NotionClient {
+  constructor(options) {
+    this.auth = options.auth;
+    this.baseUrl = 'https://api.notion.com/v1';
+  }
 
-const NOTION_DB_ATOMIC_FACTS = process.env.NOTION_DATABASE_ID_ATOMIC_FACTS;
-const NOTION_TOKEN = process.env.NOTION_INTEGRATION_TOKEN;
+  get databases() {
+    return {
+      query: async (params) => {
+        const response = await fetch(`${this.baseUrl}/databases/${params.database_id}/query`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.auth}`,
+            'Content-Type': 'application/json',
+            'Notion-Version': '2022-06-28'
+          },
+          body: JSON.stringify({
+            filter: params.filter,
+            page_size: params.page_size || 100
+          })
+        });
+        return response.json();
+      }
+    };
+  }
+
+  get pages() {
+    return {
+      create: async (params) => {
+        const response = await fetch(`${this.baseUrl}/pages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.auth}`,
+            'Content-Type': 'application/json',
+            'Notion-Version': '2022-06-28'
+          },
+          body: JSON.stringify(params)
+        });
+        return response.json();
+      },
+      update: async (params) => {
+        const response = await fetch(`${this.baseUrl}/pages/${params.page_id}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${this.auth}`,
+            'Content-Type': 'application/json',
+            'Notion-Version': '2022-06-28'
+          },
+          body: JSON.stringify(params)
+        });
+        return response.json();
+      }
+    };
+  }
+}
+
+// These are set from env in the constructor
+let NOTION_DB_ATOMIC_FACTS = null;
+let NOTION_TOKEN = null;
 const MAX_RETRIES = 5;
 const BATCH_SIZE = 10;
 const BATCH_DELAY_MS = 200;

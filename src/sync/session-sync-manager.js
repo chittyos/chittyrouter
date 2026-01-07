@@ -5,7 +5,7 @@
  * Manages state across Claude, OpenAI, Gemini, and ChittyOS services
  */
 
-import { Octokit } from '@octokit/rest';
+import { Octokit } from '../utils/octokit-shim.js';
 import getRepositoryManager from './repository-manager.js';
 
 const CHITTY_ORG = 'ChittyOS';

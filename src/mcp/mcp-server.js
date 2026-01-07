@@ -2,10 +2,23 @@
  * MCP (Model Context Protocol) Server for ChittyRouter
  * Main orchestration hub running on port 3000
  * Coordinates all ChittyRouter services and integrations
+ *
+ * NOTE: This file is for Node.js standalone mode.
+ * In Cloudflare Workers, WebSocket is handled differently.
  */
 
-import { WebSocketServer } from 'ws';
-import { createServer } from 'node:http';
+// Conditional imports for Node.js environment (not used in Workers)
+let WebSocketServer, createServer;
+try {
+  const ws = await import('ws');
+  WebSocketServer = ws.WebSocketServer;
+  const http = await import('node:http');
+  createServer = http.createServer;
+} catch {
+  // In Workers environment - use stubs
+  WebSocketServer = class { constructor() {} };
+  createServer = () => ({ listen: () => {} });
+}
 import { ChittyIdClient } from '../utils/chittyid-integration.js';
 import { ChittySecurityManager } from '../utils/chittyos-security-integration.js';
 import { ChittyBeaconClient } from '../utils/chittybeacon-integration.js';

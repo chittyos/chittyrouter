@@ -1,10 +1,23 @@
 /**
  * Agent Coordination Server for ChittyRouter
  * Manages multi-agent workflows and coordination on port 8080
+ *
+ * NOTE: This file is for Node.js standalone mode.
+ * In Cloudflare Workers, coordination is handled differently.
  */
 
-import { createServer } from 'node:http';
-import { WebSocketServer } from 'ws';
+// Conditional imports for Node.js environment (not used in Workers)
+let WebSocketServer, createServer;
+try {
+  const ws = await import('ws');
+  WebSocketServer = ws.WebSocketServer;
+  const http = await import('node:http');
+  createServer = http.createServer;
+} catch {
+  // In Workers environment - use stubs
+  WebSocketServer = class { constructor() {} };
+  createServer = () => ({ listen: () => {} });
+}
 import { ChittyIdClient } from '../utils/chittyid-integration.js';
 import { ChittySecurityManager } from '../utils/chittyos-security-integration.js';
 

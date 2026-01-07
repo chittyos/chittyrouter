@@ -4,7 +4,7 @@
  * Implements retry logic, validation, and audit trails
  */
 
-import { Octokit } from '@octokit/rest';
+import { Octokit } from '../utils/octokit-shim.js';
 
 const CHITTY_ORG = 'ChittyOS';
 const REPOS = {

@@ -1,4 +1,4 @@
-name = "chitty-ultimate-worker"
+name = "chittyrouter"
 main = "src/index-cloudflare.js"
 compatibility_date = "2024-09-16"
 compatibility_flags = ["nodejs_compat"]
@@ -9,20 +9,21 @@ account_id = "0bc21e3a5a9de1a4cc843be9c3e98121"
 binding = "AI"
 
 # Durable Objects
+# Durable Objects (local to this worker)
 [[durable_objects.bindings]]
 name = "AI_STATE_DO"
 class_name = "AIStateDO"
-script_name = "chittyrouter-ai"
-
-[[durable_objects.bindings]]
-name = "CHITTYCHAIN_DO"
-class_name = "ChittyChainDO"
-script_name = "chittyrouter-ai"
 
 [[durable_objects.bindings]]
 name = "SYNC_STATE"
 class_name = "SyncStateDurableObject"
-script_name = "chittyrouter-ai"
+
+# DO Migrations
+[[migrations]]
+tag = "v1"
+new_classes = ["AIStateDO"]
+deleted_classes = ["ChittyOSPlatformState", "PersistentAgent", "AIGatewayState"]
+renamed_classes = [{from = "SyncState", to = "SyncStateDurableObject"}]
 
 # Environment Variables
 [vars]
@@ -45,22 +46,20 @@ GITHUB_TOKEN = "op://Claude-Code Tools/ChittyCLI - GitHub Token/token"
 CLOUDFLARE_API_TOKEN = "op://Private/gxyne23yqngvk2nzjwl62uakx4/ChittyCorp LLC/global_api_key"
 
 # Routes
-[[routes]]
-pattern = "mcp.chitty.cc/*"
-zone_name = "chitty.cc"
+# Routes - assigned in Cloudflare dashboard
+# [[routes]]
+# pattern = "mcp.chitty.cc/*"
+# zone_name = "chitty.cc"
 
-[[routes]]
-pattern = "ai.chitty.cc/*"
-zone_name = "chitty.cc"
+# [[routes]]
+# pattern = "ai.chitty.cc/*"
+# zone_name = "chitty.cc"
 
-[[routes]]
-pattern = "router.chitty.cc/*"
-zone_name = "chitty.cc"
+# [[routes]]
+# pattern = "router.chitty.cc/*"
+# zone_name = "chitty.cc"
 
-# Legacy route
-[[routes]]
-pattern = "chittyrouter.example.com/*"
-custom_domain = false
+# Sync route (commented out until DNS configured)
 # [[routes]]
 # pattern = "sync.chitty.cc"
 # custom_domain = true
@@ -124,17 +123,12 @@ binding = "AI"
 [[env.staging.durable_objects.bindings]]
 name = "AI_STATE_DO"
 class_name = "AIStateDO"
-script_name = "chittyrouter-ai"
 
-[[env.staging.durable_objects.bindings]]
-name = "CHITTYCHAIN_DO"
-class_name = "ChittyChainDO"
-script_name = "chittyrouter-ai"
 
 [[env.staging.durable_objects.bindings]]
 name = "SYNC_STATE"
 class_name = "SyncStateDurableObject"
-script_name = "chittyrouter-ai"
+
 
 # Production Environment
 [env.production]
@@ -165,7 +159,7 @@ VERSION_MANAGEMENT = "enterprise"
 
 [[env.production.kv_namespaces]]
 binding = "AI_CACHE"
-id = "863b20701b5145c3a5e1561469f93ee4"
+id = "59af99e1f7994a6282a0823bfb89bda0"
 
 # AI Binding for production
 [env.production.ai]
@@ -175,17 +169,12 @@ binding = "AI"
 [[env.production.durable_objects.bindings]]
 name = "AI_STATE_DO"
 class_name = "AIStateDO"
-script_name = "chittyrouter-ai"
 
-[[env.production.durable_objects.bindings]]
-name = "CHITTYCHAIN_DO"
-class_name = "ChittyChainDO"
-script_name = "chittyrouter-ai"
 
 [[env.production.durable_objects.bindings]]
 name = "SYNC_STATE"
 class_name = "SyncStateDurableObject"
-script_name = "chittyrouter-ai"
+
 
 # Analytics Engine for AI metrics (disabled - needs to be enabled in dashboard)
 # [[env.production.analytics_engine_datasets]]
@@ -211,26 +200,17 @@ bucket_name = "chittyrouter-documents"
 [limits]
 cpu_ms = 30000  # 30 seconds for AI processing
 
-# Triggers for batch processing
-[[triggers.crons]]
-cron = "0 */6 * * *"  # Every 6 hours
-route = "/cron/cleanup-ai-cache"
+# Scheduled triggers - handled by scheduled() event handler
+[triggers]
+crons = [
+  "0 */6 * * *",   # Cleanup AI cache
+  "0 0 * * *",     # Daily metrics
+  "*/30 * * * *",  # DLQ processing
+  "0 */2 * * *",   # Session reconcile
+  "*/15 * * * *"   # Inbox monitoring
+]
 
-[[triggers.crons]]
-cron = "0 0 * * *"    # Daily at midnight
-route = "/cron/ai-metrics-report"
-
-[[triggers.crons]]
-cron = "*/30 * * * *"  # Every 30 minutes
-route = "/cron/sync-dlq-process"
-
-[[triggers.crons]]
-cron = "0 */2 * * *"   # Every 2 hours
-route = "/cron/session-reconcile"
-
-[[triggers.crons]]
-cron = "*/15 * * * *"  # Every 15 minutes
-route = "/cron/inbox-monitor"
+# Let wrangler handle bundling - no custom build needed
 
 # Placement for optimal AI performance
 [placement]
