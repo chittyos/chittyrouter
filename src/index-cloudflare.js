@@ -10,6 +10,7 @@ export { SyncStateDurableObject, AIStateDO } from "./unified-worker.js";
 // Legacy imports for compatibility
 import { ChittyRouterAI } from "./ai/intelligent-router.js";
 import { EmailProcessor } from "./ai/email-processor.js";
+import { CloudflareEmailHandler } from "./email/cloudflare-email-handler.js";
 import { AgentOrchestrator } from "./ai/agent-orchestrator.js";
 import { ServiceDiscovery } from "./utils/service-discovery.js";
 import {
@@ -304,10 +305,10 @@ export default {
     }
   },
 
-  // AI-powered Email Worker interface
+  // Cloudflare Email Worker - handles all incoming chitty.cc emails
   async email(message, env, ctx) {
-    const processor = new EmailProcessor(env.AI, env);
-    return await processor.processIncomingEmail(message, ctx);
+    const handler = new CloudflareEmailHandler(env);
+    return await handler.handleEmail(message, env, ctx);
   },
 };
 
