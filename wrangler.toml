@@ -65,14 +65,18 @@ custom_domain = false
 # pattern = "sync.chitty.cc"
 # custom_domain = true
 
-# Email Worker Configuration
+# Email Worker Configuration - Handles chitty.cc email routing
 [[email]]
 name = "chittyrouter-email"
 destination_addresses = [
-  "*@example.com",
-  "*-v-*@example.com",
-  "case-*@example.com",
-  "matter-*@example.com"
+  "*@chitty.cc",
+  "*-v-*@chitty.cc",
+  "case-*@chitty.cc",
+  "matter-*@chitty.cc",
+  "intake@chitty.cc",
+  "legal@chitty.cc",
+  "evidence@chitty.cc",
+  "calendar@chitty.cc"
 ]
 
 # Development Environment
@@ -223,6 +227,10 @@ route = "/cron/sync-dlq-process"
 [[triggers.crons]]
 cron = "0 */2 * * *"   # Every 2 hours
 route = "/cron/session-reconcile"
+
+[[triggers.crons]]
+cron = "*/15 * * * *"  # Every 15 minutes
+route = "/cron/inbox-monitor"
 
 # Placement for optimal AI performance
 [placement]

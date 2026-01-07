@@ -13,6 +13,7 @@ import { EmailProcessor } from "./ai/email-processor.js";
 import { AgentOrchestrator } from "./ai/agent-orchestrator.js";
 import { SessionService } from "./services/session-service.js";
 import { MobileBridgeService } from "./services/mobile-bridge.js";
+import { InboxMonitor, handleScheduledMonitoring } from "./email/inbox-monitor.js";
 
 /**
  * Route multiplexer - determines which service to invoke based on path
@@ -36,6 +37,9 @@ class RouteMultiplexer {
       sessions: {
         sessionService: new SessionService(env),
         mobileBridge: new MobileBridgeService(env),
+      },
+      email: {
+        inboxMonitor: new InboxMonitor(env),
       },
     };
 
@@ -82,6 +86,12 @@ class RouteMultiplexer {
       ["/cron/session-reconcile", this.handleCronReconcile.bind(this)],
       ["/cron/cleanup-ai-cache", this.handleCronCleanup.bind(this)],
       ["/cron/ai-metrics-report", this.handleCronMetrics.bind(this)],
+      ["/cron/inbox-monitor", this.handleCronInboxMonitor.bind(this)],
+
+      // Email Monitoring Routes
+      ["/email/monitor", this.handleInboxMonitor.bind(this)],
+      ["/email/status", this.handleEmailStatus.bind(this)],
+      ["/email/urgent", this.handleUrgentEmails.bind(this)],
     ]);
   }
 
@@ -493,6 +503,46 @@ class RouteMultiplexer {
     }
 
     return this.jsonResponse(report);
+  }
+
+  // ============ Email Monitoring Handlers ============
+
+  async handleCronInboxMonitor(request) {
+    const results = await this.services.email.inboxMonitor.monitorAllInboxes();
+    return this.jsonResponse({
+      success: true,
+      ...results,
+      cron: true
+    });
+  }
+
+  async handleInboxMonitor(request) {
+    const results = await this.services.email.inboxMonitor.monitorAllInboxes();
+    return this.jsonResponse(results);
+  }
+
+  async handleEmailStatus(request) {
+    // Return cached email status
+    try {
+      const status = await this.env.AI_CACHE?.get('email_status', 'json');
+      return this.jsonResponse(status || { message: 'No status cached' });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  async handleUrgentEmails(request) {
+    // Return only urgent emails
+    try {
+      const status = await this.env.AI_CACHE?.get('email_status', 'json');
+      const urgent = status?.urgent_items || [];
+      return this.jsonResponse({
+        count: urgent.length,
+        items: urgent.filter(i => i.urgencyScore >= 50)
+      });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
   }
 
   // ============ Health Check Helpers ============
