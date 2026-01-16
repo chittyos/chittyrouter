@@ -30,7 +30,6 @@ class_name = "ChittyChainDO"
 
 # Environment variables for development
 [env.staging]
-name = "chittyrouter-ai-staging"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
@@ -42,7 +41,6 @@ AI_GATEWAY_VERSION = "2.0.0-ai"
 
 # Environment variables for production
 [env.production]
-name = "chittyrouter-ai-production"
 
 [env.production.vars]
 ENVIRONMENT = "production"
