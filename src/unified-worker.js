@@ -26,8 +26,8 @@ class RouteMultiplexer {
     this.services = {
       ai: {
         router: new ChittyRouterAI(env.AI, env),
-        emailProcessor: new EmailProcessor(env),
-        agentOrchestrator: new AgentOrchestrator(env),
+        emailProcessor: new EmailProcessor(env.AI, env),
+        agentOrchestrator: new AgentOrchestrator(env.AI, env),
       },
       sync: {
         notion: new NotionAtomicFactsSync(env),
@@ -200,6 +200,14 @@ class RouteMultiplexer {
   async handleSessionStatus(request) {
     const status = this.services.sync.session.getStatus();
     return this.jsonResponse(status);
+  }
+
+  async handleSessionManagement(request) {
+    return await this.services.sessions.sessionService.handleRequest(request);
+  }
+
+  async handleMobileBridge(request) {
+    return await this.services.sessions.mobileBridge.handleRequest(request);
   }
 
   // ============ Orchestration Handlers ============
@@ -671,16 +679,6 @@ export default {
       console.error("Worker error:", error);
       return multiplexer.errorResponse(error);
     }
-  },
-
-  // ============ Session Management Handlers ============
-
-  async handleSessionManagement(request) {
-    return await this.services.sessions.sessionService.handleRequest(request);
-  },
-
-  async handleMobileBridge(request) {
-    return await this.services.sessions.mobileBridge.handleRequest(request);
   },
 
   async logRequest(env, requestId, request) {

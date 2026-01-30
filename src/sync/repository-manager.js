@@ -2,9 +2,11 @@
  * Repository Manager - Centralized repository access and validation
  * Ensures proper separation between chittychat-data and chittyos-data
  * Implements retry logic, validation, and audit trails
+ *
+ * All GitHub API calls route through ChittyConnect for centralized credential management.
  */
 
-import { Octokit } from '../utils/octokit-shim.js';
+import { GitHubClientProxy } from '../lib/chittyconnect-client.js';
 
 const CHITTY_ORG = 'ChittyOS';
 const REPOS = {
@@ -37,10 +39,8 @@ const REPO_PATTERNS = {
 export class RepositoryManager {
   constructor(env) {
     this.env = env;
-    this.github = new Octokit({
-      auth: env.GITHUB_TOKEN,
-      baseUrl: 'https://api.github.com'
-    });
+    // Use ChittyConnect proxy - credentials managed centrally
+    this.github = new GitHubClientProxy(env, { org: CHITTY_ORG });
 
     // Cache for branch existence checks
     this.branchCache = new Map();
@@ -417,10 +417,13 @@ export class RepositoryManager {
   }
 }
 
+// Module-level singleton
+let repositoryManagerInstance = null;
+
 // Export singleton instance
 export default function getRepositoryManager(env) {
-  if (!global.repositoryManager) {
-    global.repositoryManager = new RepositoryManager(env);
+  if (!repositoryManagerInstance) {
+    repositoryManagerInstance = new RepositoryManager(env);
   }
-  return global.repositoryManager;
+  return repositoryManagerInstance;
 }

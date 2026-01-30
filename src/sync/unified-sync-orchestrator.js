@@ -17,9 +17,14 @@ export class UnifiedSyncOrchestrator {
     this.syncHistory = [];
     this.failedSyncs = [];
 
-    // Durable Object for persistent state
-    this.durableObjectId = env.SYNC_STATE.idFromName('unified-sync');
-    this.durableObject = env.SYNC_STATE.get(this.durableObjectId);
+    // Durable Object for persistent state (only if available)
+    if (env.SYNC_STATE) {
+      this.durableObjectId = env.SYNC_STATE.idFromName('unified-sync');
+      this.durableObject = env.SYNC_STATE.get(this.durableObjectId);
+    } else {
+      this.durableObjectId = null;
+      this.durableObject = null;
+    }
   }
 
   /**
