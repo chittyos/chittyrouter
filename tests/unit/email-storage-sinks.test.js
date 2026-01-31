@@ -558,16 +558,16 @@ describe('EmailStorageSinks', () => {
       expect(truncated.length).toBeLessThanOrEqual(1003); // 1000 + "..."
     });
     
-    it('should compute content hashes', () => {
+    it('should compute content hashes', async () => {
       sinks = createEmailStorageSinks(mockEnv);
       
       const content1 = 'test content';
       const content2 = 'test content';
       const content3 = 'different content';
       
-      const hash1 = sinks._hashContent(content1);
-      const hash2 = sinks._hashContent(content2);
-      const hash3 = sinks._hashContent(content3);
+      const hash1 = await sinks._hashContent(content1);
+      const hash2 = await sinks._hashContent(content2);
+      const hash3 = await sinks._hashContent(content3);
       
       expect(hash1).toBe(hash2); // Same content = same hash
       expect(hash1).not.toBe(hash3); // Different content = different hash

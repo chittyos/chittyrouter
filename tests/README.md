@@ -204,15 +204,9 @@ const testSinks = createTestStorageSinks(env);
 
 ## Test Data
 
-Test emails are defined in `tests/data/test-emails.js` and include realistic legal scenarios:
+Test messages are created dynamically via the harness in `tests/harness/email-worker-simulator.js` using the `createTestMessageBatch()` function.
 
-- Lawsuit notifications
-- Settlement conferences
-- Evidence submissions
-- Court filings
-- Discovery requests
-- General inquiries
-- Compliance matters
+Additional test email data can be found in `tests/data/test-emails.js` for specific scenarios.
 
 ## CI/CD Integration
 

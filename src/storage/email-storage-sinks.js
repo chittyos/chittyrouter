@@ -14,8 +14,6 @@
  * - ChittyConnect: Cross-service integration (chittyos/chittyconnect)
  */
 
-import crypto from 'crypto';
-
 /**
  * Email Storage Sinks Manager
  * Coordinates storage across multiple backends with privacy enforcement
@@ -61,7 +59,7 @@ export class EmailStorageSinks {
       return { 
         success: false, 
         reason: 'R2 storage not enabled or not available',
-        hash: this._hashEmailData(emailData)
+        hash: await this._hashEmailData(emailData)
       };
     }
     
@@ -78,7 +76,7 @@ export class EmailStorageSinks {
       }
       
       // Compute content hash
-      const contentHash = this._hashContent(content);
+      const contentHash = await this._hashContent(content);
       
       // Prepare metadata (privacy-safe)
       const storageMetadata = {
@@ -131,7 +129,7 @@ export class EmailStorageSinks {
       return {
         success: false,
         error: error.message,
-        hash: this._hashEmailData(emailData)
+        hash: await this._hashEmailData(emailData)
       };
     }
   }
@@ -171,7 +169,7 @@ export class EmailStorageSinks {
         
         // Compute hash of attachment content
         const contentHash = attachment.content 
-          ? this._hashContent(attachment.content)
+          ? await this._hashContent(attachment.content)
           : null;
         
         // Metadata
@@ -262,7 +260,7 @@ export class EmailStorageSinks {
         timestamp: emailData.timestamp,
         category: emailData.category,
         priority: emailData.priority,
-        contentHash: this._hashEmailData(emailData)
+        contentHash: await this._hashEmailData(emailData)
       };
       
       // Upsert to Vectorize
@@ -413,23 +411,30 @@ export class EmailStorageSinks {
   /**
    * Hash email data for deduplication
    */
-  _hashEmailData(emailData) {
+  async _hashEmailData(emailData) {
     const hashInput = JSON.stringify({
       from: emailData.from,
       to: emailData.to,
       subject: emailData.subject,
       timestamp: emailData.timestamp
     });
-    return this._hashContent(hashInput);
+    return await this._hashContent(hashInput);
   }
   
   /**
-   * Hash content using SHA-256
+   * Hash content using SHA-256 (Web Crypto API for Cloudflare Workers compatibility)
    */
-  _hashContent(content) {
-    const hash = crypto.createHash('sha256');
-    hash.update(typeof content === 'string' ? content : JSON.stringify(content));
-    return hash.digest('hex');
+  async _hashContent(content) {
+    const textContent = typeof content === 'string' ? content : JSON.stringify(content);
+    const encoder = new TextEncoder();
+    const data = encoder.encode(textContent);
+    
+    // Use Web Crypto API (available in Cloudflare Workers and modern browsers)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    
+    // Convert buffer to hex string
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
   
   /**
