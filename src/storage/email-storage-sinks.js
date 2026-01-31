@@ -448,10 +448,10 @@ export class EmailStorageSinks {
     const chunks = [];
     
     try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
+      let result = await reader.read();
+      while (!result.done) {
+        chunks.push(result.value);
+        result = await reader.read();
       }
     } finally {
       reader.releaseLock();

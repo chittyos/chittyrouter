@@ -45,7 +45,7 @@ describe('Email Processing Simulation', () => {
       const message = messages.ariasVBianchi;
       
       // Process email
-      const result = await handler.handleEmail(message, mockEnv, {});
+      await handler.handleEmail(message, mockEnv, {});
       
       // Extract email data to verify pattern detection
       const emailData = await handler.extractEmailData(message);
@@ -409,7 +409,7 @@ describe('Email Processing Simulation', () => {
       const putCalls = mockEnv.AI_CACHE.put.mock.calls;
       
       for (const call of putCalls) {
-        const [key, value, options] = call;
+        const [key, , options] = call;
         expect(options).toHaveProperty('expirationTtl');
         expect(options.expirationTtl).toBeGreaterThan(0);
         
@@ -448,7 +448,7 @@ describe('Email Processing Simulation', () => {
       const putCalls = mockEnv.AI_CACHE.put.mock.calls;
       
       for (const call of putCalls) {
-        const [key, value] = call;
+        const [, value] = call;
         const data = JSON.parse(value);
         
         // Check that stored entries don't contain full raw email content
@@ -511,7 +511,7 @@ describe('Email Processing Simulation', () => {
       const failingHandler = new CloudflareEmailHandler(mockEnv);
       failingHandler.triageEmail = vi.fn().mockRejectedValue(new Error('Triage failed'));
       
-      const result = await failingHandler.handleEmail(message, mockEnv, {});
+      await failingHandler.handleEmail(message, mockEnv, {});
       
       // Should still attempt fallback forward
       expect(message.getForwardCalls().length).toBeGreaterThan(0);
