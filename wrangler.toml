@@ -215,3 +215,7 @@ crons = [
 # Placement for optimal AI performance
 [placement]
 mode = "smart"
+
+# ChittyTrack observability
+[[tail_consumers]]
+service = "chittytrack"

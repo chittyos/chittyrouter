@@ -101,3 +101,7 @@ cwd = "."
 # Deployment configuration
 [triggers]
 crons = ["0 0 * * *"] # Daily maintenance cron
+
+# ChittyTrack observability
+[[tail_consumers]]
+service = "chittytrack"
