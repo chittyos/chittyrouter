@@ -33,7 +33,7 @@
     "validate": "npm run lint && npm run test:all && npm run build"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.1",
+    "@neondatabase/serverless": "^1.0.2",
     "@notionhq/client": "^5.1.0",
     "@octokit/rest": "^22.0.0",
     "mimetext": "^3.0.27"
