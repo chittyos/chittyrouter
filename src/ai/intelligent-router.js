@@ -198,12 +198,12 @@ export class ChittyRouterAI {
         };
       }
 
-      // ChittyTrust unavailable — safe default, don't block routing
-      console.warn('ChittyTrust unavailable, using default trust');
-      return { composite: 0.7, trusted: true, flags: [], authority: 'fallback' };
+      // ChittyTrust unavailable — be honest, mark as unevaluated
+      console.warn('ChittyTrust unavailable');
+      return { composite: null, trusted: null, flags: ['chittytrust-unavailable'], authority: 'none' };
     } catch (error) {
       console.warn('ChittyTrust call failed:', error.message);
-      return { composite: 0.7, trusted: true, flags: [], authority: 'fallback' };
+      return { composite: null, trusted: null, flags: ['chittytrust-unavailable'], authority: 'none' };
     }
   }
 
@@ -211,6 +211,14 @@ export class ChittyRouterAI {
    * Routing decision that accounts for trust
    */
   async makeRoutingDecision(inputType, normalized, analysis, trust) {
+    // Trust not evaluated (ChittyTrust down) — route normally but flag it
+    if (trust.trusted === null) {
+      const decision = await this.routeByType(inputType, normalized, analysis);
+      decision.trust_flags = trust.flags;
+      decision.reasoning = `${decision.reasoning} [trust unevaluated — ChittyTrust unavailable]`;
+      return decision;
+    }
+
     // Low-trust inputs get quarantined
     if (!trust.trusted) {
       return {
@@ -221,6 +229,10 @@ export class ChittyRouterAI {
       };
     }
 
+    return this.routeByType(inputType, normalized, analysis);
+  }
+
+  async routeByType(inputType, normalized, analysis) {
     // For email, use the full routing logic
     if (inputType === 'email') {
       return this.makeIntelligentRoutingDecision(normalized, analysis);
