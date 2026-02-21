@@ -72,7 +72,7 @@ export class ChittyRouterMCPAgent extends McpAgent {
       }
     );
 
-    // trust_score — just the trust scoring step
+    // trust_score — delegates to ChittyTrust authority
     this.server.tool(
       "trust_score",
       {
@@ -85,6 +85,7 @@ export class ChittyRouterMCPAgent extends McpAgent {
         const inputType = params.inputType || "unknown";
         const normalized = router.normalize(inputType, params);
         const analysis = await router.analyzeInput(inputType, normalized);
+        // Calls ChittyTrust at trust.chitty.cc — not a local reimplementation
         const trust = await router.scoreTrust(inputType, normalized, analysis);
         return { content: [{ type: "text", text: JSON.stringify(trust, null, 2) }] };
       }

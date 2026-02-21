@@ -167,94 +167,43 @@ export class ChittyRouterAI {
   }
 
   /**
-   * Trust scoring — runs inline as part of the routing pipeline.
-   * Evaluates source credibility, content consistency, and factual plausibility.
-   * Not a separate engine. Just a step.
+   * Trust scoring — delegates to ChittyTrust authority service.
+   * ChittyTrust already exists at trust.chitty.cc. Don't reimplement it.
    */
   async scoreTrust(inputType, normalized, analysis) {
-    const scores = {};
-
-    // 1. Source verification — known sender, valid origin
-    scores.source = this.scoreSource(inputType, normalized);
-
-    // 2. Content consistency — does the content match what we'd expect
-    scores.consistency = this.scoreConsistency(analysis);
-
-    // 3. Temporal validity — is the timing plausible
-    scores.temporal = this.scoreTemporal(normalized);
-
-    // 4. AI-assisted factual check (only for high-stakes inputs)
-    if (analysis.priority === 'CRITICAL' || analysis.priority === 'HIGH') {
-      scores.factual = await this.scoreFactual(normalized, analysis);
-    } else {
-      scores.factual = 0.7; // default trust for low-stakes
-    }
-
-    // Weighted composite
-    const weights = { source: 0.3, consistency: 0.25, temporal: 0.2, factual: 0.25 };
-    const composite = Object.entries(weights).reduce(
-      (sum, [key, weight]) => sum + (scores[key] || 0.5) * weight, 0
-    );
-
-    return {
-      composite: Math.round(composite * 100) / 100,
-      scores,
-      trusted: composite >= 0.6,
-      flags: composite < 0.4 ? ['low-trust-input'] : [],
-    };
-  }
-
-  scoreSource(inputType, normalized) {
-    // Known internal sources get high trust
-    if (normalized.source === 'internal' || normalized.source === 'system') return 0.95;
-    // Email with known domain patterns
-    if (inputType === 'email' && normalized.from) {
-      if (normalized.from.endsWith('.gov')) return 0.9;
-      if (normalized.from.includes('court')) return 0.85;
-      return 0.6;
-    }
-    // Webhooks from registered services
-    if (inputType === 'webhook') return 0.8;
-    // API calls (authenticated)
-    if (inputType === 'api') return 0.75;
-    // Unknown sources
-    return 0.5;
-  }
-
-  scoreConsistency(analysis) {
-    // If AI analysis produced coherent results with high confidence
-    if (analysis.urgency_score > 0.8 && analysis.category !== 'general') return 0.85;
-    if (analysis.category && analysis.priority) return 0.7;
-    return 0.5;
-  }
-
-  scoreTemporal(normalized) {
-    // Check if receivedAt is recent and plausible
-    const received = new Date(normalized.receivedAt);
-    const now = new Date();
-    const ageMs = now - received;
-    if (ageMs < 60000) return 0.9; // within last minute
-    if (ageMs < 3600000) return 0.8; // within last hour
-    if (ageMs < 86400000) return 0.7; // within last day
-    return 0.5;
-  }
-
-  async scoreFactual(normalized, analysis) {
     try {
-      const prompt = `
-      Rate the factual plausibility of this legal communication (0.0-1.0):
-      Category: ${analysis.category}
-      Entities: ${(analysis.legal_entities || []).join(', ')}
-      Topics: ${(analysis.key_topics || []).join(', ')}
-      Content preview: ${(normalized.content || '').slice(0, 500)}
+      const response = await fetch('https://trust.chitty.cc/api/v1/evaluate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-ChittyOS-Service': 'chittyrouter',
+        },
+        body: JSON.stringify({
+          content: (normalized.content || '').slice(0, 2000),
+          source: normalized.source || inputType,
+          inputType,
+          category: analysis.category,
+          priority: analysis.priority,
+          authority: 'chittytrust',
+        }),
+      });
 
-      Respond with ONLY a JSON: {"score": 0.X, "reason": "brief explanation"}
-      `;
-      const response = await this.aiConfig.runWithFallback(this.ai, 'email_routing', prompt);
-      const parsed = this.parseAIResponse(response.response);
-      return parsed.score || 0.7;
-    } catch {
-      return 0.7;
+      if (response.ok) {
+        const result = await response.json();
+        return {
+          composite: result.trustScore || result.score || 0.7,
+          trusted: result.trusted !== undefined ? result.trusted : (result.trustScore || 0.7) >= 0.6,
+          flags: result.flags || [],
+          authority: 'chittytrust',
+        };
+      }
+
+      // ChittyTrust unavailable — safe default, don't block routing
+      console.warn('ChittyTrust unavailable, using default trust');
+      return { composite: 0.7, trusted: true, flags: [], authority: 'fallback' };
+    } catch (error) {
+      console.warn('ChittyTrust call failed:', error.message);
+      return { composite: 0.7, trusted: true, flags: [], authority: 'fallback' };
     }
   }
 
