@@ -113,6 +113,14 @@ temp/
 .AppleDesktop
 Network Trash Folder
 Temporary Items
-.apdiskchittyrouter-nested/
+.apdisk
+
+# ChittyRouter specific
+chittyrouter-nested/
 *.bak
 *.original
+*.copy
+*copy.*
+
+# AI coordination sessions (should not be committed)
+.ai-coordination/sessions/
