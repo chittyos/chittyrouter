@@ -19,72 +19,302 @@ export class ChittyRouterAI {
   }
 
   /**
-   * Main AI routing intelligence - replaces all traditional routing logic
+   * Universal intake — accepts any input type, auto-detects, normalizes, and routes.
+   * This IS the intake layer. Trust scoring happens inline as a pipeline step.
    */
-  async intelligentRoute(emailData) {
-    console.log('🧠 AI processing email:', emailData.subject);
+  async ingest(data) {
+    const inputType = this.detectInputType(data);
+    const normalized = this.normalize(inputType, data);
+
+    console.log(`📥 Intake: ${inputType} → routing pipeline`);
 
     try {
-      // Validate email data against ChittyOS schema
-      const schemaValidation = await validateEmailSchema(emailData);
-      if (!schemaValidation.valid) {
-        console.warn('⚠️ Email schema validation failed:', schemaValidation.errors);
-        // Use normalized data if available
-        emailData = schemaValidation.normalizedData || emailData;
-      }
+      const chittyId = normalized.chittyId || `${inputType.toUpperCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-      // Generate unique ChittyID for tracking
-      const chittyId = await generateEmailChittyID(emailData);
+      // AI analysis (adapted per input type)
+      const analysis = await this.analyzeInput(inputType, normalized);
 
-      // AI-powered comprehensive analysis
-      const analysis = await this.comprehensiveAIAnalysis(emailData);
+      // Trust scoring — inline, not a separate layer
+      const trust = await this.scoreTrust(inputType, normalized, analysis);
 
-      // Determine routing based on AI analysis
-      const routingDecision = await this.makeIntelligentRoutingDecision(emailData, analysis);
+      // Routing decision
+      const routing = await this.makeRoutingDecision(inputType, normalized, analysis, trust);
 
-      // Generate AI response if appropriate
-      const response = await this.generateIntelligentResponse(emailData, analysis);
+      // Auto-response if applicable
+      const response = (inputType === 'email')
+        ? await this.generateIntelligentResponse(normalized, analysis)
+        : { should_respond: false, reason: `auto-response not applicable for ${inputType}` };
 
-      // Process attachments with AI
-      const attachmentAnalysis = await this.analyzeAttachments(emailData.attachments);
+      // Attachments / documents
+      const attachments = await this.analyzeAttachments(normalized.attachments || normalized.documents);
 
-      // Create routing result
       const result = {
         chittyId,
+        inputType,
         timestamp: new Date().toISOString(),
-        ai: {
-          analysis,
-          routing: routingDecision,
-          response,
-          attachments: attachmentAnalysis
-        },
-        actions: await this.determineActions(analysis, routingDecision)
+        trust,
+        ai: { analysis, routing, response, attachments },
+        actions: await this.determineActions(analysis, routing),
       };
 
-      // Log to ChittyChain for immutable record
+      // Immutable chain log
       await logEmailToChain(this.env, {
-        type: 'AI_INTELLIGENT_ROUTING',
+        type: 'INTAKE_ROUTED',
         chittyId,
-        emailData: this.sanitizeEmailData(emailData),
-        result
+        inputType,
+        data: this.sanitizeForLog(inputType, normalized),
+        result,
       });
 
-      // Sync routing decision to ChittyChat project
-      const chatSync = await this.chittyChat.syncEmailRouting(emailData, result);
-      if (chatSync.synced) {
-        result.chittyChat = {
-          synced: true,
-          syncId: chatSync.syncId,
-          projectUpdate: chatSync.projectUpdate
-        };
-      }
-
       return result;
-
     } catch (error) {
-      console.error('❌ AI routing failed:', error);
-      return this.fallbackRouting(emailData, error);
+      console.error('❌ Intake pipeline failed:', error);
+      return this.fallbackRouting(data, error);
     }
+  }
+
+  /**
+   * Detect input type from raw data
+   */
+  detectInputType(data) {
+    if (data.inputType) return data.inputType;
+    if (data.from && data.to && (data.subject || data.content)) return 'email';
+    if (data.mimeType?.startsWith('audio/') || data.audioUrl) return 'voice';
+    if (data.mimeType?.startsWith('image/') || data.imageUrl) return 'image';
+    if (data.documentUrl || data.mimeType === 'application/pdf') return 'document';
+    if (data.webhookEvent || data.webhook_id) return 'webhook';
+    if (data.formFields || data.formId) return 'form';
+    if (data.smsBody || data.phoneNumber) return 'sms';
+    if (data.chatMessage || data.threadId) return 'chat';
+    if (data.query || data.endpoint) return 'api';
+    return 'unknown';
+  }
+
+  /**
+   * Normalize any input type into a canonical shape for the pipeline
+   */
+  normalize(inputType, data) {
+    const base = {
+      chittyId: data.chittyId || null,
+      source: data.source || inputType,
+      receivedAt: new Date().toISOString(),
+      raw: data,
+    };
+
+    switch (inputType) {
+      case 'email':
+        return { ...base, from: data.from, to: data.to, subject: data.subject, content: data.content, attachments: data.attachments || [] };
+      case 'document':
+        return { ...base, documentUrl: data.documentUrl, mimeType: data.mimeType, filename: data.filename, content: data.content || '', documents: data.documents || [data] };
+      case 'voice':
+        return { ...base, audioUrl: data.audioUrl, mimeType: data.mimeType, duration: data.duration, content: data.transcript || '' };
+      case 'image':
+        return { ...base, imageUrl: data.imageUrl, mimeType: data.mimeType, content: data.caption || data.ocrText || '' };
+      case 'form':
+        return { ...base, formId: data.formId, formFields: data.formFields, content: JSON.stringify(data.formFields || {}) };
+      case 'webhook':
+        return { ...base, webhookEvent: data.webhookEvent, content: JSON.stringify(data.payload || data) };
+      case 'sms':
+        return { ...base, from: data.phoneNumber, content: data.smsBody || data.body || '' };
+      case 'chat':
+        return { ...base, threadId: data.threadId, from: data.userId, content: data.chatMessage || data.message || '' };
+      case 'api':
+        return { ...base, endpoint: data.endpoint, content: JSON.stringify(data.query || data.body || {}) };
+      default:
+        return { ...base, content: typeof data === 'string' ? data : JSON.stringify(data) };
+    }
+  }
+
+  /**
+   * AI analysis adapted per input type
+   */
+  async analyzeInput(inputType, normalized) {
+    if (inputType === 'email') {
+      return this.comprehensiveAIAnalysis(normalized);
+    }
+
+    // Generic analysis for non-email inputs
+    const prompt = `
+    You are ChittyRouter AI. Analyze this ${inputType} input for a legal platform:
+
+    INPUT TYPE: ${inputType}
+    SOURCE: ${normalized.source}
+    CONTENT: ${(normalized.content || '').slice(0, 2000)}
+
+    Provide analysis in JSON:
+    {
+      "category": "lawsuit|document_submission|court_notice|emergency|appointment|billing|inquiry|general",
+      "priority": "CRITICAL|HIGH|NORMAL|LOW",
+      "urgency_score": 0.5,
+      "case_related": false,
+      "case_pattern": null,
+      "legal_entities": [],
+      "action_required": "immediate|scheduled|acknowledgment|none",
+      "key_topics": [],
+      "sentiment": "positive|neutral|negative|urgent",
+      "compliance_flags": [],
+      "reasoning": "explanation"
+    }
+    `;
+
+    try {
+      const response = await this.aiConfig.runWithFallback(this.ai, 'email_routing', prompt);
+      return this.parseAIAnalysis(response.response);
+    } catch (error) {
+      console.error(`AI analysis failed for ${inputType}:`, error);
+      return { category: 'general', priority: 'NORMAL', urgency_score: 0.5, reasoning: 'Analysis failed, defaults applied' };
+    }
+  }
+
+  /**
+   * Trust scoring — runs inline as part of the routing pipeline.
+   * Evaluates source credibility, content consistency, and factual plausibility.
+   * Not a separate engine. Just a step.
+   */
+  async scoreTrust(inputType, normalized, analysis) {
+    const scores = {};
+
+    // 1. Source verification — known sender, valid origin
+    scores.source = this.scoreSource(inputType, normalized);
+
+    // 2. Content consistency — does the content match what we'd expect
+    scores.consistency = this.scoreConsistency(analysis);
+
+    // 3. Temporal validity — is the timing plausible
+    scores.temporal = this.scoreTemporal(normalized);
+
+    // 4. AI-assisted factual check (only for high-stakes inputs)
+    if (analysis.priority === 'CRITICAL' || analysis.priority === 'HIGH') {
+      scores.factual = await this.scoreFactual(normalized, analysis);
+    } else {
+      scores.factual = 0.7; // default trust for low-stakes
+    }
+
+    // Weighted composite
+    const weights = { source: 0.3, consistency: 0.25, temporal: 0.2, factual: 0.25 };
+    const composite = Object.entries(weights).reduce(
+      (sum, [key, weight]) => sum + (scores[key] || 0.5) * weight, 0
+    );
+
+    return {
+      composite: Math.round(composite * 100) / 100,
+      scores,
+      trusted: composite >= 0.6,
+      flags: composite < 0.4 ? ['low-trust-input'] : [],
+    };
+  }
+
+  scoreSource(inputType, normalized) {
+    // Known internal sources get high trust
+    if (normalized.source === 'internal' || normalized.source === 'system') return 0.95;
+    // Email with known domain patterns
+    if (inputType === 'email' && normalized.from) {
+      if (normalized.from.endsWith('.gov')) return 0.9;
+      if (normalized.from.includes('court')) return 0.85;
+      return 0.6;
+    }
+    // Webhooks from registered services
+    if (inputType === 'webhook') return 0.8;
+    // API calls (authenticated)
+    if (inputType === 'api') return 0.75;
+    // Unknown sources
+    return 0.5;
+  }
+
+  scoreConsistency(analysis) {
+    // If AI analysis produced coherent results with high confidence
+    if (analysis.urgency_score > 0.8 && analysis.category !== 'general') return 0.85;
+    if (analysis.category && analysis.priority) return 0.7;
+    return 0.5;
+  }
+
+  scoreTemporal(normalized) {
+    // Check if receivedAt is recent and plausible
+    const received = new Date(normalized.receivedAt);
+    const now = new Date();
+    const ageMs = now - received;
+    if (ageMs < 60000) return 0.9; // within last minute
+    if (ageMs < 3600000) return 0.8; // within last hour
+    if (ageMs < 86400000) return 0.7; // within last day
+    return 0.5;
+  }
+
+  async scoreFactual(normalized, analysis) {
+    try {
+      const prompt = `
+      Rate the factual plausibility of this legal communication (0.0-1.0):
+      Category: ${analysis.category}
+      Entities: ${(analysis.legal_entities || []).join(', ')}
+      Topics: ${(analysis.key_topics || []).join(', ')}
+      Content preview: ${(normalized.content || '').slice(0, 500)}
+
+      Respond with ONLY a JSON: {"score": 0.X, "reason": "brief explanation"}
+      `;
+      const response = await this.aiConfig.runWithFallback(this.ai, 'email_routing', prompt);
+      const parsed = this.parseAIResponse(response.response);
+      return parsed.score || 0.7;
+    } catch {
+      return 0.7;
+    }
+  }
+
+  /**
+   * Routing decision that accounts for trust
+   */
+  async makeRoutingDecision(inputType, normalized, analysis, trust) {
+    // Low-trust inputs get quarantined
+    if (!trust.trusted) {
+      return {
+        primary_route: 'review-queue',
+        priority_queue: 'manual-review',
+        reasoning: `Trust score ${trust.composite} below threshold. Flagged for manual review.`,
+        trust_flags: trust.flags,
+      };
+    }
+
+    // For email, use the full routing logic
+    if (inputType === 'email') {
+      return this.makeIntelligentRoutingDecision(normalized, analysis);
+    }
+
+    // For other types, simpler routing based on analysis
+    const routeMap = {
+      'document_submission': 'documents',
+      'court_notice': 'case-management',
+      'emergency': 'emergency',
+      'lawsuit': 'case-management',
+      'billing': 'billing',
+      'appointment': 'calendar',
+      'inquiry': 'intake',
+    };
+
+    return {
+      primary_route: routeMap[analysis.category] || 'intake',
+      priority_queue: analysis.priority === 'CRITICAL' ? 'immediate' : 'normal',
+      reasoning: `${inputType} routed by category: ${analysis.category}`,
+    };
+  }
+
+  /**
+   * Sanitize any input type for logging
+   */
+  sanitizeForLog(inputType, normalized) {
+    return {
+      source: normalized.source,
+      inputType,
+      content_length: normalized.content?.length || 0,
+      has_attachments: !!(normalized.attachments?.length || normalized.documents?.length),
+      timestamp: normalized.receivedAt,
+    };
+  }
+
+  /**
+   * Main AI routing intelligence - replaces all traditional routing logic
+   * Now delegates to ingest() for the full pipeline, or can be called directly for email
+   */
+  async intelligentRoute(emailData) {
+    // Route through the unified pipeline
+    return this.ingest({ ...emailData, inputType: 'email' });
   }
 
   /**

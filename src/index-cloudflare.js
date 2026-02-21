@@ -6,6 +6,7 @@
 // Import unified worker which handles all routes including MCP
 import UnifiedWorker from "./unified-worker.js";
 export { SyncStateDurableObject, AIStateDO } from "./unified-worker.js";
+export { ChittyRouterMCPAgent } from "./mcp/mcp-server.js";
 
 // Legacy imports for compatibility
 import { ChittyRouterAI } from "./ai/intelligent-router.js";
@@ -47,12 +48,13 @@ export default {
       return UnifiedWorker.fetch(request, env, ctx);
     }
 
-    // Check if this is a session management route
+    // Check if this is a session management or intake route
     if (
       url.pathname.startsWith("/session") ||
-      url.pathname.startsWith("/mobile")
+      url.pathname.startsWith("/mobile") ||
+      url.pathname.startsWith("/intake")
     ) {
-      // Delegate to unified worker for session management
+      // Delegate to unified worker
       return UnifiedWorker.fetch(request, env, ctx);
     }
 

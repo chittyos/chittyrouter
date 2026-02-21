@@ -41,6 +41,10 @@ class RouteMultiplexer {
 
     // Route patterns mapped to handlers
     this.routes = new Map([
+      // Universal Intake — single entry point for all input types
+      ["/intake", this.handleIntake.bind(this)],
+      ["/intake/health", this.handleIntakeHealth.bind(this)],
+
       // AI Routes
       ["/ai/route", this.handleAIRoute.bind(this)],
       ["/ai/process-email", this.handleEmailProcessing.bind(this)],
@@ -120,6 +124,27 @@ class RouteMultiplexer {
     }
 
     return false;
+  }
+
+  // ============ Intake Handler ============
+
+  async handleIntake(request) {
+    if (request.method !== "POST") {
+      return this.jsonResponse({ error: "POST required", endpoint: "/intake" }, 405);
+    }
+    const body = await request.json();
+    const result = await this.services.ai.router.ingest(body);
+    return this.jsonResponse(result);
+  }
+
+  async handleIntakeHealth(request) {
+    return this.jsonResponse({
+      status: "healthy",
+      service: "ChittyRouter Universal Intake",
+      accepts: ["email", "document", "voice", "image", "form", "webhook", "sms", "chat", "api"],
+      pipeline: ["detect-type", "normalize", "ai-analyze", "trust-score", "route", "log"],
+      timestamp: new Date().toISOString(),
+    });
   }
 
   // ============ AI Handlers ============
