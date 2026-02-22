@@ -5,7 +5,7 @@
 import { storeInChittyChain } from './storage.js';
 
 // Route email to ChittyChat thread
-export async function routeToChittyChat(emailData) {
+export async function routeToChittyChat(emailData, env = {}) {
   const chittyThread = {
     id: emailData.chittyId,
     caseId: emailData.caseId,
@@ -27,7 +27,7 @@ export async function routeToChittyChat(emailData) {
   await storeInChittyChain(chittyThread);
 
   // Notify attorneys via ChittyChat
-  await notifyAttorneys(chittyThread);
+  await notifyAttorneys(chittyThread, env);
 
   return chittyThread;
 }
@@ -50,7 +50,7 @@ function determinePriority(emailData) {
 }
 
 // Notify attorneys of new thread
-async function notifyAttorneys(thread) {
+async function notifyAttorneys(thread, env = {}) {
   const notification = {
     type: 'NEW_EMAIL_THREAD',
     threadId: thread.id,
@@ -63,11 +63,18 @@ async function notifyAttorneys(thread) {
 
   // Send to ChittyChat notification system
   try {
-    const response = await fetch('https://chittychat.api.com/notifications', {
+    const apiKey = env.CHITTYCHAT_API_KEY || '';
+    if (!apiKey) {
+      console.warn('CHITTYCHAT_API_KEY not configured, skipping notification');
+      return;
+    }
+
+    const apiUrl = env.CHITTYCHAT_API || 'https://chittychat.api.com';
+    const response = await fetch(`${apiUrl}/notifications`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.CHITTYCHAT_API_KEY}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify(notification)
     });
