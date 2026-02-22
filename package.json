@@ -36,7 +36,7 @@
     "@neondatabase/serverless": "^1.0.2",
     "@notionhq/client": "^5.1.0",
     "@octokit/rest": "^22.0.0",
-    "mimetext": "^3.0.27"
+    "mimetext": "^3.0.28"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240909.0",
