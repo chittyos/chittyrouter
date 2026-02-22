@@ -47,9 +47,16 @@ fi
 if command -v wrangler &> /dev/null; then
     echo "✅ Wrangler CLI detected"
     echo ""
+    set +e
     read -p "Deploy directly via Wrangler? (y/n) " -n 1 -r
+    read_status=$?
+    set -e
     echo
 
+    if [ $read_status -ne 0 ]; then
+        echo "Input cancelled or failed. Aborting deployment."
+        exit 1
+    fi
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "📦 Installing dependencies..."
         npm install
