@@ -44,7 +44,7 @@
     "eslint": "^10.0.1",
     "prettier": "^3.0.0",
     "vitest": "^0.34.0",
-    "wrangler": "^4.37.1"
+    "wrangler": "^4.67.0"
   },
   "keywords": [
     "ai",
