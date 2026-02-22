@@ -1,9 +1,10 @@
 # ChittyRouter Charter
 
 ## Classification
-- **Tier**: 2 (Core Infrastructure)
+- **Canonical URI**: `chittycanon://core/services/chittyrouter`
+- **Tier**: 2 (Platform)
 - **Organization**: CHITTYOS
-- **Domain**: router.chitty.cc
+- **Domain**: router.chitty.cc, mcp.chitty.cc, ai.chitty.cc
 
 ## Mission
 
@@ -123,10 +124,12 @@ Email Ingestion → AI Analysis → Multi-Agent Processing → Intelligent Routi
 
 - [ ] Service registered in ChittyRegistry
 - [ ] Health endpoint operational at /health
-- [ ] CLAUDE.md development guide present
+- [ ] CLAUDE.md present
+- [ ] CHARTER.md present
+- [ ] CHITTY.md present
 - [ ] AI models configured and accessible
 - [ ] Durable Objects configured
 - [ ] Session sync operational
 
 ---
-*Charter Version: 1.0.0 | Last Updated: 2026-01-13*
+*Charter Version: 1.1.0 | Last Updated: 2026-02-21*
