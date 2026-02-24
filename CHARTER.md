@@ -1,10 +1,21 @@
+---
+uri: chittycanon://docs/ops/policy/chittyrouter-charter
+namespace: chittycanon://docs/ops
+type: policy
+version: 1.0.0
+status: CERTIFIED
+registered_with: chittycanon://core/services/canon
+title: "ChittyRouter Charter"
+certifier: chittycanon://core/services/chittycertify
+visibility: PUBLIC
+---
+
 # ChittyRouter Charter
 
 ## Classification
-- **Canonical URI**: `chittycanon://core/services/chittyrouter`
-- **Tier**: 2 (Platform)
+- **Tier**: 2 (Core Infrastructure)
 - **Organization**: CHITTYOS
-- **Domain**: router.chitty.cc, mcp.chitty.cc, ai.chitty.cc
+- **Domain**: router.chitty.cc
 
 ## Mission
 
@@ -120,16 +131,39 @@ Email Ingestion → AI Analysis → Multi-Agent Processing → Intelligent Routi
 | Technical Lead | @chittyos-infrastructure |
 | Security Contact | security@chitty.cc |
 
+## Three Aspects (TY VY RY)
+
+Source: `chittycanon://gov/governance#three-aspects`
+
+| Aspect | Abbrev | Question | ChittyRouter Answer |
+|--------|--------|----------|--------------------|
+| **Identity** | TY | What IS it? | AI-powered email routing gateway — uses multiple AI agents to analyze, classify, route, and respond to legal communications automatically |
+| **Connectivity** | VY | How does it ACT? | Cloudflare Email Workers → AI analysis pipeline (Triage, Priority, Response, Document agents) → intelligent routing → Durable Objects state; session sync via GitHub persistence; service discovery for cross-platform routing |
+| **Authority** | RY | Where does it SIT? | Tier 2 Platform — routing decisions are authoritative for email processing; delegates identity to ChittyID, evidence storage to ChittyLedger, case management to ChittyCases |
+
+## Document Triad
+
+This charter is part of a synchronized documentation triad. Changes to shared fields must propagate.
+
+| Field | Canonical Source | Also In |
+|-------|-----------------|---------|
+| Canonical URI | CHARTER.md (Classification) | CHITTY.md (blockquote) |
+| Tier | CHARTER.md (Classification) | CHITTY.md (blockquote) |
+| Domain | CHARTER.md (Classification) | CHITTY.md (blockquote), CLAUDE.md (header) |
+| Endpoints | CHARTER.md (API Contract) | CHITTY.md (Endpoints table), CLAUDE.md (API section) |
+| Dependencies | CHARTER.md (Dependencies) | CHITTY.md (Dependencies table), CLAUDE.md (Architecture) |
+| Certification badge | CHITTY.md (Certification) | CHARTER.md frontmatter `status` |
+
+**Related docs**: [CHITTY.md](CHITTY.md) (badge/one-pager) | [CLAUDE.md](CLAUDE.md) (developer guide)
+
 ## Compliance
 
 - [ ] Service registered in ChittyRegistry
 - [ ] Health endpoint operational at /health
-- [ ] CLAUDE.md present
-- [ ] CHARTER.md present
-- [ ] CHITTY.md present
+- [ ] CLAUDE.md development guide present
 - [ ] AI models configured and accessible
 - [ ] Durable Objects configured
 - [ ] Session sync operational
 
 ---
-*Charter Version: 1.1.0 | Last Updated: 2026-02-21*
+*Charter Version: 1.0.0 | Last Updated: 2026-02-23*
