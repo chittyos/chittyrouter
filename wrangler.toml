@@ -1,5 +1,5 @@
 name = "chittyrouter"
-main = "src/index-minimal.js"
+main = "src/index-cloudflare.js"
 compatibility_date = "2024-09-16"
 compatibility_flags = ["nodejs_compat"]
 account_id = "0bc21e3a5a9de1a4cc843be9c3e98121"
@@ -41,6 +41,20 @@ RANDOMNESS_BEACON = "true"
 VERSION_MANAGEMENT = "enterprise"
 # Third-party tokens managed by ChittyConnect - no direct token storage
 CHITTYCONNECT_URL = "https://connect.chitty.cc"
+# Legacy build features - ChittyOS Integration
+CHITTYOS_ENDPOINT = "https://chittyos.com"
+CHITTYCHAT_API = "https://chittychat.api.com"
+CHITTYID_ENDPOINT = "https://id.chitty.cc"
+CHITTYBEACON_URL = "https://beacon.chitty.cc"
+EVIDENCE_VAULT_URL = "https://evidence.chitty.cc"
+REGISTRY_URL = "https://registry.chitty.cc"
+# PDX API Configuration
+PDX_API_VERSION = "v1.0"
+PDX_ENABLED = "true"
+# Redis Configuration
+REDIS_ENABLED = "false"
+REDIS_HOST = ""
+REDIS_PORT = "6379"
 
 # Routes
 # Routes - assigned in Cloudflare dashboard
@@ -106,6 +120,16 @@ CHITTY_ORG = "ChittyOS"
 SESSION_REPO = "chittychat-sessions"
 RANDOMNESS_BEACON = "true"
 VERSION_MANAGEMENT = "enterprise"
+# Legacy build features - ChittyOS Integration (Staging)
+CHITTYOS_ENDPOINT = "https://staging.chittyos.com"
+CHITTYCHAT_API = "https://staging.chittychat.api.com"
+CHITTYID_ENDPOINT = "https://staging.id.chitty.cc"
+CHITTYBEACON_URL = "https://staging.beacon.chitty.cc"
+EVIDENCE_VAULT_URL = "https://staging.evidence.chitty.cc"
+REGISTRY_URL = "https://staging.registry.chitty.cc"
+PDX_API_VERSION = "v1.0"
+PDX_ENABLED = "true"
+REDIS_ENABLED = "false"
 
 # KV namespace - commented out until created
 # [[env.staging.kv_namespaces]]
@@ -156,6 +180,16 @@ RANDOMNESS_BEACON = "true"
 VERSION_MANAGEMENT = "enterprise"
 # Third-party tokens managed by ChittyConnect - no direct token storage
 CHITTYCONNECT_URL = "https://connect.chitty.cc"
+# Legacy build features - ChittyOS Integration (Production)
+CHITTYOS_ENDPOINT = "https://chittyos.com"
+CHITTYCHAT_API = "https://chittychat.api.com"
+CHITTYID_ENDPOINT = "https://id.chitty.cc"
+CHITTYBEACON_URL = "https://beacon.chitty.cc"
+EVIDENCE_VAULT_URL = "https://evidence.chitty.cc"
+REGISTRY_URL = "https://registry.chitty.cc"
+PDX_API_VERSION = "v1.0"
+PDX_ENABLED = "true"
+REDIS_ENABLED = "false"
 
 [[env.production.kv_namespaces]]
 binding = "AI_CACHE"
