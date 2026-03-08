@@ -2,6 +2,9 @@
  * ChittyRouter Unified Worker
  * Consolidates all sync operations into a single worker to optimize worker count
  * Handles: AI routing, Notion sync, Session management, and orchestration
+ *
+ * @service chittycanon://core/services/chittyrouter
+ * @canon chittycanon://gov/governance#core-types
  */
 
 // Import all sync modules
@@ -14,6 +17,11 @@ import { AgentOrchestrator } from "./ai/agent-orchestrator.js";
 import { SessionService } from "./services/session-service.js";
 import { MobileBridgeService } from "./services/mobile-bridge.js";
 import { InboxMonitor, handleScheduledMonitoring } from "./email/inbox-monitor.js";
+
+// Webhook handlers
+import { handleNotionWebhook } from "./webhooks/notion.js";
+import { handleGithubWebhook } from "./webhooks/github.js";
+import { handleStripeWebhook } from "./webhooks/stripe.js";
 
 /**
  * Route multiplexer - determines which service to invoke based on path
@@ -79,6 +87,8 @@ class RouteMultiplexer {
 
       // Health & Metrics
       ["/health", this.handleHealth.bind(this)],
+      ["/api/v1/status", this.handleApiStatus.bind(this)],
+      ["/status", this.handleApiStatus.bind(this)],
       ["/metrics", this.handleMetrics.bind(this)],
 
       // Cron Jobs
@@ -92,6 +102,27 @@ class RouteMultiplexer {
       ["/email/monitor", this.handleInboxMonitor.bind(this)],
       ["/email/status", this.handleEmailStatus.bind(this)],
       ["/email/urgent", this.handleUrgentEmails.bind(this)],
+
+      // Webhook Ingestion Routes
+      ["/webhook/notion", this.handleWebhookNotion.bind(this)],
+      ["/webhook/github", this.handleWebhookGithub.bind(this)],
+      ["/webhook/stripe", this.handleWebhookStripe.bind(this)],
+      ["/webhook/status", this.handleWebhookStatus.bind(this)],
+
+      // Agents SDK Routes — delegate to stateful Durable Object agents
+      ["/agents/triage/*", this.delegateToAgent.bind(this, "TRIAGE_AGENT")],
+      ["/agents/priority/*", this.delegateToAgent.bind(this, "PRIORITY_AGENT")],
+      ["/agents/response/*", this.delegateToAgent.bind(this, "RESPONSE_AGENT")],
+      ["/agents/document/*", this.delegateToAgent.bind(this, "DOCUMENT_AGENT")],
+      ["/agents/entity/*", this.delegateToAgent.bind(this, "ENTITY_AGENT")],
+      ["/agents/evidence/*", this.delegateToAgent.bind(this, "EVIDENCE_AGENT")],
+      ["/agents/calendar/*", this.delegateToAgent.bind(this, "CALENDAR_AGENT")],
+      ["/agents/finance/*", this.delegateToAgent.bind(this, "FINANCE_AGENT")],
+      ["/agents/notification/*", this.delegateToAgent.bind(this, "NOTIFICATION_AGENT")],
+      ["/agents/intelligence/*", this.delegateToAgent.bind(this, "INTELLIGENCE_AGENT")],
+      ["/agents/webhook/*", this.delegateToAgent.bind(this, "WEBHOOK_AGENT")],
+      ["/agents/messaging/*", this.delegateToAgent.bind(this, "MESSAGING_AGENT")],
+      ["/agents/status", this.handleAgentStatus.bind(this)],
     ]);
   }
 
@@ -434,16 +465,54 @@ class RouteMultiplexer {
 
   async handleHealth(request) {
     const health = {
-      status: "healthy",
+      status: "ok",
+      service: "chittyrouter",
       services: {
         ai: await this.checkAIHealth(),
         sync: await this.checkSyncHealth(),
         storage: await this.checkStorageHealth(),
       },
+      agents: {
+        count: 12,
+        bindings: [
+          "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
+          "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
+          "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+        ].filter((n) => !!this.env[n]).length,
+        route: "/agents/status",
+      },
       timestamp: new Date().toISOString(),
     };
 
     return this.jsonResponse(health);
+  }
+
+  async handleApiStatus() {
+    const agentBindings = [
+      "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
+      "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
+      "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+    ];
+    return this.jsonResponse({
+      status: "ok",
+      service: "chittyrouter",
+      version: this.env.VERSION || "2.1.0-ai",
+      tier: 2,
+      domain: "router.chitty.cc",
+      organization: "CHITTYOS",
+      environment: this.env.ENVIRONMENT,
+      agents: {
+        total: 12,
+        available: agentBindings.filter((n) => !!this.env[n]).length,
+      },
+      aiModels: {
+        primary: this.env.AI_MODEL_PRIMARY,
+        secondary: this.env.AI_MODEL_SECONDARY,
+        vision: this.env.AI_MODEL_VISION,
+        reasoning: this.env.AI_MODEL_REASONING,
+      },
+      timestamp: new Date().toISOString(),
+    });
   }
 
   async handleMetrics(request) {
@@ -551,6 +620,98 @@ class RouteMultiplexer {
     } catch (error) {
       return this.jsonResponse({ error: error.message }, 500);
     }
+  }
+
+  // ============ Webhook Handlers ============
+
+  async handleWebhookNotion(request) {
+    return handleNotionWebhook(request, this.env);
+  }
+
+  async handleWebhookGithub(request) {
+    return handleGithubWebhook(request, this.env);
+  }
+
+  async handleWebhookStripe(request) {
+    return handleStripeWebhook(request, this.env);
+  }
+
+  async handleWebhookStatus() {
+    const platforms = ['notion', 'github', 'stripe'];
+    const status = {};
+    for (const p of platforms) {
+      status[p] = {
+        secret_configured: !!this.env[`${p.toUpperCase()}_WEBHOOK_SECRET`],
+      };
+    }
+    status.notion.token_configured = !!this.env.NOTION_TOKEN;
+    status.r2_available = !!this.env.WEBHOOK_STORAGE;
+    status.index_url_configured = !!this.env.WEBHOOK_INDEX_URL;
+    return this.jsonResponse({ webhooks: status });
+  }
+
+  // ============ Agents SDK Delegation ============
+
+  /**
+   * Forward request to a stateful Agents SDK Durable Object.
+   * Routes like /agents/triage/classify → agent receives /classify.
+   */
+  async delegateToAgent(bindingName, request, url) {
+    const binding = this.env[bindingName];
+    if (!binding) {
+      return this.jsonResponse({ error: `Agent binding ${bindingName} not available` }, 503);
+    }
+
+    // Use a stable ID per agent (singleton pattern — one instance per agent type)
+    const id = binding.idFromName(bindingName);
+    const stub = binding.get(id);
+
+    // Strip the /agents/<name> prefix so the agent receives clean paths
+    const agentPath = url.pathname.replace(/^\/agents\/[^/]+/, "") || "/";
+    const agentUrl = new URL(agentPath, url.origin);
+    agentUrl.search = url.search;
+
+    const agentRequest = new Request(agentUrl.toString(), {
+      method: request.method,
+      headers: request.headers,
+      body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
+    });
+
+    return stub.fetch(agentRequest);
+  }
+
+  /**
+   * Aggregate status from all agents.
+   */
+  async handleAgentStatus() {
+    const agentNames = [
+      "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
+      "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
+      "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+    ];
+
+    const statuses = {};
+    for (const name of agentNames) {
+      const binding = this.env[name];
+      if (!binding) {
+        statuses[name] = { status: "not_bound" };
+        continue;
+      }
+      try {
+        const id = binding.idFromName(name);
+        const stub = binding.get(id);
+        const resp = await stub.fetch(new Request("https://agent/status"));
+        statuses[name] = await resp.json();
+      } catch (err) {
+        statuses[name] = { status: "error", error: err.message };
+      }
+    }
+
+    return this.jsonResponse({
+      agents: statuses,
+      totalAgents: agentNames.length,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   // ============ Health Check Helpers ============

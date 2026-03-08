@@ -32,7 +32,7 @@ export default {
         subject: message.headers.get("subject"),
         content: await streamToText(message.raw),
         attachments: await processAttachments(message)
-      });
+      }, env);
 
       // Send confirmation
       await message.reply({

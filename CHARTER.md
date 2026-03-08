@@ -2,7 +2,7 @@
 uri: chittycanon://docs/ops/policy/chittyrouter-charter
 namespace: chittycanon://docs/ops
 type: policy
-version: 1.0.0
+version: 2.1.0
 status: CERTIFIED
 registered_with: chittycanon://core/services/canon
 title: "ChittyRouter Charter"
@@ -19,7 +19,7 @@ visibility: PUBLIC
 
 ## Mission
 
-ChittyRouter is an **AI-powered intelligent email routing service** (AI Gateway v2.0.0-ai) for the ChittyOS legal platform. It uses multiple AI agents to analyze, classify, route, and respond to legal communications automatically, replacing traditional rule-based routing with AI-first decision making.
+ChittyRouter is an **AI-powered intelligent inbound gateway** (AI Gateway v2.1.0-ai) for the ChittyOS legal platform. It handles all inbound data flows — email and external webhooks — using multiple AI agents to analyze, classify, route, and respond to communications automatically, replacing traditional rule-based routing with AI-first decision making.
 
 ## Scope
 
@@ -30,6 +30,8 @@ ChittyRouter is an **AI-powered intelligent email routing service** (AI Gateway 
 - Automated response generation for legal communications
 - Document and attachment analysis
 - Priority assessment and urgency scoring
+- External webhook ingestion and signature verification (Notion, GitHub, Stripe)
+- Webhook payload indexing to R2 + Neon
 - Session state management (GitHub-based persistence)
 - Cross-session synthesis for projects and topics
 - Service routing via dynamic service discovery
@@ -49,13 +51,21 @@ ChittyRouter is an **AI-powered intelligent email routing service** (AI Gateway 
 Email Ingestion → AI Analysis → Multi-Agent Processing → Intelligent Routing → State Persistence → ChittyOS Integration
 ```
 
-### Specialized AI Agents
+### Agents SDK (12 Stateful Durable Object Agents)
 | Agent | Purpose |
 |-------|---------|
-| Triage Agent | Email classification and categorization |
-| Priority Agent | Urgency assessment and priority scoring |
-| Response Agent | Automated response generation |
-| Document Agent | Attachment analysis and document intelligence |
+| TriageAgent | Email classification and categorization |
+| PriorityAgent | Urgency assessment and priority scoring |
+| ResponseAgent | Automated response generation |
+| DocumentAgent | Attachment analysis and document intelligence |
+| EntityAgent | P/L/T/E/A entity lifecycle tracking |
+| EvidenceAgent | Chain of custody, integrity verification |
+| CalendarAgent | Deadlines, court dates, lease renewals |
+| FinanceAgent | Transaction tracking, invoicing, ledger |
+| NotificationAgent | Multi-channel delivery (email/slack/sms) |
+| IntelligenceAgent | Pattern observation, gap detection, recommendations |
+| WebhookIngestionAgent | Webhook dedup, retry, R2 indexing |
+| MessagingAgent | WebSocket-native conversations |
 
 ### AI Models (Cloudflare AI)
 - `@cf/meta/llama-4-scout-17b-16e-instruct` - Primary multimodal
@@ -93,10 +103,36 @@ Email Ingestion → AI Analysis → Multi-Agent Processing → Intelligent Routi
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/health` | GET | AI Gateway health with model status |
+| `/api/v1/status` | GET | Service metadata (version, tier, agents, models) |
 | `/status` | GET | Comprehensive system status |
 | `/status/ai-models` | GET | AI model configuration |
 | `/integration/status` | GET | ChittyOS integration status |
 | `/discovery/status` | GET | Service discovery health |
+
+### Agents SDK
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/agents/triage/*` | POST/GET | Email classification |
+| `/agents/priority/*` | POST/GET | Priority scoring |
+| `/agents/response/*` | POST/GET | Response drafting |
+| `/agents/document/*` | POST/GET | Document analysis |
+| `/agents/entity/*` | POST/GET | Entity lifecycle (P/L/T/E/A) |
+| `/agents/evidence/*` | POST/GET | Evidence chain of custody |
+| `/agents/calendar/*` | POST/GET | Calendar and deadlines |
+| `/agents/finance/*` | POST/GET | Transactions and ledger |
+| `/agents/notification/*` | POST/GET | Notification delivery |
+| `/agents/intelligence/*` | POST/GET | Intelligence analysis |
+| `/agents/webhook/*` | POST/GET | Webhook ingestion |
+| `/agents/messaging/*` | POST/GET/WS | Messaging and conversations |
+| `/agents/status` | GET | Aggregate agent status |
+
+### Webhook Ingestion
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/webhook/notion` | POST | Notion webhook receiver (HMAC-SHA256 verified) |
+| `/webhook/github` | POST | GitHub webhook receiver (X-Hub-Signature-256 verified) |
+| `/webhook/stripe` | POST | Stripe webhook receiver (Stripe-Signature verified) |
+| `/webhook/status` | GET | Webhook handler configuration status |
 
 ### Session Management
 | Endpoint | Method | Purpose |
@@ -113,9 +149,10 @@ Email Ingestion → AI Analysis → Multi-Agent Processing → Intelligent Routi
 | `AI` | Cloudflare AI | Model access |
 | `AI_CACHE` | KV | Response caching |
 | `DOCUMENT_STORAGE` | R2 | Attachments |
-| `AI_STATE_DO` | Durable Object | AI processing state |
-| `CHITTYCHAIN_DO` | Durable Object | Chain state |
-| `SYNC_STATE` | Durable Object | Sync state |
+| `WEBHOOK_STORAGE` | R2 | Webhook payload snapshots |
+| `AI_STATE_DO` | Durable Object | AI processing state (legacy) |
+| `SYNC_STATE` | Durable Object | Sync state (legacy) |
+| `*_AGENT` (x12) | Durable Object (SQLite) | Agents SDK stateful agents |
 
 ## Enterprise Features
 
@@ -158,12 +195,15 @@ This charter is part of a synchronized documentation triad. Changes to shared fi
 
 ## Compliance
 
-- [ ] Service registered in ChittyRegistry
-- [ ] Health endpoint operational at /health
-- [ ] CLAUDE.md development guide present
-- [ ] AI models configured and accessible
-- [ ] Durable Objects configured
-- [ ] Session sync operational
+- [x] Service registered in ChittyRegistry
+- [x] Health endpoint operational at /health
+- [x] CLAUDE.md development guide present
+- [x] AI models configured and accessible
+- [x] Durable Objects configured (2 legacy + 12 Agents SDK)
+- [x] Session sync operational
+- [x] Agents SDK migration complete (12 stateful agents)
+- [x] Webhook ingestion operational (Notion, GitHub, Stripe)
+- [x] `[[tail_consumers]]` configured for ChittyTrack
 
 ---
-*Charter Version: 1.0.0 | Last Updated: 2026-02-23*
+*Charter Version: 2.1.0 | Last Updated: 2026-03-07*

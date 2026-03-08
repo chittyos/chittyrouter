@@ -4,6 +4,9 @@
  *
  * NOTE: This file is for Node.js standalone mode.
  * In Cloudflare Workers, coordination is handled differently.
+ *
+ * @service chittycanon://core/services/chittyrouter
+ * @canon chittycanon://gov/governance#core-types
  */
 
 // Conditional imports for Node.js environment (not used in Workers)
