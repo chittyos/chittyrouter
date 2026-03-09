@@ -33,6 +33,7 @@ export async function handleNotionWebhook(request, env) {
 
   const pageId = extractNotionPageId(payload);
   if (!pageId) return json({ error: 'no_page_id_in_event' }, 422);
+  if (!env.NOTION_TOKEN) return json({ error: 'server_misconfig' }, 500);
 
   try {
     const page = await fetchNotionPage(env.NOTION_TOKEN, pageId);
@@ -50,7 +51,7 @@ export async function handleNotionWebhook(request, env) {
     return json({ ok: true, page_id: pageId, r2_path: r2Path, sha256 });
   } catch (err) {
     console.error('notion webhook error', String(err));
-    return json({ error: 'processing_error', detail: String(err) }, 500);
+    return json({ error: 'processing_error' }, 500);
   }
 }
 

@@ -101,9 +101,11 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
 
     const webhookId = this.sql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
 
-    let status = "processed";
+    let status = "received";
     try {
+      this.sql.exec("UPDATE webhook_events SET status = 'processing' WHERE id = ?", webhookId);
       await this.processWebhook(webhookId, platform, event_type);
+      status = "processed";
       this.sql.exec("UPDATE webhook_events SET status = 'processed', processed_at = datetime('now') WHERE id = ?", webhookId);
     } catch (err) {
       status = "failed";
@@ -119,7 +121,7 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
     const { event_id, platform } = await request.json();
     let query = "SELECT * FROM webhook_events WHERE status = 'failed' AND retry_count < max_retries";
     const params = [];
-    if (event_id) { query += " AND id = ?"; params.push(event_id); }
+    if (event_id) { query += " AND event_id = ?"; params.push(event_id); }
     if (platform) { query += " AND platform = ?"; params.push(platform); }
     query += " ORDER BY received_at ASC LIMIT 10";
 
@@ -144,7 +146,6 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
   async processWebhook(webhookId, platform, eventType) {
     // Delegate to platform-specific handlers via existing webhook routes
     this.info("Processing webhook", { webhookId, platform, eventType });
-    this.sql.exec("UPDATE webhook_events SET status = 'processing' WHERE id = ?", webhookId);
   }
 
   handleListEvents(url) {

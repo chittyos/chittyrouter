@@ -2,7 +2,7 @@
  * Stripe webhook handler — stub.
  * Verifies Stripe-Signature (t=...,v1=...) and indexes event to R2 + Neon.
  */
-import { hashSha256Hex, indexToR2AndNeon, json } from './webhook-handler.js';
+import { indexToR2AndNeon, json } from './webhook-handler.js';
 
 export async function handleStripeWebhook(request, env) {
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
@@ -37,7 +37,7 @@ export async function handleStripeWebhook(request, env) {
     return json({ ok: true, event_id: eventId, type: payload.type, r2_path: r2Path, sha256 });
   } catch (err) {
     console.error('stripe webhook error', String(err));
-    return json({ error: 'processing_error', detail: String(err) }, 500);
+    return json({ error: 'processing_error' }, 500);
   }
 }
 
@@ -56,6 +56,9 @@ async function verifyStripeSignature(secret, rawBody, sigHeader) {
   const timestamp = parts.t;
   const expectedSig = parts.v1;
   if (!timestamp || !expectedSig) return false;
+
+  const timestampAge = Math.floor(Date.now() / 1000) - parseInt(timestamp, 10);
+  if (isNaN(timestampAge) || timestampAge > 300 || timestampAge < -300) return false;
 
   const signedPayload = `${timestamp}.${rawBody}`;
   const enc = new TextEncoder();

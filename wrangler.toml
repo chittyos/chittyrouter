@@ -149,6 +149,11 @@ binding = "AI_CACHE"
 id = "ai_cache_dev"
 preview_id = "ai_cache_preview"
 
+# R2 Storage for webhook ingestion (development)
+[[env.development.r2_buckets]]
+binding = "WEBHOOK_STORAGE"
+bucket_name = "notion-webhook"
+
 # Staging Environment
 [env.staging]
 [env.staging.vars]

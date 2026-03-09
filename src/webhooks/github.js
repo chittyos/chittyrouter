@@ -38,6 +38,6 @@ export async function handleGithubWebhook(request, env) {
     return json({ ok: true, event, delivery_id: deliveryId, r2_path: r2Path, sha256 });
   } catch (err) {
     console.error('github webhook error', String(err));
-    return json({ error: 'processing_error', detail: String(err) }, 500);
+    return json({ error: 'processing_error' }, 500);
   }
 }

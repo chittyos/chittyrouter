@@ -6,7 +6,7 @@
 
 ## Context
 
-ChittyRouter currently uses stateless per-request AI agents coordinated by an `AgentOrchestrator`. The agents lose context between requests, coordination is manual, and there's no real-time visibility into agent activity. The Cloudflare Agents SDK (`@cloudflare/agents`) provides stateful Durable Object agents with built-in SQL storage, WebSocket real-time sync, MCP tool exposure, hibernation, and scheduled tasks — exactly what the AI pipeline needs.
+ChittyRouter currently uses stateless per-request AI agents coordinated by an `AgentOrchestrator`. The agents lose context between requests, coordination is manual, and there's no real-time visibility into agent activity. The Cloudflare Agents SDK (`agents`) provides stateful Durable Object agents with built-in SQL storage, WebSocket real-time sync, MCP tool exposure, hibernation, and scheduled tasks — exactly what the AI pipeline needs.
 
 This migration also expands ChittyRouter from email-only to a unified inbound gateway serving 6 organizations: Furnished-Condos, ChittyCounsel, ChittyFoundation, ChittyOS, ChittyApps, and ChicagoApps.
 
@@ -14,7 +14,7 @@ This migration also expands ChittyRouter from email-only to a unified inbound ga
 
 Keep `unified-worker.js` as the HTTP entry point. Add Agent classes one at a time as new Durable Object bindings. Migrate in order: TriageAgent first, then downstream agents. Each step is independently deployable and reversible.
 
-## 11-Agent Architecture
+## 12-Agent Architecture
 
 ### Agent Roster
 
@@ -143,7 +143,7 @@ Not a full AI agent — a stateful coordinator for webhook processing:
 
 | Phase | Agent(s) | Estimated effort | Dependencies |
 |-------|----------|-----------------|--------------|
-| 0 | Add `@cloudflare/agents`, base Agent class | Setup | None |
+| 0 | Add `agents`, base Agent class | Setup | None |
 | 1 | TriageAgent | Port `triage-agent.js` | Phase 0 |
 | 2 | PriorityAgent | Port `priority-agent.js` | Phase 1 |
 | 3 | DocumentAgent | Port `document-agent.js` | Phase 0 |

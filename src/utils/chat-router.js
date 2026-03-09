@@ -62,12 +62,17 @@ async function notifyAttorneys(thread, env = {}) {
   };
 
   // Send to ChittyChat notification system
+  if (!env.CHITTYCHAT_API_KEY) {
+    console.error('CHITTYCHAT_API_KEY not configured; skipping notification');
+    return;
+  }
+
   try {
     const response = await fetch('https://chittychat.api.com/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.CHITTYCHAT_API_KEY || ''}`
+        'Authorization': `Bearer ${env.CHITTYCHAT_API_KEY}`
       },
       body: JSON.stringify(notification)
     });

@@ -226,6 +226,10 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
 
   async deliverNotification(notifId, channel, recipient, subject, body) {
     try {
+      this.sql.exec(
+        "UPDATE notifications SET status = 'sending' WHERE id = ?",
+        notifId,
+      );
       // Delivery is delegated to external services via env bindings.
       this.info("Delivering notification", { notifId, channel, recipient, subject: subject?.slice(0, 50) });
       this.sql.exec(

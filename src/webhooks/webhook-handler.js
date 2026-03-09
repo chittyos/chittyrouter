@@ -57,9 +57,11 @@ export async function indexToR2AndNeon(env, platform, docId, document) {
   const json = JSON.stringify(document, null, 2);
   const key = `webhook-index/${platform}/${docId}.json`;
 
-  await env.WEBHOOK_STORAGE.put(key, json, {
-    httpMetadata: { contentType: 'application/json' },
-  });
+  if (env.WEBHOOK_STORAGE) {
+    await env.WEBHOOK_STORAGE.put(key, json, {
+      httpMetadata: { contentType: 'application/json' },
+    });
+  }
 
   const r2Path = `r2://notion-webhook/${key}`;
   const sha256 = await hashSha256Hex(new TextEncoder().encode(json));

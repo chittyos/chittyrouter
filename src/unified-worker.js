@@ -641,12 +641,10 @@ class RouteMultiplexer {
     const status = {};
     for (const p of platforms) {
       status[p] = {
-        secret_configured: !!this.env[`${p.toUpperCase()}_WEBHOOK_SECRET`],
+        configured: !!this.env[`${p.toUpperCase()}_WEBHOOK_SECRET`],
       };
     }
-    status.notion.token_configured = !!this.env.NOTION_TOKEN;
     status.r2_available = !!this.env.WEBHOOK_STORAGE;
-    status.index_url_configured = !!this.env.WEBHOOK_INDEX_URL;
     return this.jsonResponse({ webhooks: status });
   }
 
@@ -681,7 +679,7 @@ class RouteMultiplexer {
       return await stub.fetch(agentRequest);
     } catch (err) {
       console.error(`Agent ${bindingName} fetch failed:`, err);
-      return this.jsonResponse({ error: `Agent ${bindingName} unavailable`, detail: err.message }, 502);
+      return this.jsonResponse({ error: `Agent ${bindingName} unavailable` }, 502);
     }
   }
 
@@ -803,10 +801,10 @@ class RouteMultiplexer {
   }
 
   async errorResponse(error, status = 500) {
+    console.error("Error response:", error.message || error);
     return this.jsonResponse(
       {
-        error: error.message || "Internal Server Error",
-        code: error.code || "UNKNOWN_ERROR",
+        error: "Internal Server Error",
         timestamp: new Date().toISOString(),
       },
       status,

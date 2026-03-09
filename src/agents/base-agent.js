@@ -50,25 +50,26 @@ export class ChittyRouterBaseAgent extends Agent {
    * @returns {{ org: string, confidence: number, signals: string[] }}
    */
   detectOrg(ctx) {
-    const signals = [];
     let bestOrg = "ChittyOS"; // default
     let bestScore = 0;
+    let bestSignals = [];
 
     for (const pattern of ORG_PATTERNS) {
       let score = 0;
+      const patternSignals = [];
 
       // Domain match (strongest signal)
       if (ctx.sender) {
         const senderDomain = ctx.sender.split("@")[1]?.toLowerCase() || "";
         if (pattern.domains.some((d) => senderDomain.includes(d))) {
           score += 3;
-          signals.push(`domain:${senderDomain}`);
+          patternSignals.push(`domain:${senderDomain}`);
         }
       }
 
       if (ctx.domain && pattern.domains.some((d) => ctx.domain.includes(d))) {
         score += 3;
-        signals.push(`explicit-domain:${ctx.domain}`);
+        patternSignals.push(`explicit-domain:${ctx.domain}`);
       }
 
       // Keyword match
@@ -76,26 +77,27 @@ export class ChittyRouterBaseAgent extends Agent {
       for (const kw of pattern.keywords) {
         if (text.includes(kw)) {
           score += 1;
-          signals.push(`keyword:${kw}`);
+          patternSignals.push(`keyword:${kw}`);
         }
       }
 
       // Metadata org hint
       if (ctx.metadata?.org === pattern.org) {
         score += 5;
-        signals.push("metadata-hint");
+        patternSignals.push("metadata-hint");
       }
 
       if (score > bestScore) {
         bestScore = score;
         bestOrg = pattern.org;
+        bestSignals = patternSignals;
       }
     }
 
     return {
       org: bestOrg,
       confidence: Math.min(1, bestScore / 5),
-      signals,
+      signals: bestSignals,
     };
   }
 
