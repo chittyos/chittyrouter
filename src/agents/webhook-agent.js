@@ -63,7 +63,13 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
   }
 
   async handleIngest(request) {
-    const { platform, event_type, event_id, payload, org, metadata } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (err) {
+      return this.jsonResponse({ error: "Invalid JSON body", detail: err.message }, 400);
+    }
+    const { platform, event_type, event_id, payload, org, metadata } = body;
 
     if (!platform || !SUPPORTED_PLATFORMS.includes(platform)) {
       return this.jsonResponse({ error: `platform must be one of: ${SUPPORTED_PLATFORMS.join(", ")}` }, 400);
@@ -118,7 +124,13 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
   }
 
   async handleRetry(request) {
-    const { event_id, platform } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (err) {
+      return this.jsonResponse({ error: "Invalid JSON body", detail: err.message }, 400);
+    }
+    const { event_id, platform } = body;
     let query = "SELECT * FROM webhook_events WHERE status = 'failed' AND retry_count < max_retries";
     const params = [];
     if (event_id) { query += " AND event_id = ?"; params.push(event_id); }

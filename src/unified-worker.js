@@ -638,14 +638,14 @@ class RouteMultiplexer {
 
   async handleWebhookStatus() {
     const platforms = ['notion', 'github', 'stripe'];
-    const status = {};
-    for (const p of platforms) {
-      status[p] = {
-        configured: !!this.env[`${p.toUpperCase()}_WEBHOOK_SECRET`],
-      };
-    }
-    status.r2_available = !!this.env.WEBHOOK_STORAGE;
-    return this.jsonResponse({ webhooks: status });
+    const configuredCount = platforms.filter(
+      (p) => !!this.env[`${p.toUpperCase()}_WEBHOOK_SECRET`]
+    ).length;
+    return this.jsonResponse({
+      status: configuredCount === platforms.length ? "healthy" : "degraded",
+      platforms: platforms.length,
+      ready: configuredCount,
+    });
   }
 
   // ============ Agents SDK Delegation ============
@@ -693,22 +693,22 @@ class RouteMultiplexer {
       "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
     ];
 
-    const statuses = {};
-    for (const name of agentNames) {
-      const binding = this.env[name];
-      if (!binding) {
-        statuses[name] = { status: "not_bound" };
-        continue;
-      }
-      try {
-        const id = binding.idFromName(name);
-        const stub = binding.get(id);
-        const resp = await stub.fetch(new Request("https://agent/status"));
-        statuses[name] = await resp.json();
-      } catch (err) {
-        statuses[name] = { status: "error", error: err.message };
-      }
-    }
+    const results = await Promise.all(
+      agentNames.map(async (name) => {
+        const binding = this.env[name];
+        if (!binding) return [name, { status: "not_bound" }];
+        try {
+          const id = binding.idFromName(name);
+          const stub = binding.get(id);
+          const resp = await stub.fetch(new Request("https://agent/status"));
+          return [name, await resp.json()];
+        } catch (err) {
+          return [name, { status: "error", error: err.message }];
+        }
+      })
+    );
+
+    const statuses = Object.fromEntries(results);
 
     return this.jsonResponse({
       agents: statuses,

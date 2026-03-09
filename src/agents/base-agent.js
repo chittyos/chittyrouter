@@ -132,7 +132,7 @@ export class ChittyRouterBaseAgent extends Agent {
         return JSON.parse(jsonMatch[0]);
       }
     } catch (err) {
-      console.error("parseAIJson failed", { error: err.message, preview: (response || "").slice(0, 200) });
+      console.error("parseAIJson failed", { error: err.message, responseLength: (response || "").length });
     }
     return null;
   }

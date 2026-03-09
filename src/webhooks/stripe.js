@@ -46,16 +46,14 @@ export async function handleStripeWebhook(request, env) {
  * Signed payload = `${timestamp}.${rawBody}`
  */
 async function verifyStripeSignature(secret, rawBody, sigHeader) {
-  const parts = Object.fromEntries(
-    sigHeader.split(',').map((p) => {
-      const [k, ...v] = p.split('=');
-      return [k, v.join('=')];
-    })
-  );
+  const parts = sigHeader.split(',').map((p) => {
+    const [k, ...v] = p.split('=');
+    return [k, v.join('=')];
+  });
 
-  const timestamp = parts.t;
-  const expectedSig = parts.v1;
-  if (!timestamp || !expectedSig) return false;
+  const timestamp = parts.find(([k]) => k === 't')?.[1];
+  const v1Signatures = parts.filter(([k]) => k === 'v1').map(([, v]) => v);
+  if (!timestamp || v1Signatures.length === 0) return false;
 
   const timestampAge = Math.floor(Date.now() / 1000) - parseInt(timestamp, 10);
   if (isNaN(timestampAge) || timestampAge > 300 || timestampAge < -300) return false;
@@ -74,9 +72,12 @@ async function verifyStripeSignature(secret, rawBody, sigHeader) {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 
-  const enc2 = new TextEncoder();
-  const compBuf = enc2.encode(computedHex);
-  const expBuf = enc2.encode(expectedSig);
-  if (compBuf.byteLength !== expBuf.byteLength) return false;
-  return crypto.subtle.timingSafeEqual(compBuf, expBuf);
+  const compBuf = enc.encode(computedHex);
+  for (const expectedSig of v1Signatures) {
+    const expBuf = enc.encode(expectedSig);
+    if (compBuf.byteLength === expBuf.byteLength && crypto.subtle.timingSafeEqual(compBuf, expBuf)) {
+      return true;
+    }
+  }
+  return false;
 }
