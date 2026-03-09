@@ -108,8 +108,8 @@ export class FinanceAgent extends ChittyRouterBaseAgent {
 
     const txnId = this.sql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
 
-    if (from_entity) this.recordLedgerEntry(from_entity, org, 0, amount, description, txnId);
-    if (to_entity) this.recordLedgerEntry(to_entity, org, amount, 0, description, txnId);
+    if (from_entity) this.recordLedgerEntry(from_entity, org, amount, 0, description, txnId);
+    if (to_entity) this.recordLedgerEntry(to_entity, org, 0, amount, description, txnId);
 
     this.info("Transaction recorded", { txnId, transaction_type, amount, org });
     return this.jsonResponse({ id: txnId, transaction_type, amount, currency: currency || "USD", status: "completed", org: org || null });

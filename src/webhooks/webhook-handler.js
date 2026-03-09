@@ -3,6 +3,17 @@
  * Platform-specific handlers import these utilities.
  */
 
+/**
+ * Constant-time comparison of two strings using crypto.subtle.timingSafeEqual.
+ */
+function timingSafeCompare(a, b) {
+  const enc = new TextEncoder();
+  const aBuf = enc.encode(a);
+  const bBuf = enc.encode(b);
+  if (aBuf.byteLength !== bBuf.byteLength) return false;
+  return crypto.subtle.timingSafeEqual(aBuf, bBuf);
+}
+
 export async function verifyHmacSHA256(secret, rawBody, sigHeader) {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -20,9 +31,9 @@ export async function verifyHmacSHA256(secret, rawBody, sigHeader) {
   const computedBase64 = btoa(String.fromCharCode(...bytes));
 
   const header = sigHeader.trim();
-  if (header === computedHex) return true;
-  if (header === computedBase64) return true;
-  if (header.startsWith('sha256=') && header.slice(7) === computedHex) return true;
+  if (timingSafeCompare(header, computedHex)) return true;
+  if (timingSafeCompare(header, computedBase64)) return true;
+  if (header.startsWith('sha256=') && timingSafeCompare(header.slice(7), computedHex)) return true;
   return false;
 }
 

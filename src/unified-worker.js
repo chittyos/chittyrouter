@@ -677,7 +677,12 @@ class RouteMultiplexer {
       body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
     });
 
-    return stub.fetch(agentRequest);
+    try {
+      return await stub.fetch(agentRequest);
+    } catch (err) {
+      console.error(`Agent ${bindingName} fetch failed:`, err);
+      return this.jsonResponse({ error: `Agent ${bindingName} unavailable`, detail: err.message }, 502);
+    }
   }
 
   /**

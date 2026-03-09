@@ -225,6 +225,10 @@ class_name = "WebhookIngestionAgent"
 name = "MESSAGING_AGENT"
 class_name = "MessagingAgent"
 
+# R2 Storage for webhook ingestion (staging)
+[[env.staging.r2_buckets]]
+binding = "WEBHOOK_STORAGE"
+bucket_name = "notion-webhook"
 
 # Production Environment
 [env.production]
@@ -382,7 +386,7 @@ mode = "smart"
 service = "chittytrack"
 
 [observability]
-enabled = false
+enabled = true
 head_sampling_rate = 1
 
 [observability.logs]

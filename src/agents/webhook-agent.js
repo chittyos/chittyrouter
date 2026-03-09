@@ -158,7 +158,8 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
     query += " ORDER BY received_at DESC LIMIT ?";
     params.push(limit);
 
-    return this.jsonResponse({ count: 0, events: this.sql.exec(query, ...params).toArray() });
+    const events = this.sql.exec(query, ...params).toArray();
+    return this.jsonResponse({ count: events.length, events });
   }
 
   async hashPayload(payload) {

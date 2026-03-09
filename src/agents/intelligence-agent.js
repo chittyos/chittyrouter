@@ -199,7 +199,8 @@ Respond with JSON only:
     const severity = url.searchParams.get("severity");
     if (severity) { query += " AND severity = ?"; params.push(severity); }
     query += " ORDER BY created_at DESC LIMIT 100";
-    return this.jsonResponse({ count: 0, observations: this.sql.exec(query, ...params).toArray() });
+    const observations = this.sql.exec(query, ...params).toArray();
+    return this.jsonResponse({ count: observations.length, observations });
   }
 
   handleListRecommendations(url) {
@@ -210,7 +211,8 @@ Respond with JSON only:
     const priority = url.searchParams.get("priority");
     if (priority) { query += " AND priority = ?"; params.push(priority); }
     query += " ORDER BY created_at DESC LIMIT 50";
-    return this.jsonResponse({ count: 0, recommendations: this.sql.exec(query, ...params).toArray() });
+    const recommendations = this.sql.exec(query, ...params).toArray();
+    return this.jsonResponse({ count: recommendations.length, recommendations });
   }
 
   handleDashboard(url) {

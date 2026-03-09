@@ -129,10 +129,23 @@ export class ChittyRouterBaseAgent extends Agent {
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
       }
-    } catch {
-      // fall through
+    } catch (err) {
+      console.error("parseAIJson failed", { error: err.message, preview: (response || "").slice(0, 200) });
     }
     return null;
+  }
+
+  /**
+   * Safely parse request JSON body, returning a 400 Response on failure.
+   * @returns {{ data: object } | { error: Response }}
+   */
+  async safeParseBody(request) {
+    try {
+      const data = await request.json();
+      return { data };
+    } catch (err) {
+      return { error: this.jsonResponse({ error: "Invalid JSON body", detail: err.message }, 400) };
+    }
   }
 
   // -- SQL Helpers --

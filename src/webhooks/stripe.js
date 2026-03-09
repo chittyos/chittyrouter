@@ -71,5 +71,9 @@ async function verifyStripeSignature(secret, rawBody, sigHeader) {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 
-  return computedHex === expectedSig;
+  const enc2 = new TextEncoder();
+  const compBuf = enc2.encode(computedHex);
+  const expBuf = enc2.encode(expectedSig);
+  if (compBuf.byteLength !== expBuf.byteLength) return false;
+  return crypto.subtle.timingSafeEqual(compBuf, expBuf);
 }

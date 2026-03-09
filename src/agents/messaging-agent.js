@@ -137,7 +137,7 @@ export class MessagingAgent extends ChittyRouterBaseAgent {
     const status = url.searchParams.get("status");
     if (status) { query += " AND status = ?"; params.push(status); }
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 200);
-    query += " ORDER BY last_message_at DESC NULLS LAST LIMIT ?";
+    query += " ORDER BY CASE WHEN last_message_at IS NULL THEN 1 ELSE 0 END, last_message_at DESC LIMIT ?";
     params.push(limit);
 
     const rows = this.sql.exec(query, ...params).toArray();
