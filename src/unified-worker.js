@@ -723,7 +723,7 @@ class RouteMultiplexer {
 
   async checkAIHealth() {
     try {
-      const response = await this.env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+      await this.env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
         messages: [{ role: "user", content: "ping" }],
         max_tokens: 10,
       });
