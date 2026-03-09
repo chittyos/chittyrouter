@@ -4,6 +4,9 @@
  *
  * NOTE: This file is for Node.js standalone mode.
  * In Cloudflare Workers, coordination is handled differently.
+ *
+ * @service chittycanon://core/services/chittyrouter
+ * @canon chittycanon://gov/governance#core-types
  */
 
 // Conditional imports for Node.js environment (not used in Workers)
@@ -36,6 +39,7 @@ export class AgentCoordinationServer {
     this.chittyId = null;
     this.securityManager = null;
     this.initialized = false;
+    this._startedAt = Date.now();
   }
 
   /**
@@ -313,7 +317,7 @@ export class AgentCoordinationServer {
         active: Array.from(this.workflows.values()).filter(w => w.status === 'running').length
       },
       coordinations: this.activeCoordinations.size,
-      uptime: process.uptime(),
+      uptimeMs: Date.now() - this._startedAt,
       timestamp: new Date().toISOString()
     };
 
@@ -353,7 +357,7 @@ export class AgentCoordinationServer {
       coordinator: {
         chittyId: this.chittyId,
         port: this.port,
-        uptime: process.uptime()
+        uptimeMs: Date.now() - this._startedAt
       },
       agents: {
         total: this.agents.size,

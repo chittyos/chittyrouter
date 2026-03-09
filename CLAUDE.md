@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ChittyRouter AI Gateway v2.0.0-ai - AI-powered intelligent email routing service for the ChittyOS legal platform. Built on Cloudflare Workers with AI capabilities, it uses multiple AI agents to analyze, classify, route, and respond to legal communications automatically.
+ChittyRouter AI Gateway v2.1.0-ai - AI-powered intelligent email routing service for the ChittyOS legal platform. Built on Cloudflare Workers with AI capabilities, it uses multiple AI agents to analyze, classify, route, and respond to legal communications automatically.
 
 ## Essential Commands
 
@@ -73,11 +73,26 @@ The core architecture replaces traditional rule-based routing with AI-first deci
 - `src/ai/email-processor.js` - Email-specific AI processing pipeline
 - `src/ai/ai-state.js` - Durable Object for AI processing state
 
-**Specialized AI Agents**:
-- `src/ai/triage-agent.js` - Email classification and categorization
-- `src/ai/priority-agent.js` - Urgency assessment and priority scoring
-- `src/ai/response-agent.js` - Automated response generation
-- `src/ai/document-agent.js` - Attachment analysis and document intelligence
+**Agents SDK (12 Stateful Durable Object Agents)** — `src/agents/`:
+- `src/agents/base-agent.js` - Base class extending `Agent` from `agents` package (org detection, AI helpers, SQL, logging)
+- `src/agents/triage-agent.js` - Email classification and categorization
+- `src/agents/priority-agent.js` - Urgency assessment and priority scoring
+- `src/agents/response-agent.js` - Automated response generation
+- `src/agents/document-agent.js` - Attachment analysis and document intelligence
+- `src/agents/entity-agent.js` - P/L/T/E/A entity lifecycle tracking
+- `src/agents/evidence-agent.js` - Chain of custody, integrity verification
+- `src/agents/calendar-agent.js` - Deadlines, court dates, lease renewals
+- `src/agents/finance-agent.js` - Transaction tracking, invoicing, ledger
+- `src/agents/notification-agent.js` - Multi-channel delivery (email/slack/sms)
+- `src/agents/intelligence-agent.js` - Pattern observation, gap detection
+- `src/agents/webhook-agent.js` - Webhook dedup, retry, R2 indexing
+- `src/agents/messaging-agent.js` - WebSocket-native conversations
+
+**Legacy AI Agents** (stateless, pre-migration):
+- `src/ai/triage-agent.js` - Legacy triage (still used by email pipeline)
+- `src/ai/priority-agent.js` - Legacy priority
+- `src/ai/response-agent.js` - Legacy response
+- `src/ai/document-agent.js` - Legacy document
 
 **Integration Layer**:
 - `src/integration/chittyos-integration.js` - Complete ChittyOS platform integration
@@ -94,7 +109,7 @@ The core architecture replaces traditional rule-based routing with AI-first deci
 ### Runtime Environment
 - **Cloudflare Workers** - Primary serverless runtime (see `wrangler.toml`)
 - **Cloudflare AI** - AI model inference via `env.AI` binding
-- **Durable Objects** - Persistent state for `AIStateDO`, `ChittyChainDO`, `SyncStateDO`
+- **Durable Objects** - `AIStateDO`, `SyncStateDO` (legacy) + 12 Agents SDK SQLite-backed DOs
 - **KV Storage** - Caching layer for AI responses and sync data
 - **R2 Storage** - Document and attachment storage
 - **Email Workers** - Inbound email processing
@@ -119,7 +134,8 @@ The system uses multiple AI models with automatic fallback chains (configured in
 - `AI` - Cloudflare AI model access
 - `AI_CACHE` - KV namespace for response caching
 - `DOCUMENT_STORAGE` - R2 bucket for attachments
-- `AI_STATE_DO`, `CHITTYCHAIN_DO`, `SYNC_STATE` - Durable Objects
+- `AI_STATE_DO`, `SYNC_STATE` - Legacy Durable Objects
+- `*_AGENT` (x12) - Agents SDK SQLite-backed Durable Objects
 
 ## Testing Strategy
 
@@ -139,11 +155,14 @@ Comprehensive test coverage using Vitest across multiple dimensions:
 - Cache AI responses in KV storage when appropriate to optimize performance
 - AI operations have 30-second timeout limits on Cloudflare Workers
 
-### Adding New AI Agents
-1. Create agent in `src/ai/` following existing patterns (triage-agent.js, etc.)
-2. Register in `src/ai/agent-orchestrator.js`
-3. Add unit tests in `tests/unit/`
-4. Update integration tests if the agent interacts with others
+### Adding New Agents SDK Agents
+1. Create agent in `src/agents/` extending `ChittyRouterBaseAgent` from `./base-agent.js`
+2. Add `@service` and `@canon` JSDoc annotations
+3. Define SQL tables in `onStart()`, route handlers in `onRequest()`
+4. Add DO binding to `wrangler.toml` (all environments) and add to `new_sqlite_classes` migration
+5. Export from `src/index-minimal.js`
+6. Add delegation route in `unified-worker.js`
+7. Add unit tests in `tests/unit/`
 
 ### Modifying Routing Logic
 Primary AI routing logic in `src/ai/intelligent-router.js` uses confidence scoring - maintain threshold checks when modifying.
@@ -160,8 +179,24 @@ Primary AI routing logic in `src/ai/intelligent-router.js` uses confidence scori
 - `POST /agents` - Multi-agent task orchestration
 - `POST /process/integrated` - Integrated ChittyOS email processing
 
+**Agents SDK** (delegated to Durable Object agents):
+- `POST/GET /agents/triage/*` - Email classification
+- `POST/GET /agents/priority/*` - Priority scoring
+- `POST/GET /agents/response/*` - Response drafting
+- `POST/GET /agents/document/*` - Document analysis
+- `POST/GET /agents/entity/*` - Entity lifecycle (P/L/T/E/A)
+- `POST/GET /agents/evidence/*` - Evidence chain of custody
+- `POST/GET /agents/calendar/*` - Calendar and deadlines
+- `POST/GET /agents/finance/*` - Transactions and ledger
+- `POST/GET /agents/notification/*` - Notification delivery
+- `POST/GET /agents/intelligence/*` - Intelligence analysis
+- `POST/GET /agents/webhook/*` - Webhook ingestion
+- `POST/GET/WS /agents/messaging/*` - Messaging and conversations
+- `GET /agents/status` - Aggregate agent status
+
 **Health & Status**:
 - `GET /health` - AI Gateway health with model status
+- `GET /api/v1/status` - Service metadata (version, tier, agents, models)
 - `GET /status` - Comprehensive system status
 - `GET /status/ai-models` - AI model configuration and capabilities
 - `GET /integration/status` - ChittyOS integration status

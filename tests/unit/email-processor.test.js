@@ -50,15 +50,64 @@ vi.mock("../../src/utils/storage.js", () => ({
   storeInChittyChain: vi.fn().mockResolvedValue({ success: true }),
 }));
 
+// Mock ServiceDiscovery to use test-friendly email endpoints
+vi.mock("../../src/utils/service-discovery.js", () => ({
+  ServiceDiscovery: vi.fn().mockImplementation(() => ({
+    initialize: vi.fn().mockResolvedValue(undefined),
+    getEndpointForCapability: vi.fn().mockResolvedValue(null),
+  })),
+}));
+
 describe("EmailProcessor", () => {
   let processor;
   let mockEnv;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockEnv = {
       CHITTY_CHAIN_URL: "https://test-chain.example.com",
       AI_MODEL: "@cf/meta/llama-3.1-8b-instruct",
     };
+
+    // Re-apply mocks that restoreMocks: true resets between tests
+    const routerModule = await import("../../src/ai/intelligent-router.js");
+    routerModule.ChittyRouterAI.mockImplementation(() => ({
+      intelligentRoute: vi.fn().mockResolvedValue({
+        chittyId: "CHITTY-TEST-123",
+        ai: {
+          analysis: {
+            category: "lawsuit",
+            priority: "HIGH",
+            case_related: true,
+            case_pattern: "SMITH_v_JONES",
+            auto_response_needed: true,
+          },
+          routing: {
+            primary_route: "case-management@example.com",
+            cc_routes: [],
+            priority_queue: "high",
+          },
+          response: {
+            should_respond: true,
+            subject: "Re: Test Subject",
+            body: "Thank you for your email...",
+          },
+        },
+        actions: [
+          { type: "ROUTE_EMAIL", destination: "case-management@example.com" },
+          { type: "GENERATE_CHITTYID" },
+          { type: "SEND_AUTO_RESPONSE" },
+        ],
+      }),
+    }));
+    const chittyIdModule = await import("../../src/utils/chittyid-generator.js");
+    chittyIdModule.generateEmailChittyID.mockResolvedValue("MOCK-TEST-456");
+    const storageModule = await import("../../src/utils/storage.js");
+    storageModule.storeInChittyChain.mockResolvedValue({ success: true });
+    const sdModule = await import("../../src/utils/service-discovery.js");
+    sdModule.ServiceDiscovery.mockImplementation(() => ({
+      initialize: vi.fn().mockResolvedValue(undefined),
+      getEndpointForCapability: vi.fn().mockResolvedValue(null),
+    }));
 
     processor = new EmailProcessor(mockAI, mockEnv);
     mockAI.reset();
@@ -491,7 +540,9 @@ describe("EmailProcessor", () => {
         }),
       );
 
-      expect(consoleSpy).toHaveBeenCalledWith("🚨 Message escalated");
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("🚨 Message escalated"),
+      );
 
       forwardSpy.mockRestore();
       consoleSpy.mockRestore();

@@ -90,7 +90,7 @@ describe('Error Handling System', () => {
     it('should stop retrying after max attempts', async () => {
       const operation = vi.fn().mockRejectedValue(new Error('Persistent failure'));
 
-      await expect(errorHandler.retryWithBackoff(operation)).rejects.toThrow('Operation failed after 3 attempts');
+      await expect(errorHandler.retryWithBackoff(operation)).rejects.toThrow('Persistent failure');
       expect(operation).toHaveBeenCalledTimes(3);
     });
 

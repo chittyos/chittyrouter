@@ -1,0 +1,10 @@
+title = "chittyrouter-gitleaks-config"
+
+[allowlist]
+description = "Known test/example files with non-production credential-like strings"
+paths = [
+  '''tests/mocks/.*\.js''',
+  '''tests/data/.*\.js''',
+  '''tests/unit/.*\.test\.js''',
+  '''tests/integration/.*\.test\.js''',
+]

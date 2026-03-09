@@ -9,6 +9,7 @@ import { storeInChittyChain } from '../utils/storage.js';
 import { validateEmailSchema, validateAIResponseSchema } from '../utils/schema-validation.js';
 import { ChittyChatProjectSync } from '../sync/chittychat-project-sync.js';
 import AIModelConfig from '../utils/ai-model-config.js';
+import { generateEmailChittyID } from '../utils/chittyid-generator.js';
 
 export class ChittyRouterAI {
   constructor(ai, env) {

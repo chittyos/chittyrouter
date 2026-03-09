@@ -7,6 +7,7 @@ import { ChittyRouterAI } from './intelligent-router.js';
 import { ChittyIDValidator } from '../chittyid/chittyid-validator.js';
 import { storeInChittyChain } from '../utils/storage.js';
 import { ServiceDiscovery } from '../utils/service-discovery.js';
+import { generateEmailChittyID } from '../utils/chittyid-generator.js';
 
 export class EmailProcessor {
   constructor(ai, env) {

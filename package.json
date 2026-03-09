@@ -1,6 +1,6 @@
 {
   "name": "chittyrouter",
-  "version": "2.0.0-ai",
+  "version": "2.1.0-ai",
   "description": "ChittyRouter AI Gateway - Intelligent email routing with AI agents and orchestration for ChittyOS legal platform",
   "main": "src/index.js",
   "type": "module",
@@ -33,10 +33,13 @@
     "validate": "npm run lint && npm run test:all && npm run build"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@neondatabase/serverless": "^1.0.2",
     "@notionhq/client": "^5.1.0",
     "@octokit/rest": "^22.0.0",
-    "mimetext": "^3.0.28"
+    "agents": "^0.7.5",
+    "mimetext": "^3.0.28",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240909.0",
@@ -71,7 +74,7 @@
   },
   "chittyos": {
     "component": "ai-gateway",
-    "version": "2.0.0-ai",
+    "version": "2.1.0-ai",
     "dependencies": [
       "chittyid",
       "chittychat",

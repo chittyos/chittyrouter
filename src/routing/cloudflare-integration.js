@@ -9,6 +9,7 @@ import { ChittyIDValidator } from '../chittyid/chittyid-validator.js';
 import { routeToChittyChat } from '../utils/chat-router.js';
 import { storeInChittyChain, storeInEvidenceVault } from '../utils/storage.js';
 import { EMAIL_ROUTES } from '../config/routes.js';
+import { generateEmailChittyID, generateDocumentChittyID } from '../utils/chittyid-generator.js';
 
 // Email Worker for incoming case emails
 export default {
@@ -32,7 +33,7 @@ export default {
         subject: message.headers.get("subject"),
         content: await streamToText(message.raw),
         attachments: await processAttachments(message)
-      });
+      }, env);
 
       // Send confirmation
       await message.reply({

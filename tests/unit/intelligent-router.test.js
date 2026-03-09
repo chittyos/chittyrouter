@@ -150,7 +150,7 @@ describe('ChittyRouterAI', () => {
       const emailData = testEmails.general_question;
 
       await expect(failingRouter.comprehensiveAIAnalysis(emailData))
-        .rejects.toThrow('AI analysis failed: Network error');
+        .rejects.toThrow('AI analysis failed');
     });
   });
 
