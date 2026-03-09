@@ -311,7 +311,7 @@ describe("MCP Gateway Init", () => {
     expect(gateway.server.version).toBe("2.1.0");
   });
 
-  it("should register all 36 tools during init", async () => {
+  it("should register all 39 tools during init", async () => {
     const gateway = new ChittyRouterMcpGateway();
     await gateway.init();
     expect(gateway.server._tools.size).toBe(39);

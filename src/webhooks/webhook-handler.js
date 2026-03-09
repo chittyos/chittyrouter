@@ -4,14 +4,24 @@
  */
 
 /**
- * Constant-time comparison of two strings using crypto.subtle.timingSafeEqual.
+ * Constant-time comparison of two strings.
+ * Uses crypto.subtle.timingSafeEqual on Cloudflare Workers, falls back to
+ * XOR-based comparison on other runtimes.
  */
 function timingSafeCompare(a, b) {
   const enc = new TextEncoder();
   const aBuf = enc.encode(a);
   const bBuf = enc.encode(b);
   if (aBuf.byteLength !== bBuf.byteLength) return false;
-  return crypto.subtle.timingSafeEqual(aBuf, bBuf);
+  if (typeof crypto.subtle.timingSafeEqual === "function") {
+    return crypto.subtle.timingSafeEqual(aBuf, bBuf);
+  }
+  // Fallback: XOR accumulation (constant-time for equal-length buffers)
+  let diff = 0;
+  for (let i = 0; i < aBuf.byteLength; i++) {
+    diff |= aBuf[i] ^ bBuf[i];
+  }
+  return diff === 0;
 }
 
 export async function verifyHmacSHA256(secret, rawBody, sigHeader) {
@@ -63,7 +73,7 @@ export async function indexToR2AndNeon(env, platform, docId, document) {
     });
   }
 
-  const r2Path = `r2://notion-webhook/${key}`;
+  const r2Path = `r2://webhook-storage/${key}`;
   const sha256 = await hashSha256Hex(new TextEncoder().encode(json));
 
   if (env.WEBHOOK_INDEX_URL) {

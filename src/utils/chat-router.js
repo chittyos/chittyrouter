@@ -24,7 +24,7 @@ export async function routeToChittyChat(emailData, env = {}) {
   };
 
   // Store in ChittyChain for immutable record
-  await storeInChittyChain(chittyThread);
+  await storeInChittyChain(env, chittyThread);
 
   // Notify attorneys via ChittyChat
   await notifyAttorneys(chittyThread, env);
@@ -68,7 +68,8 @@ async function notifyAttorneys(thread, env = {}) {
   }
 
   try {
-    const response = await fetch('https://chittychat.api.com/notifications', {
+    const baseUrl = env.CHITTYCHAT_API || 'https://chittychat.api.com';
+    const response = await fetch(`${baseUrl}/notifications`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -107,7 +108,7 @@ export async function createCaseThread(caseData) {
     }
   };
 
-  await storeInChittyChain(thread);
+  await storeInChittyChain({}, thread);
   return thread;
 }
 

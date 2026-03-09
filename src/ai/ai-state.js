@@ -355,12 +355,16 @@ export class AIStateDO {
 
     let metrics = await this.state.storage.get(key) || {
       total_tasks: 0,
+      successful_tasks: 0,
       success_rate: 0,
       agent_performance: {},
       created_at: new Date().toISOString()
     };
 
     metrics.total_tasks += 1;
+    if (agentData.success) {
+      metrics.successful_tasks = (metrics.successful_tasks || 0) + 1;
+    }
 
     // Update agent-specific metrics
     for (const agentType of agentData.agents_used || []) {
@@ -382,10 +386,8 @@ export class AIStateDO {
       agent_metrics.success_rate = agent_metrics.success_count / agent_metrics.tasks_completed;
     }
 
-    // Update overall success rate
-    const total_successes = Object.values(metrics.agent_performance)
-      .reduce((sum, agent) => sum + agent.success_count, 0);
-    metrics.success_rate = total_successes / metrics.total_tasks;
+    // Overall success rate: successful tasks / total tasks (bounded 0-1)
+    metrics.success_rate = metrics.successful_tasks / metrics.total_tasks;
 
     metrics.updated_at = new Date().toISOString();
 

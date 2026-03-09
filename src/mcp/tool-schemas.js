@@ -1,5 +1,5 @@
 /**
- * MCP Tool Schemas — Zod v4 schemas for all 36 MCP tools across 12 agents.
+ * MCP Tool Schemas — Zod v4 schemas for all 39 MCP tools across 12 agents.
  * Pure data, no side effects.
  *
  * @service chittycanon://core/services/chittyrouter

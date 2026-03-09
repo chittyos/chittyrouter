@@ -693,8 +693,8 @@ describe('AIStateDO', () => {
       expect(metrics.agent_performance.legal_analyzer.tasks_completed).toBe(1);
       expect(metrics.agent_performance.legal_analyzer.success_count).toBe(1);
       expect(metrics.agent_performance.legal_analyzer.success_rate).toBe(1.0);
-      // success_rate = sum of agent success_count (2) / total_tasks (1)
-      expect(metrics.success_rate).toBe(2);
+      // success_rate = successful_tasks (1) / total_tasks (1) = 1.0
+      expect(metrics.success_rate).toBe(1);
     });
 
     it('should update existing agent metrics', async () => {

@@ -107,12 +107,10 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
 
     const webhookId = this.sql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
 
-    let status = "received";
+    let status = "indexed";
     try {
-      this.sql.exec("UPDATE webhook_events SET status = 'processing' WHERE id = ?", webhookId);
       await this.processWebhook(webhookId, platform, event_type);
-      status = "processed";
-      this.sql.exec("UPDATE webhook_events SET status = 'processed', processed_at = datetime('now') WHERE id = ?", webhookId);
+      this.sql.exec("UPDATE webhook_events SET status = 'indexed', processed_at = datetime('now') WHERE id = ?", webhookId);
     } catch (err) {
       status = "failed";
       this.sql.exec("UPDATE webhook_events SET status = 'failed', error_message = ? WHERE id = ?", err.message, webhookId);
@@ -156,8 +154,11 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
   }
 
   async processWebhook(webhookId, platform, eventType) {
-    // Delegate to platform-specific handlers via existing webhook routes
-    this.info("Processing webhook", { webhookId, platform, eventType });
+    // Platform-specific processing is handled by the direct webhook routes
+    // (src/webhooks/stripe.js, github.js, notion.js). This agent provides
+    // dedup, retry, and indexing on top of those handlers.
+    // TODO: Wire platform delegation once webhook routes are refactored to be callable from DOs.
+    this.info("Webhook indexed", { webhookId, platform, eventType });
   }
 
   handleListEvents(url) {
