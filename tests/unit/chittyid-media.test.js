@@ -56,28 +56,28 @@ describe("Media ChittyID Generation and Validation", () => {
 
       const chittyId = await generateMediaChittyID(mediaData);
 
-      expect(chittyId).toMatch(/^MOCK-MEDIA-\d+-[a-f0-9]{32}$/);
+      expect(chittyId).toMatch(/^CHITTY-MEDIA-\d+-[a-f0-9]{32}$/);
     });
   });
 
   describe("validateChittyID", () => {
-    it("should validate existing migration ChittyIDs", () => {
-      testChittyIDs.forEach((chittyId) => {
-        expect(validateChittyID(chittyId)).toBe(true);
-      });
+    it("should validate existing migration ChittyIDs", async () => {
+      for (const chittyId of testChittyIDs) {
+        expect(await validateChittyID(chittyId)).toBe(true);
+      }
     });
 
-    it("should validate standard email ChittyIDs", () => {
+    it("should validate standard email ChittyIDs", async () => {
       const emailChittyID = "CE-1234abcd-EMAIL-1757369100211";
-      expect(validateChittyID(emailChittyID)).toBe(true);
+      expect(await validateChittyID(emailChittyID)).toBe(true);
     });
 
-    it("should validate document ChittyIDs", () => {
+    it("should validate document ChittyIDs", async () => {
       const docChittyID = "CD-5678efab-DOC-1757369100211";
-      expect(validateChittyID(docChittyID)).toBe(true);
+      expect(await validateChittyID(docChittyID)).toBe(true);
     });
 
-    it("should reject invalid ChittyIDs", () => {
+    it("should reject invalid ChittyIDs", async () => {
       const invalidIds = [
         "INVALID-FORMAT",
         "CHITTY-GDRIVE-notanumber-hash",
@@ -85,9 +85,9 @@ describe("Media ChittyID Generation and Validation", () => {
         "CE-WRONG-EMAIL-123",
       ];
 
-      invalidIds.forEach((id) => {
-        expect(validateChittyID(id)).toBe(false);
-      });
+      for (const id of invalidIds) {
+        expect(await validateChittyID(id)).toBe(false);
+      }
     });
   });
 
@@ -109,10 +109,10 @@ describe("Media ChittyID Generation and Validation", () => {
   });
 
   describe("parseMediaChittyID", () => {
-    it("should parse media ChittyID components correctly", () => {
+    it("should parse media ChittyID components correctly", async () => {
       const chittyId =
         "CHITTY-GDRIVE-1757369100211-bbc79caff4616a18a3a36ed7fc449a31";
-      const parsed = parseMediaChittyID(chittyId);
+      const parsed = await parseMediaChittyID(chittyId);
 
       expect(parsed).not.toBeNull();
       expect(parsed.source).toBe("GDRIVE");
@@ -122,26 +122,26 @@ describe("Media ChittyID Generation and Validation", () => {
       expect(parsed.date.getTime()).toBe(1757369100211);
     });
 
-    it("should return null for invalid media ChittyIDs", () => {
+    it("should return null for invalid media ChittyIDs", async () => {
       const invalidIds = [
         "CE-1234abcd-EMAIL-123",
         "CHITTY-GDRIVE-notanumber-hash",
         "INVALID-FORMAT",
       ];
 
-      invalidIds.forEach((id) => {
-        expect(parseMediaChittyID(id)).toBeNull();
-      });
+      for (const id of invalidIds) {
+        expect(await parseMediaChittyID(id)).toBeNull();
+      }
     });
 
-    it("should parse all test migration ChittyIDs", () => {
-      testChittyIDs.forEach((chittyId) => {
-        const parsed = parseMediaChittyID(chittyId);
+    it("should parse all test migration ChittyIDs", async () => {
+      for (const chittyId of testChittyIDs) {
+        const parsed = await parseMediaChittyID(chittyId);
         expect(parsed).not.toBeNull();
         expect(parsed.source).toBe("GDRIVE");
         expect(parsed.timestamp).toBeGreaterThan(0);
         expect(parsed.hash).toHaveLength(32);
-      });
+      }
     });
   });
 
@@ -166,13 +166,13 @@ describe("Media ChittyID Generation and Validation", () => {
         mediaFiles.map((media) => generateMediaChittyID(media)),
       );
 
-      chittyIds.forEach((chittyId) => {
-        expect(validateChittyID(chittyId)).toBe(true);
+      for (const chittyId of chittyIds) {
+        expect(await validateChittyID(chittyId)).toBe(true);
         expect(getChittyIDType(chittyId)).toBe("MEDIA");
 
-        const parsed = parseMediaChittyID(chittyId);
+        const parsed = await parseMediaChittyID(chittyId);
         expect(parsed.source).toBe("GDRIVE");
-      });
+      }
     });
   });
 });

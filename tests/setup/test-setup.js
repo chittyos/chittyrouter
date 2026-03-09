@@ -26,10 +26,66 @@ if (!globalThis.TextEncoder) {
   globalThis.TextDecoder = TextDecoder;
 }
 
-// Mock fetch for environments that don't have it
-if (!globalThis.fetch) {
-  globalThis.fetch = vi.fn();
-}
+// Mock fetch globally to prevent external network calls in tests.
+// Uses a regular function (not vi.fn()) so restoreMocks: true in vitest config
+// does not reset the implementation between tests.
+globalThis.fetch = async function mockFetch(url, options) {
+  const urlStr = url?.toString() || '';
+
+  // Mock ChittyID validate/details — return 404 so code falls through to local logic
+  if (urlStr.includes('id.chitty.cc/api/v1/validate') || urlStr.includes('id.chitty.cc/api/v1/details')) {
+    return new Response('{}', { status: 404 });
+  }
+
+  // Mock ChittyID generation — return type-appropriate IDs
+  if (urlStr.includes('id.chitty.cc')) {
+    let type = 'EMAIL';
+    let source = 'MEDIA';
+    if (options?.body) {
+      try {
+        const body = JSON.parse(options.body);
+        type = body.type || 'EMAIL';
+        source = body.metadata?.source || 'MEDIA';
+      } catch (e) { /* ignore parse errors */ }
+    }
+    const ts = Date.now();
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const hash = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    let chittyId;
+    switch (type) {
+      case 'MEDIA':    chittyId = `CHITTY-${source}-${ts}-${hash}`; break;
+      case 'DOCUMENT': chittyId = `CD-${hash.substring(0, 8)}-DOC-${ts}`; break;
+      case 'CASE':     chittyId = `CC-${hash.substring(0, 8)}-CASE-${ts}`; break;
+      case 'PARTICIPANT': chittyId = `CP-${hash.substring(0, 8)}-PERSON-${ts}`; break;
+      default:         chittyId = `CE-${hash.substring(0, 8)}-EMAIL-${ts}`; break;
+    }
+    return new Response(JSON.stringify({ chittyId, valid: true }), { status: 200 });
+  }
+
+  // Mock schema validation service
+  if (urlStr.includes('schema.chitty.cc')) {
+    return new Response(JSON.stringify({ valid: true, errors: [], warnings: [], normalizedData: null }), { status: 200 });
+  }
+
+  // Mock registry — return empty services so ServiceDiscovery uses fallback endpoints
+  if (urlStr.includes('registry.chitty.cc')) {
+    return new Response(JSON.stringify({ services: [] }), { status: 200 });
+  }
+
+  // Mock ChittyChain / storage calls
+  if (urlStr.includes('chain') || urlStr.includes('storage') || urlStr.includes('evidence')) {
+    return new Response(JSON.stringify({ success: true }), { status: 200 });
+  }
+
+  // Mock ChittyChat / sync calls
+  if (urlStr.includes('chitty') || urlStr.includes('sync')) {
+    return new Response(JSON.stringify({ success: true, synced: true, syncId: 'mock-sync', projectUpdate: true }), { status: 200 });
+  }
+
+  // Default: return success
+  return new Response(JSON.stringify({ success: true }), { status: 200 });
+};
 
 // Mock ReadableStream
 if (!globalThis.ReadableStream) {

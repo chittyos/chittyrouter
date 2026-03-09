@@ -66,6 +66,11 @@ class_name = "WebhookIngestionAgent"
 name = "MESSAGING_AGENT"
 class_name = "MessagingAgent"
 
+# MCP Gateway Durable Object
+[[durable_objects.bindings]]
+name = "MCP_GATEWAY"
+class_name = "ChittyRouterMcpGateway"
+
 # DO Migrations
 [[migrations]]
 tag = "v1"
@@ -74,6 +79,10 @@ new_classes = ["AIStateDO", "SyncStateDurableObject"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["TriageAgent", "PriorityAgent", "ResponseAgent", "DocumentAgent", "EntityAgent", "EvidenceAgent", "CalendarAgent", "FinanceAgent", "NotificationAgent", "IntelligenceAgent", "WebhookIngestionAgent", "MessagingAgent"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["ChittyRouterMcpGateway"]
 
 # Environment Variables
 [vars]
@@ -225,6 +234,10 @@ class_name = "WebhookIngestionAgent"
 name = "MESSAGING_AGENT"
 class_name = "MessagingAgent"
 
+[[env.staging.durable_objects.bindings]]
+name = "MCP_GATEWAY"
+class_name = "ChittyRouterMcpGateway"
+
 # R2 Storage for webhook ingestion (staging)
 [[env.staging.r2_buckets]]
 binding = "WEBHOOK_STORAGE"
@@ -325,6 +338,9 @@ class_name = "WebhookIngestionAgent"
 name = "MESSAGING_AGENT"
 class_name = "MessagingAgent"
 
+[[env.production.durable_objects.bindings]]
+name = "MCP_GATEWAY"
+class_name = "ChittyRouterMcpGateway"
 
 # Analytics Engine for AI metrics (disabled - needs to be enabled in dashboard)
 # [[env.production.analytics_engine_datasets]]

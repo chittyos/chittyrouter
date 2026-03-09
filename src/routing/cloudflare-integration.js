@@ -9,6 +9,7 @@ import { ChittyIDValidator } from '../chittyid/chittyid-validator.js';
 import { routeToChittyChat } from '../utils/chat-router.js';
 import { storeInChittyChain, storeInEvidenceVault } from '../utils/storage.js';
 import { EMAIL_ROUTES } from '../config/routes.js';
+import { generateEmailChittyID, generateDocumentChittyID } from '../utils/chittyid-generator.js';
 
 // Email Worker for incoming case emails
 export default {

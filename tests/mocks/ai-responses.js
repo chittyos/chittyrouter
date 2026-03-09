@@ -212,61 +212,17 @@ export class MockAI {
   }
 
   /**
-   * Determine which mock response to use based on input
+   * Determine which mock response to use based on input.
+   * Uses specific patterns from actual email content to avoid matching
+   * against words that appear in prompt templates (like category enums
+   * or route descriptions).
    */
   determineResponseType(content) {
     const lowerContent = content.toLowerCase();
 
-    // Analysis requests
-    if (lowerContent.includes('analyze this email')) {
-      if (lowerContent.includes('lawsuit') || lowerContent.includes('litigation')) {
-        return 'analysis_lawsuit';
-      }
-      if (lowerContent.includes('emergency') || lowerContent.includes('critical')) {
-        return 'analysis_emergency';
-      }
-      if (lowerContent.includes('document') || lowerContent.includes('submission')) {
-        return 'analysis_document_submission';
-      }
-      return 'analysis_inquiry';
-    }
-
-    // Routing requests
-    if (lowerContent.includes('routing')) {
-      if (lowerContent.includes('lawsuit') || lowerContent.includes('litigation')) {
-        return 'routing_lawsuit';
-      }
-      if (lowerContent.includes('emergency')) {
-        return 'routing_emergency';
-      }
-      return 'routing_documents';
-    }
-
-    // Response generation
-    if (lowerContent.includes('generate') && lowerContent.includes('response')) {
-      if (lowerContent.includes('lawsuit')) {
-        return 'response_lawsuit';
-      }
-      if (lowerContent.includes('document')) {
-        return 'response_document';
-      }
-      return 'response_general';
-    }
-
-    // Document analysis
-    if (lowerContent.includes('document attachment')) {
-      if (lowerContent.includes('contract')) {
-        return 'document_analysis_contract';
-      }
-      return 'document_analysis_evidence';
-    }
-
-    // Case pattern extraction
-    if (lowerContent.includes('case information') || lowerContent.includes('case pattern')) {
-      if (lowerContent.includes('smith-v-jones') || lowerContent.includes('plaintiff-v-defendant')) {
-        return 'case_pattern_lawsuit';
-      }
-      return 'case_pattern_none';
+    // Health check (most specific, check first)
+    if (lowerContent.includes('test ai health')) {
+      return 'health_check';
     }
 
     // Agent responses
@@ -280,9 +236,70 @@ export class MockAI {
       return 'agent_timeline_building';
     }
 
-    // Health check
-    if (lowerContent.includes('test ai health')) {
-      return 'health_check';
+    // Case pattern extraction — match actual email addresses, not the
+    // "plaintiff-v-defendant" example that appears in the prompt template
+    if (lowerContent.includes('extract legal case information')) {
+      const toMatch = lowerContent.match(/to:\s+(\S+)/);
+      const toAddress = toMatch ? toMatch[1] : '';
+      if (toAddress.includes('-v-') && toAddress.includes('@')) {
+        return 'case_pattern_lawsuit';
+      }
+      return 'case_pattern_none';
+    }
+
+    // Document attachment analysis (specific trigger phrase)
+    if (lowerContent.includes('analyze this legal document attachment')) {
+      if (lowerContent.includes('contract')) {
+        return 'document_analysis_contract';
+      }
+      return 'document_analysis_evidence';
+    }
+
+    // Response generation (specific trigger phrase)
+    if (lowerContent.includes('generate a professional') && lowerContent.includes('auto-response')) {
+      if (lowerContent.includes('category: lawsuit')) {
+        return 'response_lawsuit';
+      }
+      if (lowerContent.includes('category: document')) {
+        return 'response_document';
+      }
+      return 'response_general';
+    }
+
+    // Routing requests — match on the analysis JSON category, not route description words
+    if (lowerContent.includes('determine the optimal routing')) {
+      // Check for category values in the stringified analysis JSON
+      if (lowerContent.includes('"category":"emergency"') || lowerContent.includes('"category": "emergency"')) {
+        return 'routing_emergency';
+      }
+      if (lowerContent.includes('"category":"lawsuit"') || lowerContent.includes('"category": "lawsuit"')) {
+        return 'routing_lawsuit';
+      }
+      if (lowerContent.includes('"category":"document_submission"') || lowerContent.includes('"category": "document_submission"')) {
+        return 'routing_documents';
+      }
+      return 'routing_lawsuit'; // default routing
+    }
+
+    // Analysis requests — match on specific email content, not prompt template words
+    if (lowerContent.includes('provide comprehensive routing intelligence') ||
+        lowerContent.includes('analyze this email')) {
+      // Check actual email content for specific patterns
+      if (lowerContent.includes('tro application') || lowerContent.includes('temporary restraining order') ||
+          lowerContent.includes('code red') || lowerContent.includes('subpoena served') ||
+          lowerContent.includes('emergency legal notice')) {
+        return 'analysis_emergency';
+      }
+      if (lowerContent.includes('evidence submission') || lowerContent.includes('medical records') ||
+          lowerContent.includes('court filing confirmation') || lowerContent.includes('motion to compel')) {
+        return 'analysis_document_submission';
+      }
+      if (lowerContent.includes('motion for summary judgment') || lowerContent.includes('opposing counsel') ||
+          lowerContent.includes('settlement conference') || lowerContent.includes('mediator')) {
+        return 'analysis_lawsuit';
+      }
+      // General inquiry / default
+      return 'analysis_inquiry';
     }
 
     return 'analysis_inquiry'; // Default fallback
