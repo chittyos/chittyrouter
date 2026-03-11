@@ -30,6 +30,19 @@ export { ChittyRouterMcpGateway } from "./mcp/mcp-gateway.js";
 // MCP Gateway handler — serves /mcp/v2 via Streamable HTTP
 const mcpHandler = McpAgent.serve("/mcp/v2", { binding: "MCP_GATEWAY" });
 
+/**
+ * Map cron expressions to internal cron route paths.
+ * Must stay in sync with [triggers].crons in wrangler.toml and
+ * the /cron/* routes registered in unified-worker.js RouteMultiplexer.
+ */
+const CRON_ROUTE_MAP = {
+  "0 */6 * * *": "/cron/cleanup-ai-cache",
+  "0 0 * * *": "/cron/ai-metrics-report",
+  "*/30 * * * *": "/cron/sync-dlq-process",
+  "0 */2 * * *": "/cron/session-reconcile",
+  "*/15 * * * *": "/cron/inbox-monitor",
+};
+
 export default {
   async fetch(request, env, ctx) {
     // Route MCP requests to the gateway before unified worker
@@ -39,5 +52,29 @@ export default {
     }
 
     return await UnifiedWorker.fetch(request, env, ctx);
+  },
+
+  async scheduled(event, env, ctx) {
+    const cronPath = CRON_ROUTE_MAP[event.cron];
+    if (!cronPath) {
+      console.warn(`No handler mapped for cron expression: ${event.cron}`);
+      return;
+    }
+
+    // Create a synthetic internal request and delegate to the unified worker
+    const request = new Request(`https://router.chitty.cc${cronPath}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    ctx.waitUntil(
+      UnifiedWorker.fetch(request, env, ctx).then((response) => {
+        if (!response.ok) {
+          console.error(
+            `Cron ${event.cron} (${cronPath}) failed with status ${response.status}`,
+          );
+        }
+      }),
+    );
   },
 };
