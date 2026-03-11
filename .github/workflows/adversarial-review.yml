@@ -17,7 +17,7 @@ jobs:
       REVIEW_TAG_SEQUENCE: ${{ vars.CHITTY_REVIEW_TAG_SEQUENCE || '@coderabbitai review||@copilot review||@codex review||@claude review' }}
     steps:
       - name: Request Reviewer Agents
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const reviewers = (process.env.REQUEST_REVIEWERS || "")
@@ -44,7 +44,7 @@ jobs:
               core.warning(`Reviewer request failures: ${failed.join(" | ")}`);
             }
       - name: Trigger Bot Review Comments (Sequenced)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const sequence = (process.env.REVIEW_TAG_SEQUENCE || "")
