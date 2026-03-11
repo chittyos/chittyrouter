@@ -651,18 +651,31 @@ class RouteMultiplexer {
   // ============ Agents SDK Delegation ============
 
   /**
+   * Get an initialized Agents SDK stub.
+   * The Agents SDK (partyserver) requires a setup request with x-partykit-room
+   * header before the agent will accept normal requests.
+   */
+  async getAgentStub(bindingName) {
+    const binding = this.env[bindingName];
+    if (!binding) return null;
+    const id = binding.idFromName(bindingName);
+    const stub = binding.get(id);
+    // Initialize the agent's name via partyserver protocol
+    const setupReq = new Request("http://dummy-example.cloudflare.com/cdn-cgi/partyserver/set-name/");
+    setupReq.headers.set("x-partykit-room", bindingName);
+    await stub.fetch(setupReq).then((r) => r.text());
+    return stub;
+  }
+
+  /**
    * Forward request to a stateful Agents SDK Durable Object.
    * Routes like /agents/triage/classify → agent receives /classify.
    */
   async delegateToAgent(bindingName, request, url) {
-    const binding = this.env[bindingName];
-    if (!binding) {
+    const stub = await this.getAgentStub(bindingName);
+    if (!stub) {
       return this.jsonResponse({ error: `Agent binding ${bindingName} not available` }, 503);
     }
-
-    // Use a stable ID per agent (singleton pattern — one instance per agent type)
-    const id = binding.idFromName(bindingName);
-    const stub = binding.get(id);
 
     // Strip the /agents/<name> prefix so the agent receives clean paths
     const agentPath = url.pathname.replace(/^\/agents\/[^/]+/, "") || "/";
@@ -695,12 +708,14 @@ class RouteMultiplexer {
 
     const results = await Promise.all(
       agentNames.map(async (name) => {
-        const binding = this.env[name];
-        if (!binding) return [name, { status: "not_bound" }];
         try {
-          const id = binding.idFromName(name);
-          const stub = binding.get(id);
+          const stub = await this.getAgentStub(name);
+          if (!stub) return [name, { status: "not_bound" }];
           const resp = await stub.fetch(new Request("https://agent/status"));
+          if (!resp.ok) {
+            const text = await resp.text();
+            return [name, { status: "error", error: text.slice(0, 200) }];
+          }
           return [name, await resp.json()];
         } catch (err) {
           return [name, { status: "error", error: err.message }];
@@ -834,11 +849,16 @@ export default {
       // Route the request
       const response = await multiplexer.route(request);
 
-      // Add standard headers
-      response.headers.set("X-Request-ID", requestId);
-      response.headers.set("X-Powered-By", "ChittyRouter-Unified");
+      // Clone with additional headers (response.headers may be immutable)
+      const headers = new Headers(response.headers);
+      headers.set("X-Request-ID", requestId);
+      headers.set("X-Powered-By", "ChittyRouter-Unified");
 
-      return response;
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
     } catch (error) {
       console.error("Worker error:", error);
       return multiplexer.errorResponse(error);

@@ -25,7 +25,7 @@ vi.mock("agents", () => ({
   },
 }));
 
-vi.mock("@modelcontextprotocol/sdk/server/index.js", () => ({
+vi.mock("@modelcontextprotocol/sdk/server/mcp.js", () => ({
   McpServer: class MockMcpServer {
     constructor(opts) {
       this.name = opts.name;
