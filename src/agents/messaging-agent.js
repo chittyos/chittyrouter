@@ -12,7 +12,7 @@ export class MessagingAgent extends ChittyRouterBaseAgent {
   // Note: all sql.exec calls below use the built-in SQLite API, not child_process
   async onStart() {
     await super.onStart();
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS conversations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         thread_id TEXT NOT NULL UNIQUE,
@@ -27,7 +27,7 @@ export class MessagingAgent extends ChittyRouterBaseAgent {
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         conversation_id INTEGER NOT NULL,
@@ -83,12 +83,12 @@ export class MessagingAgent extends ChittyRouterBaseAgent {
     if (!participants?.length) return this.jsonResponse({ error: "participants array is required" }, 400);
 
     const tid = thread_id || `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    this.sql.exec(
+    this.rawSql.exec(
       "INSERT INTO conversations (thread_id, subject, participants, org, channel, metadata) VALUES (?, ?, ?, ?, ?, ?)",
       tid, subject || null, JSON.stringify(participants), org || null, channel || "chat", metadata ? JSON.stringify(metadata) : null,
     );
 
-    const id = this.sql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
+    const id = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
     this.info("Conversation created", { thread_id: tid, participants: participants.length });
     return this.jsonResponse({ id, thread_id: tid, participants, channel: channel || "chat", status: "active" });
   }
@@ -100,12 +100,12 @@ export class MessagingAgent extends ChittyRouterBaseAgent {
   }
 
   async persistMessage(threadId, sender, content, messageType) {
-    const convRows = this.sql.exec("SELECT id FROM conversations WHERE thread_id = ?", threadId).toArray();
+    const convRows = this.rawSql.exec("SELECT id FROM conversations WHERE thread_id = ?", threadId).toArray();
     if (convRows.length === 0) throw new Error(`Conversation ${threadId} not found`);
 
-    this.sql.exec("INSERT INTO messages (conversation_id, sender, message_type, content) VALUES (?, ?, ?, ?)", convRows[0].id, sender, messageType || "text", content);
-    this.sql.exec("UPDATE conversations SET last_message_at = datetime('now'), updated_at = datetime('now') WHERE id = ?", convRows[0].id);
-    const msgId = this.sql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
+    this.rawSql.exec("INSERT INTO messages (conversation_id, sender, message_type, content) VALUES (?, ?, ?, ?)", convRows[0].id, sender, messageType || "text", content);
+    this.rawSql.exec("UPDATE conversations SET last_message_at = datetime('now'), updated_at = datetime('now') WHERE id = ?", convRows[0].id);
+    const msgId = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
     return { id: msgId, thread_id: threadId, sender, message_type: messageType || "text", timestamp: new Date().toISOString() };
   }
 
@@ -113,7 +113,7 @@ export class MessagingAgent extends ChittyRouterBaseAgent {
     const threadId = url.searchParams.get("thread_id");
     if (!threadId) return this.jsonResponse({ error: "thread_id query param required" }, 400);
 
-    const conv = this.sql.exec("SELECT * FROM conversations WHERE thread_id = ?", threadId).toArray();
+    const conv = this.rawSql.exec("SELECT * FROM conversations WHERE thread_id = ?", threadId).toArray();
     const messages = this.getThreadMessages(threadId, parseInt(url.searchParams.get("limit") || "50"));
     return this.jsonResponse({
       thread_id: threadId,
@@ -123,10 +123,10 @@ export class MessagingAgent extends ChittyRouterBaseAgent {
   }
 
   getThreadMessages(threadId, limit) {
-    const convRows = this.sql.exec("SELECT id FROM conversations WHERE thread_id = ?", threadId).toArray();
+    const convRows = this.rawSql.exec("SELECT id FROM conversations WHERE thread_id = ?", threadId).toArray();
     if (convRows.length === 0) return [];
     const safeLimit = Math.min(limit || 50, 500);
-    return this.sql.exec("SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?", convRows[0].id, safeLimit).toArray();
+    return this.rawSql.exec("SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?", convRows[0].id, safeLimit).toArray();
   }
 
   handleListConversations(url) {
@@ -140,20 +140,20 @@ export class MessagingAgent extends ChittyRouterBaseAgent {
     query += " ORDER BY CASE WHEN last_message_at IS NULL THEN 1 ELSE 0 END, last_message_at DESC LIMIT ?";
     params.push(limit);
 
-    const rows = this.sql.exec(query, ...params).toArray();
+    const rows = this.rawSql.exec(query, ...params).toArray();
     return this.jsonResponse({ count: rows.length, conversations: rows.map((r) => ({ ...r, participants: JSON.parse(r.participants || "[]") })) });
   }
 
   handleStats() {
-    const convCount = this.sql.exec("SELECT COUNT(*) as count FROM conversations").toArray();
-    const msgCount = this.sql.exec("SELECT COUNT(*) as count FROM messages").toArray();
-    const byChannel = this.sql.exec("SELECT channel, COUNT(*) as count FROM conversations GROUP BY channel ORDER BY count DESC").toArray();
+    const convCount = this.rawSql.exec("SELECT COUNT(*) as count FROM conversations").toArray();
+    const msgCount = this.rawSql.exec("SELECT COUNT(*) as count FROM messages").toArray();
+    const byChannel = this.rawSql.exec("SELECT channel, COUNT(*) as count FROM conversations GROUP BY channel ORDER BY count DESC").toArray();
     return this.jsonResponse({ totalConversations: convCount[0]?.count || 0, totalMessages: msgCount[0]?.count || 0, byChannel });
   }
 
   handleStatus() {
-    const recentConv = this.sql.exec("SELECT COUNT(*) as count FROM conversations WHERE created_at > datetime('now', '-1 hour')").toArray();
-    const recentMsg = this.sql.exec("SELECT COUNT(*) as count FROM messages WHERE created_at > datetime('now', '-1 hour')").toArray();
+    const recentConv = this.rawSql.exec("SELECT COUNT(*) as count FROM conversations WHERE created_at > datetime('now', '-1 hour')").toArray();
+    const recentMsg = this.rawSql.exec("SELECT COUNT(*) as count FROM messages WHERE created_at > datetime('now', '-1 hour')").toArray();
     return this.jsonResponse({ agent: "MessagingAgent", status: "active", conversationsLastHour: recentConv[0]?.count || 0, messagesLastHour: recentMsg[0]?.count || 0 });
   }
 }

@@ -48,7 +48,7 @@ export class TriageAgent extends ChittyRouterBaseAgent {
   }
 
   ensureTriageTables() {
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS classifications (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         org TEXT NOT NULL,
@@ -62,7 +62,7 @@ export class TriageAgent extends ChittyRouterBaseAgent {
       )
     `);
 
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS org_routing_rules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         org TEXT NOT NULL,
@@ -119,7 +119,7 @@ export class TriageAgent extends ChittyRouterBaseAgent {
     }
 
     // Step 3: Persist
-    this.sql.exec(
+    this.rawSql.exec(
       `INSERT INTO classifications (org, category, sender, subject, confidence, ai_model, fallback)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       orgResult.org,
@@ -227,7 +227,7 @@ Respond with JSON only:
    * Classification statistics.
    */
   handleStats() {
-    const rows = this.sql.exec(
+    const rows = this.rawSql.exec(
       `SELECT org, category, COUNT(*) as count, AVG(confidence) as avg_confidence
        FROM classifications
        GROUP BY org, category
@@ -235,7 +235,7 @@ Respond with JSON only:
        LIMIT 50`
     ).toArray();
 
-    const total = this.sql.exec("SELECT COUNT(*) as total FROM classifications").toArray();
+    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM classifications").toArray();
 
     return this.jsonResponse({
       totalClassifications: total[0]?.total || 0,
@@ -244,7 +244,7 @@ Respond with JSON only:
   }
 
   handleStatus() {
-    const recent = this.sql.exec(
+    const recent = this.rawSql.exec(
       "SELECT COUNT(*) as count FROM classifications WHERE created_at > datetime('now', '-1 hour')"
     ).toArray();
 

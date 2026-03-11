@@ -31,7 +31,7 @@ export class ChittyRouterBaseAgent extends Agent {
    * Create shared metadata tables if they don't exist.
    */
   ensureBaseTables() {
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS agent_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         level TEXT NOT NULL DEFAULT 'info',
@@ -152,7 +152,13 @@ export class ChittyRouterBaseAgent extends Agent {
 
   // -- SQL Helpers --
 
-  get sql() {
+  /**
+   * Raw SQLite API from Durable Object storage.
+   * Use this for DDL and parameterized queries: this.rawSql.exec(...)
+   * NOTE: Do NOT override `this.sql` — it is a tagged template method provided
+   * by the Agents SDK base class: this.sql`SELECT * FROM ...`
+   */
+  get rawSql() {
     return this.ctx.storage.sql;
   }
 
@@ -160,7 +166,7 @@ export class ChittyRouterBaseAgent extends Agent {
 
   log(level, message, metadata) {
     const meta = metadata ? JSON.stringify(metadata) : null;
-    this.sql.exec(
+    this.rawSql.exec(
       "INSERT INTO agent_log (level, message, metadata) VALUES (?, ?, ?)",
       level,
       message,

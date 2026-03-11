@@ -17,7 +17,7 @@ export class FinanceAgent extends ChittyRouterBaseAgent {
   // Note: all sql.exec calls below use the built-in SQLite API, not child_process
   async onStart() {
     await super.onStart();
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         transaction_type TEXT NOT NULL,
@@ -36,7 +36,7 @@ export class FinanceAgent extends ChittyRouterBaseAgent {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS invoices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         invoice_number TEXT NOT NULL UNIQUE,
@@ -53,7 +53,7 @@ export class FinanceAgent extends ChittyRouterBaseAgent {
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS ledger_entries (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_id TEXT NOT NULL,
@@ -95,7 +95,7 @@ export class FinanceAgent extends ChittyRouterBaseAgent {
     }
     if (amount === undefined || amount === null) return this.jsonResponse({ error: "amount is required" }, 400);
 
-    this.sql.exec(
+    this.rawSql.exec(
       `INSERT INTO transactions (transaction_type, category, amount, currency, description,
        from_entity, to_entity, org, case_id, reference_id, status, transaction_date, metadata)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?)`,
@@ -106,7 +106,7 @@ export class FinanceAgent extends ChittyRouterBaseAgent {
       metadata ? JSON.stringify(metadata) : null,
     );
 
-    const txnId = this.sql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
+    const txnId = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
 
     if (from_entity) this.recordLedgerEntry(from_entity, org, amount, 0, description, txnId);
     if (to_entity) this.recordLedgerEntry(to_entity, org, 0, amount, description, txnId);
@@ -119,7 +119,7 @@ export class FinanceAgent extends ChittyRouterBaseAgent {
     const { invoice_number, org, to_entity, amount, currency, line_items, due_date, metadata } = await request.json();
     if (!invoice_number || amount === undefined) return this.jsonResponse({ error: "invoice_number and amount are required" }, 400);
 
-    this.sql.exec(
+    this.rawSql.exec(
       "INSERT INTO invoices (invoice_number, org, to_entity, amount, currency, line_items, due_date, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       invoice_number, org || null, to_entity || null, amount, currency || "USD",
       line_items ? JSON.stringify(line_items) : null, due_date || null,
@@ -140,7 +140,7 @@ export class FinanceAgent extends ChittyRouterBaseAgent {
     if (org) { query += " AND org = ?"; params.push(org); }
     query += " ORDER BY created_at DESC LIMIT 200";
 
-    const rows = this.sql.exec(query, ...params).toArray();
+    const rows = this.rawSql.exec(query, ...params).toArray();
     const totalDebit = rows.reduce((sum, r) => sum + r.debit, 0);
     const totalCredit = rows.reduce((sum, r) => sum + r.credit, 0);
     return this.jsonResponse({ entity_id, entries: rows, totalDebit, totalCredit, netBalance: totalCredit - totalDebit });
@@ -158,7 +158,7 @@ export class FinanceAgent extends ChittyRouterBaseAgent {
     if (to) { query += " AND transaction_date <= ?"; params.push(to); }
 
     query += " GROUP BY transaction_type, category ORDER BY total DESC";
-    const rows = this.sql.exec(query, ...params).toArray();
+    const rows = this.rawSql.exec(query, ...params).toArray();
 
     const totalIncome = rows.filter((r) => r.transaction_type === "income").reduce((s, r) => s + r.total, 0);
     const totalExpense = rows.filter((r) => r.transaction_type === "expense").reduce((s, r) => s + r.total, 0);
@@ -170,23 +170,23 @@ export class FinanceAgent extends ChittyRouterBaseAgent {
   }
 
   recordLedgerEntry(entityId, org, debit, credit, description, transactionId) {
-    const last = this.sql.exec("SELECT balance FROM ledger_entries WHERE entity_id = ? ORDER BY created_at DESC LIMIT 1", entityId).toArray();
+    const last = this.rawSql.exec("SELECT balance FROM ledger_entries WHERE entity_id = ? ORDER BY created_at DESC LIMIT 1", entityId).toArray();
     const newBalance = (last.length > 0 ? last[0].balance : 0) + credit - debit;
-    this.sql.exec(
+    this.rawSql.exec(
       "INSERT INTO ledger_entries (entity_id, org, debit, credit, balance, description, transaction_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
       entityId, org || null, debit, credit, newBalance, description || null, transactionId,
     );
   }
 
   handleStats() {
-    const byType = this.sql.exec("SELECT transaction_type, COUNT(*) as count, SUM(amount) as total FROM transactions GROUP BY transaction_type ORDER BY total DESC").toArray();
-    const total = this.sql.exec("SELECT COUNT(*) as count, SUM(amount) as total FROM transactions").toArray();
-    const invoiceCount = this.sql.exec("SELECT COUNT(*) as count FROM invoices").toArray();
+    const byType = this.rawSql.exec("SELECT transaction_type, COUNT(*) as count, SUM(amount) as total FROM transactions GROUP BY transaction_type ORDER BY total DESC").toArray();
+    const total = this.rawSql.exec("SELECT COUNT(*) as count, SUM(amount) as total FROM transactions").toArray();
+    const invoiceCount = this.rawSql.exec("SELECT COUNT(*) as count FROM invoices").toArray();
     return this.jsonResponse({ totalTransactions: total[0]?.count || 0, totalVolume: total[0]?.total || 0, totalInvoices: invoiceCount[0]?.count || 0, breakdown: byType });
   }
 
   handleStatus() {
-    const recent = this.sql.exec("SELECT COUNT(*) as count, SUM(amount) as total FROM transactions WHERE created_at > datetime('now', '-1 hour')").toArray();
+    const recent = this.rawSql.exec("SELECT COUNT(*) as count, SUM(amount) as total FROM transactions WHERE created_at > datetime('now', '-1 hour')").toArray();
     return this.jsonResponse({ agent: "FinanceAgent", status: "active", transactionsLastHour: recent[0]?.count || 0, volumeLastHour: recent[0]?.total || 0 });
   }
 }

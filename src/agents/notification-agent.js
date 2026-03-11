@@ -22,7 +22,7 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
   // Note: all sql.exec calls below use the built-in SQLite API, not child_process
   async onStart() {
     await super.onStart();
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS notifications (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         recipient TEXT NOT NULL,
@@ -40,7 +40,7 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS notification_preferences (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         recipient TEXT NOT NULL,
@@ -108,7 +108,7 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
       const prefEnabled = this.checkPreference(recipient, ch, org);
       const status = prefEnabled ? "queued" : "suppressed";
 
-      this.sql.exec(
+      this.rawSql.exec(
         `INSERT INTO notifications (recipient, channel, priority, subject, body, org, source_agent, reference_id, status, metadata)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         recipient, ch, prio, subject || null, notifBody,
@@ -116,7 +116,7 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
         metadata ? JSON.stringify(metadata) : null,
       );
 
-      const created = this.sql.exec("SELECT last_insert_rowid() as id").toArray();
+      const created = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray();
       const notifId = created[0]?.id;
 
       if (status === "queued") {
@@ -167,18 +167,18 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
       return this.jsonResponse({ error: "recipient and channel are required" }, 400);
     }
 
-    const existing = this.sql.exec(
+    const existing = this.rawSql.exec(
       "SELECT id FROM notification_preferences WHERE recipient = ? AND channel = ? AND (org = ? OR (org IS NULL AND ? IS NULL))",
       recipient, channel, org || null, org || null,
     ).toArray();
 
     if (existing.length > 0) {
-      this.sql.exec(
+      this.rawSql.exec(
         "UPDATE notification_preferences SET enabled = ?, quiet_start = ?, quiet_end = ? WHERE id = ?",
         enabled ? 1 : 0, quiet_start || null, quiet_end || null, existing[0].id,
       );
     } else {
-      this.sql.exec(
+      this.rawSql.exec(
         "INSERT INTO notification_preferences (recipient, channel, enabled, quiet_start, quiet_end, org) VALUES (?, ?, ?, ?, ?, ?)",
         recipient, channel, enabled ? 1 : 0, quiet_start || null, quiet_end || null, org || null,
       );
@@ -208,7 +208,7 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
     query += " ORDER BY created_at DESC LIMIT ?";
     params.push(limit);
 
-    const rows = this.sql.exec(query, ...params).toArray();
+    const rows = this.rawSql.exec(query, ...params).toArray();
     return this.jsonResponse({ count: rows.length, notifications: rows });
   }
 
@@ -217,7 +217,7 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
   }
 
   checkPreference(recipient, channel, org) {
-    const rows = this.sql.exec(
+    const rows = this.rawSql.exec(
       "SELECT enabled FROM notification_preferences WHERE recipient = ? AND channel = ? AND (org = ? OR org IS NULL) ORDER BY org DESC LIMIT 1",
       recipient, channel, org || null,
     ).toArray();
@@ -226,19 +226,19 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
 
   async deliverNotification(notifId, channel, recipient, subject, body) {
     try {
-      this.sql.exec(
+      this.rawSql.exec(
         "UPDATE notifications SET status = 'sending' WHERE id = ?",
         notifId,
       );
       // Delivery is delegated to external services via env bindings.
       this.info("Delivering notification", { notifId, channel, recipient, subject: subject?.slice(0, 50) });
-      this.sql.exec(
+      this.rawSql.exec(
         "UPDATE notifications SET status = 'delivered', delivered_at = datetime('now') WHERE id = ?",
         notifId,
       );
       return true;
     } catch (err) {
-      this.sql.exec(
+      this.rawSql.exec(
         "UPDATE notifications SET status = 'failed', error_message = ? WHERE id = ?",
         err.message, notifId,
       );
@@ -248,15 +248,15 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
   }
 
   handleStats() {
-    const byChannel = this.sql.exec(
+    const byChannel = this.rawSql.exec(
       "SELECT channel, status, COUNT(*) as count FROM notifications GROUP BY channel, status ORDER BY count DESC"
     ).toArray();
-    const total = this.sql.exec("SELECT COUNT(*) as total FROM notifications").toArray();
+    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM notifications").toArray();
     return this.jsonResponse({ totalNotifications: total[0]?.total || 0, breakdown: byChannel });
   }
 
   handleStatus() {
-    const recent = this.sql.exec(
+    const recent = this.rawSql.exec(
       "SELECT COUNT(*) as count FROM notifications WHERE created_at > datetime('now', '-1 hour')"
     ).toArray();
     return this.jsonResponse({

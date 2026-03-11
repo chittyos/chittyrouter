@@ -2,7 +2,7 @@
   "name": "chittyrouter",
   "version": "2.1.0-ai",
   "description": "ChittyRouter AI Gateway - Intelligent email routing with AI agents and orchestration for ChittyOS legal platform",
-  "main": "src/index.js",
+  "main": "src/index-minimal.js",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
@@ -22,7 +22,7 @@
     "test:ui": "vitest --ui",
     "test:report": "vitest run --reporter=html",
     "test:ci": "vitest run --reporter=junit --outputFile=test-results.xml",
-    "build": "esbuild src/index.js --bundle --format=esm --outfile=dist/index.js --external:@cloudflare/ai --external:cloudflare:email --external:@octokit/rest --external:@octokit/auth-app --external:crypto --external:node:http --external:node:crypto --target=es2022",
+    "build": "esbuild src/index-minimal.js --bundle --format=esm --outfile=dist/index.js --external:@cloudflare/ai --external:cloudflare:email --external:@octokit/rest --external:@octokit/auth-app --external:crypto --external:node:http --external:node:crypto --external:agents --external:agents/mcp --external:@modelcontextprotocol/sdk --target=es2022",
     "build:enhanced": "esbuild src/pipeline-system.js --bundle --format=esm --outfile=dist/pipeline-system.js --external:@cloudflare/ai --external:cloudflare:email",
     "email:test": "node tests/test-email-routing.js",
     "chittyid:generate": "node src/utils/generate-chittyids.js",

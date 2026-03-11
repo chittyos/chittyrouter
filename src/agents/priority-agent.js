@@ -48,7 +48,7 @@ export class PriorityAgent extends ChittyRouterBaseAgent {
 
   ensurePriorityTables() {
     // Note: sql.exec here is SQLite exec, not child_process
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS priority_decisions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         org TEXT NOT NULL,
@@ -63,7 +63,7 @@ export class PriorityAgent extends ChittyRouterBaseAgent {
       )
     `);
 
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS escalation_rules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         org TEXT NOT NULL,
@@ -118,7 +118,7 @@ export class PriorityAgent extends ChittyRouterBaseAgent {
     const shouldEscalate = this.checkEscalation(org, category, priority.level, content);
 
     // Persist decision
-    this.sql.exec(
+    this.rawSql.exec(
       `INSERT INTO priority_decisions (org, category, level, score, factors, ai_model, fallback, escalated)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       org || "ChittyOS",
@@ -250,7 +250,7 @@ Respond with JSON only:
   }
 
   handleStats() {
-    const rows = this.sql.exec(
+    const rows = this.rawSql.exec(
       `SELECT org, level, COUNT(*) as count, AVG(score) as avg_score,
               SUM(escalated) as escalated_count
        FROM priority_decisions
@@ -259,7 +259,7 @@ Respond with JSON only:
        LIMIT 50`
     ).toArray();
 
-    const total = this.sql.exec("SELECT COUNT(*) as total FROM priority_decisions").toArray();
+    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM priority_decisions").toArray();
 
     return this.jsonResponse({
       totalDecisions: total[0]?.total || 0,
@@ -268,7 +268,7 @@ Respond with JSON only:
   }
 
   handleStatus() {
-    const recent = this.sql.exec(
+    const recent = this.rawSql.exec(
       "SELECT COUNT(*) as count, SUM(escalated) as escalated FROM priority_decisions WHERE created_at > datetime('now', '-1 hour')"
     ).toArray();
 
