@@ -30,7 +30,7 @@ export class CalendarAgent extends ChittyRouterBaseAgent {
   // Note: all sql.exec calls below use the built-in SQLite API, not child_process
   async onStart() {
     await super.onStart();
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS calendar_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -51,7 +51,7 @@ export class CalendarAgent extends ChittyRouterBaseAgent {
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS calendar_reminders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         event_id INTEGER NOT NULL,
@@ -90,7 +90,7 @@ export class CalendarAgent extends ChittyRouterBaseAgent {
       return this.jsonResponse({ error: `event_type must be one of: ${EVENT_TYPES.join(", ")}` }, 400);
     }
 
-    this.sql.exec(
+    this.rawSql.exec(
       `INSERT INTO calendar_events (title, event_type, event_date, event_end_date, org, case_id,
        entity_id, description, location, is_recurring, recurrence_rule, metadata)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -101,12 +101,12 @@ export class CalendarAgent extends ChittyRouterBaseAgent {
       metadata ? JSON.stringify(metadata) : null,
     );
 
-    const created = this.sql.exec("SELECT last_insert_rowid() as id").toArray();
+    const created = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray();
     const eventId = created[0]?.id;
 
     if (reminders && Array.isArray(reminders)) {
       for (const r of reminders) {
-        this.sql.exec("INSERT INTO calendar_reminders (event_id, remind_at, channel) VALUES (?, ?, ?)", eventId, r.remind_at, r.channel || "email");
+        this.rawSql.exec("INSERT INTO calendar_reminders (event_id, remind_at, channel) VALUES (?, ?, ?)", eventId, r.remind_at, r.channel || "email");
       }
     }
 
@@ -121,15 +121,15 @@ export class CalendarAgent extends ChittyRouterBaseAgent {
     const { id, title, event_date, status, description } = await request.json();
     if (!id) return this.jsonResponse({ error: "id is required" }, 400);
 
-    const rows = this.sql.exec("SELECT * FROM calendar_events WHERE id = ?", id).toArray();
+    const rows = this.rawSql.exec("SELECT * FROM calendar_events WHERE id = ?", id).toArray();
     if (rows.length === 0) return this.jsonResponse({ error: "Event not found" }, 404);
 
-    if (title) this.sql.exec("UPDATE calendar_events SET title = ?, updated_at = datetime('now') WHERE id = ?", title, id);
-    if (event_date) this.sql.exec("UPDATE calendar_events SET event_date = ?, updated_at = datetime('now') WHERE id = ?", event_date, id);
-    if (status) this.sql.exec("UPDATE calendar_events SET status = ?, updated_at = datetime('now') WHERE id = ?", status, id);
-    if (description) this.sql.exec("UPDATE calendar_events SET description = ?, updated_at = datetime('now') WHERE id = ?", description, id);
+    if (title) this.rawSql.exec("UPDATE calendar_events SET title = ?, updated_at = datetime('now') WHERE id = ?", title, id);
+    if (event_date) this.rawSql.exec("UPDATE calendar_events SET event_date = ?, updated_at = datetime('now') WHERE id = ?", event_date, id);
+    if (status) this.rawSql.exec("UPDATE calendar_events SET status = ?, updated_at = datetime('now') WHERE id = ?", status, id);
+    if (description) this.rawSql.exec("UPDATE calendar_events SET description = ?, updated_at = datetime('now') WHERE id = ?", description, id);
 
-    const updated = this.sql.exec("SELECT * FROM calendar_events WHERE id = ?", id).toArray();
+    const updated = this.rawSql.exec("SELECT * FROM calendar_events WHERE id = ?", id).toArray();
     return this.jsonResponse(updated[0]);
   }
 
@@ -145,12 +145,12 @@ export class CalendarAgent extends ChittyRouterBaseAgent {
     if (eventType) { query += " AND event_type = ?"; params.push(eventType); }
 
     query += " ORDER BY event_date ASC LIMIT 100";
-    const rows = this.sql.exec(query, ...params).toArray();
+    const rows = this.rawSql.exec(query, ...params).toArray();
     return this.jsonResponse({ count: rows.length, events: rows.map((r) => ({ ...r, daysUntil: this.daysUntilEvent(r.event_date), isUrgent: this.isUrgent(r) })) });
   }
 
   handleUrgent(url) {
-    const rows = this.sql.exec("SELECT * FROM calendar_events WHERE status = 'active' AND event_date >= datetime('now') ORDER BY event_date ASC").toArray();
+    const rows = this.rawSql.exec("SELECT * FROM calendar_events WHERE status = 'active' AND event_date >= datetime('now') ORDER BY event_date ASC").toArray();
     const org = url.searchParams.get("org");
     const urgent = rows
       .filter((r) => (!org || r.org === org) && this.isUrgent(r))
@@ -168,13 +168,13 @@ export class CalendarAgent extends ChittyRouterBaseAgent {
   }
 
   handleStats() {
-    const byType = this.sql.exec("SELECT event_type, status, COUNT(*) as count FROM calendar_events GROUP BY event_type, status ORDER BY count DESC").toArray();
-    const total = this.sql.exec("SELECT COUNT(*) as total FROM calendar_events").toArray();
+    const byType = this.rawSql.exec("SELECT event_type, status, COUNT(*) as count FROM calendar_events GROUP BY event_type, status ORDER BY count DESC").toArray();
+    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM calendar_events").toArray();
     return this.jsonResponse({ totalEvents: total[0]?.total || 0, breakdown: byType });
   }
 
   handleStatus() {
-    const upcoming = this.sql.exec("SELECT COUNT(*) as count FROM calendar_events WHERE status = 'active' AND event_date >= datetime('now') AND event_date <= datetime('now', '+7 days')").toArray();
+    const upcoming = this.rawSql.exec("SELECT COUNT(*) as count FROM calendar_events WHERE status = 'active' AND event_date >= datetime('now') AND event_date <= datetime('now', '+7 days')").toArray();
     return this.jsonResponse({ agent: "CalendarAgent", status: "active", eventsNext7Days: upcoming[0]?.count || 0, eventTypes: EVENT_TYPES.length });
   }
 }

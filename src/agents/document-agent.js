@@ -30,7 +30,7 @@ export class DocumentAgent extends ChittyRouterBaseAgent {
   // Note: all sql.exec calls below use the built-in SQLite API, not child_process
   async onStart() {
     await super.onStart();
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS document_index (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         filename TEXT NOT NULL,
@@ -95,7 +95,7 @@ export class DocumentAgent extends ChittyRouterBaseAgent {
 
     const docHash = await this.hashDocument(attachment);
 
-    this.sql.exec(
+    this.rawSql.exec(
       `INSERT INTO document_index (filename, filetype, filesize, document_type, importance,
        compliance_flags, contains_pii, requires_review, org, doc_hash, ai_model, fallback)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -240,16 +240,16 @@ Respond with JSON only:
   }
 
   handleStats() {
-    const rows = this.sql.exec(
+    const rows = this.rawSql.exec(
       `SELECT document_type, importance, COUNT(*) as count, SUM(contains_pii) as pii_count
        FROM document_index GROUP BY document_type, importance ORDER BY count DESC LIMIT 50`
     ).toArray();
-    const total = this.sql.exec("SELECT COUNT(*) as total FROM document_index").toArray();
+    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM document_index").toArray();
     return this.jsonResponse({ totalDocuments: total[0]?.total || 0, breakdown: rows });
   }
 
   handleStatus() {
-    const recent = this.sql.exec(
+    const recent = this.rawSql.exec(
       "SELECT COUNT(*) as count FROM document_index WHERE created_at > datetime('now', '-1 hour')"
     ).toArray();
     return this.jsonResponse({

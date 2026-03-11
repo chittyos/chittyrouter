@@ -22,7 +22,7 @@ export class IntelligenceAgent extends ChittyRouterBaseAgent {
   // Note: all sql.exec calls below use the built-in SQLite API, not child_process
   async onStart() {
     await super.onStart();
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS intelligence_observations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         observation_type TEXT NOT NULL,
@@ -36,7 +36,7 @@ export class IntelligenceAgent extends ChittyRouterBaseAgent {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS intelligence_recommendations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         recommendation_type TEXT NOT NULL,
@@ -50,7 +50,7 @@ export class IntelligenceAgent extends ChittyRouterBaseAgent {
         resolved_at TEXT
       )
     `);
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS intelligence_snapshots (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         snapshot_type TEXT NOT NULL,
@@ -83,11 +83,11 @@ export class IntelligenceAgent extends ChittyRouterBaseAgent {
     const { observation_type, source_agent, org, title, description, severity, data } = await request.json();
     if (!title || !observation_type) return this.jsonResponse({ error: "title and observation_type are required" }, 400);
 
-    this.sql.exec(
+    this.rawSql.exec(
       "INSERT INTO intelligence_observations (observation_type, source_agent, org, title, description, severity, data) VALUES (?, ?, ?, ?, ?, ?, ?)",
       observation_type, source_agent || null, org || null, title, description || null, severity || "info", data ? JSON.stringify(data) : null,
     );
-    const id = this.sql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
+    const id = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
     return this.jsonResponse({ id, observation_type, title, severity: severity || "info" });
   }
 
@@ -104,7 +104,7 @@ export class IntelligenceAgent extends ChittyRouterBaseAgent {
     if (org) { query += " AND org = ?"; params.push(org); }
     query += " ORDER BY created_at DESC LIMIT 200";
 
-    const observations = this.sql.exec(query, ...params).toArray();
+    const observations = this.rawSql.exec(query, ...params).toArray();
 
     let analysis;
     try {
@@ -114,7 +114,7 @@ export class IntelligenceAgent extends ChittyRouterBaseAgent {
       analysis = this.fallbackAnalyze(observations);
     }
 
-    this.sql.exec("INSERT INTO intelligence_snapshots (snapshot_type, org, data) VALUES (?, ?, ?)", analysis_type, org || null, JSON.stringify(analysis));
+    this.rawSql.exec("INSERT INTO intelligence_snapshots (snapshot_type, org, data) VALUES (?, ?, ?)", analysis_type, org || null, JSON.stringify(analysis));
 
     return this.jsonResponse({
       analysis_type, org: org || "all", timeframeHours: hours,
@@ -131,18 +131,18 @@ export class IntelligenceAgent extends ChittyRouterBaseAgent {
       return this.jsonResponse({ error: `recommendation_type must be one of: ${RECOMMENDATION_TYPES.join(", ")}` }, 400);
     }
 
-    this.sql.exec(
+    this.rawSql.exec(
       "INSERT INTO intelligence_recommendations (recommendation_type, title, description, priority, org, source_observations) VALUES (?, ?, ?, ?, ?, ?)",
       recommendation_type, title, description, priority || "normal", org || null, source_observation_ids ? JSON.stringify(source_observation_ids) : null,
     );
 
     if (source_observation_ids?.length) {
       for (const obsId of source_observation_ids) {
-        this.sql.exec("UPDATE intelligence_observations SET acted_on = 1 WHERE id = ?", obsId);
+        this.rawSql.exec("UPDATE intelligence_observations SET acted_on = 1 WHERE id = ?", obsId);
       }
     }
 
-    const id = this.sql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
+    const id = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
     return this.jsonResponse({ id, recommendation_type, title, priority: priority || "normal", status: "proposed" });
   }
 
@@ -199,7 +199,7 @@ Respond with JSON only:
     const severity = url.searchParams.get("severity");
     if (severity) { query += " AND severity = ?"; params.push(severity); }
     query += " ORDER BY created_at DESC LIMIT 100";
-    const observations = this.sql.exec(query, ...params).toArray();
+    const observations = this.rawSql.exec(query, ...params).toArray();
     return this.jsonResponse({ count: observations.length, observations });
   }
 
@@ -211,7 +211,7 @@ Respond with JSON only:
     const priority = url.searchParams.get("priority");
     if (priority) { query += " AND priority = ?"; params.push(priority); }
     query += " ORDER BY created_at DESC LIMIT 50";
-    const recommendations = this.sql.exec(query, ...params).toArray();
+    const recommendations = this.rawSql.exec(query, ...params).toArray();
     return this.jsonResponse({ count: recommendations.length, recommendations });
   }
 
@@ -222,9 +222,9 @@ Respond with JSON only:
     if (org) { obsQuery += " AND org = ?"; obsParams.push(org); }
     obsQuery += " GROUP BY severity";
 
-    const obsBySeverity = this.sql.exec(obsQuery, ...obsParams).toArray();
-    const openRecs = this.sql.exec("SELECT COUNT(*) as count FROM intelligence_recommendations WHERE status = 'proposed'").toArray();
-    const recentSnapshots = this.sql.exec("SELECT snapshot_type, org, created_at FROM intelligence_snapshots ORDER BY created_at DESC LIMIT 10").toArray();
+    const obsBySeverity = this.rawSql.exec(obsQuery, ...obsParams).toArray();
+    const openRecs = this.rawSql.exec("SELECT COUNT(*) as count FROM intelligence_recommendations WHERE status = 'proposed'").toArray();
+    const recentSnapshots = this.rawSql.exec("SELECT snapshot_type, org, created_at FROM intelligence_snapshots ORDER BY created_at DESC LIMIT 10").toArray();
 
     return this.jsonResponse({
       org: org || "all",
@@ -235,14 +235,14 @@ Respond with JSON only:
   }
 
   handleStats() {
-    const obsTotal = this.sql.exec("SELECT COUNT(*) as count FROM intelligence_observations").toArray();
-    const recTotal = this.sql.exec("SELECT COUNT(*) as count FROM intelligence_recommendations").toArray();
-    const snapTotal = this.sql.exec("SELECT COUNT(*) as count FROM intelligence_snapshots").toArray();
+    const obsTotal = this.rawSql.exec("SELECT COUNT(*) as count FROM intelligence_observations").toArray();
+    const recTotal = this.rawSql.exec("SELECT COUNT(*) as count FROM intelligence_recommendations").toArray();
+    const snapTotal = this.rawSql.exec("SELECT COUNT(*) as count FROM intelligence_snapshots").toArray();
     return this.jsonResponse({ totalObservations: obsTotal[0]?.count || 0, totalRecommendations: recTotal[0]?.count || 0, totalSnapshots: snapTotal[0]?.count || 0 });
   }
 
   handleStatus() {
-    const recent = this.sql.exec("SELECT COUNT(*) as count FROM intelligence_observations WHERE created_at > datetime('now', '-1 hour')").toArray();
+    const recent = this.rawSql.exec("SELECT COUNT(*) as count FROM intelligence_observations WHERE created_at > datetime('now', '-1 hour')").toArray();
     return this.jsonResponse({ agent: "IntelligenceAgent", status: "active", observationsLastHour: recent[0]?.count || 0, analysisTypes: ANALYSIS_TYPES.length });
   }
 }

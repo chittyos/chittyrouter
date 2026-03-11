@@ -39,7 +39,7 @@ export class ResponseAgent extends ChittyRouterBaseAgent {
   // Note: all sql.exec calls below use the built-in SQLite API, not child_process
   async onStart() {
     await super.onStart();
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS response_drafts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email_subject TEXT,
@@ -109,7 +109,7 @@ export class ResponseAgent extends ChittyRouterBaseAgent {
     const validation = this.validateContent(result.body);
     const finalBody = this.addDisclaimer(result.body, triageResult.category);
 
-    this.sql.exec(
+    this.rawSql.exec(
       `INSERT INTO response_drafts (email_subject, email_from, category, priority, should_respond,
        response_subject, response_body, response_type, org, validation_warnings, ai_model, fallback)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -242,16 +242,16 @@ Generate only the email body text, no subject line.`;
   }
 
   handleStats() {
-    const rows = this.sql.exec(
+    const rows = this.rawSql.exec(
       `SELECT category, response_type, COUNT(*) as count, SUM(fallback) as fallback_count
        FROM response_drafts GROUP BY category, response_type ORDER BY count DESC LIMIT 50`
     ).toArray();
-    const total = this.sql.exec("SELECT COUNT(*) as total FROM response_drafts").toArray();
+    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM response_drafts").toArray();
     return this.jsonResponse({ totalDrafts: total[0]?.total || 0, breakdown: rows });
   }
 
   handleStatus() {
-    const recent = this.sql.exec(
+    const recent = this.rawSql.exec(
       "SELECT COUNT(*) as count FROM response_drafts WHERE created_at > datetime('now', '-1 hour')"
     ).toArray();
     return this.jsonResponse({

@@ -128,62 +128,6 @@ async function handleLanding(request, env, ctx) {
     headers: { "content-type": "text/plain" },
   });
 }
-async function handlePlatform(request, env, ctx) {
-  // This will contain the main platform logic with AI, KV, and Durable Objects
-  const {
-    AI_GATEWAY_STATE,
-    PLATFORM_STATE,
-    SYNC_STATE,
-    KV_PLATFORM_STATE,
-    KV_PLATFORM_DATA,
-    AI,
-  } = env;
-
-  // TODO: Add actual platform logic here
-  return new Response("ChittyOS Platform Service", {
-    headers: { "content-type": "text/plain" },
-  });
-}
-
-// Bridge service handler
-async function handleBridge(request, env, ctx) {
-  // TODO: Add bridge service logic
-  return new Response("ChittyOS Bridge Service", {
-    headers: { "content-type": "text/plain" },
-  });
-}
-
-// Consultant service handler
-async function handleConsultant(request, env, ctx) {
-  // TODO: Add consultant service logic
-  return new Response("ChittyOS Consultant Service", {
-    headers: { "content-type": "text/plain" },
-  });
-}
-
-// Chain service handler
-async function handleChain(request, env, ctx) {
-  // TODO: Add chain service logic
-  return new Response("ChittyOS Chain Service", {
-    headers: { "content-type": "text/plain" },
-  });
-}
-
-// CTO MCP handler
-async function handleCTO(request, env, ctx) {
-  // TODO: Add CTO MCP logic
-  return new Response("ChittyOS CTO MCP Service", {
-    headers: { "content-type": "text/plain" },
-  });
-}
-
-// Landing page handler
-async function handleLanding(request, env, ctx) {
-  // TODO: Add landing page logic
-  return new Response("ChittyOS Landing Page", {
-    headers: { "content-type": "text/plain" },
-  });
-}
 
 // Durable Object classes (from chittyos-platform-live)
 export class AIGatewayState {

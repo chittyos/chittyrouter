@@ -14,7 +14,7 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
   // Note: all sql.exec calls below use the built-in SQLite API, not child_process
   async onStart() {
     await super.onStart();
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS webhook_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         platform TEXT NOT NULL,
@@ -34,7 +34,7 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
-    this.sql.exec(`
+    this.rawSql.exec(`
       CREATE TABLE IF NOT EXISTS webhook_subscriptions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         platform TEXT NOT NULL,
@@ -81,7 +81,7 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
     const idempotencyKey = `${platform}:${event_id || payloadHash}`;
 
     // Dedup check
-    const existing = this.sql.exec("SELECT id, status FROM webhook_events WHERE idempotency_key = ?", idempotencyKey).toArray();
+    const existing = this.rawSql.exec("SELECT id, status FROM webhook_events WHERE idempotency_key = ?", idempotencyKey).toArray();
     if (existing.length > 0) {
       this.info("Duplicate webhook detected", { idempotencyKey, platform });
       return this.jsonResponse({ id: existing[0].id, status: "duplicate", originalStatus: existing[0].status, idempotencyKey });
@@ -99,21 +99,21 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
       }
     }
 
-    this.sql.exec(
+    this.rawSql.exec(
       `INSERT INTO webhook_events (platform, event_type, event_id, idempotency_key, payload_hash, r2_path, org, metadata)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       platform, event_type || null, event_id || null, idempotencyKey, payloadHash, r2Path, org || null, metadata ? JSON.stringify(metadata) : null,
     );
 
-    const webhookId = this.sql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
+    const webhookId = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
 
     let status = "indexed";
     try {
       await this.processWebhook(webhookId, platform, event_type);
-      this.sql.exec("UPDATE webhook_events SET status = 'indexed', processed_at = datetime('now') WHERE id = ?", webhookId);
+      this.rawSql.exec("UPDATE webhook_events SET status = 'indexed', processed_at = datetime('now') WHERE id = ?", webhookId);
     } catch (err) {
       status = "failed";
-      this.sql.exec("UPDATE webhook_events SET status = 'failed', error_message = ? WHERE id = ?", err.message, webhookId);
+      this.rawSql.exec("UPDATE webhook_events SET status = 'failed', error_message = ? WHERE id = ?", err.message, webhookId);
       this.error("Webhook processing failed", { webhookId, platform, error: err.message });
     }
 
@@ -135,17 +135,17 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
     if (platform) { query += " AND platform = ?"; params.push(platform); }
     query += " ORDER BY received_at ASC LIMIT 10";
 
-    const events = this.sql.exec(query, ...params).toArray();
+    const events = this.rawSql.exec(query, ...params).toArray();
     const results = [];
 
     for (const event of events) {
-      this.sql.exec("UPDATE webhook_events SET retry_count = retry_count + 1, status = 'processing' WHERE id = ?", event.id);
+      this.rawSql.exec("UPDATE webhook_events SET retry_count = retry_count + 1, status = 'processing' WHERE id = ?", event.id);
       try {
         await this.processWebhook(event.id, event.platform, event.event_type);
-        this.sql.exec("UPDATE webhook_events SET status = 'processed', processed_at = datetime('now') WHERE id = ?", event.id);
+        this.rawSql.exec("UPDATE webhook_events SET status = 'processed', processed_at = datetime('now') WHERE id = ?", event.id);
         results.push({ id: event.id, status: "processed" });
       } catch (err) {
-        this.sql.exec("UPDATE webhook_events SET status = 'failed', error_message = ? WHERE id = ?", err.message, event.id);
+        this.rawSql.exec("UPDATE webhook_events SET status = 'failed', error_message = ? WHERE id = ?", err.message, event.id);
         results.push({ id: event.id, status: "failed", error: err.message });
       }
     }
@@ -172,7 +172,7 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
     query += " ORDER BY received_at DESC LIMIT ?";
     params.push(limit);
 
-    const events = this.sql.exec(query, ...params).toArray();
+    const events = this.rawSql.exec(query, ...params).toArray();
     return this.jsonResponse({ count: events.length, events });
   }
 
@@ -182,14 +182,14 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
   }
 
   handleStats() {
-    const byPlatform = this.sql.exec("SELECT platform, status, COUNT(*) as count FROM webhook_events GROUP BY platform, status ORDER BY count DESC").toArray();
-    const total = this.sql.exec("SELECT COUNT(*) as total FROM webhook_events").toArray();
-    const failedCount = this.sql.exec("SELECT COUNT(*) as count FROM webhook_events WHERE status = 'failed'").toArray();
+    const byPlatform = this.rawSql.exec("SELECT platform, status, COUNT(*) as count FROM webhook_events GROUP BY platform, status ORDER BY count DESC").toArray();
+    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM webhook_events").toArray();
+    const failedCount = this.rawSql.exec("SELECT COUNT(*) as count FROM webhook_events WHERE status = 'failed'").toArray();
     return this.jsonResponse({ totalWebhooks: total[0]?.total || 0, failedWebhooks: failedCount[0]?.count || 0, breakdown: byPlatform });
   }
 
   handleStatus() {
-    const recent = this.sql.exec("SELECT COUNT(*) as count FROM webhook_events WHERE received_at > datetime('now', '-1 hour')").toArray();
+    const recent = this.rawSql.exec("SELECT COUNT(*) as count FROM webhook_events WHERE received_at > datetime('now', '-1 hour')").toArray();
     return this.jsonResponse({ agent: "WebhookIngestionAgent", status: "active", webhooksLastHour: recent[0]?.count || 0, platforms: SUPPORTED_PLATFORMS.length });
   }
 }
