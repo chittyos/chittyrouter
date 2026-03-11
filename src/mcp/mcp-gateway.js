@@ -7,7 +7,7 @@
  * @canon chittycanon://gov/governance#core-types
  */
 import { McpAgent } from "agents/mcp";
-import { McpServer } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ALL_TOOL_SCHEMAS } from "./tool-schemas.js";
 
 export class ChittyRouterMcpGateway extends McpAgent {
