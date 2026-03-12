@@ -19,6 +19,101 @@ export class EmailProcessor {
   }
 
   /**
+   * Process email via Agents SDK pipeline (triage → priority → response).
+   * Called from the /ai/process-email HTTP endpoint.
+   *
+   * @param {{ subject: string, from: string, content: string, to?: string, channel?: string, metadata?: object }} body
+   * @returns {Promise<object>}
+   */
+  async processEmail(body) {
+    const { subject, from, content, to, channel, metadata } = body;
+
+    // Step 1: Triage — classify via TriageAgent
+    const triageResult = await this.callAgent("TRIAGE_AGENT", "/classify", {
+      sender: from,
+      subject,
+      content,
+      channel: channel || "email",
+      metadata,
+    });
+
+    // Step 2: Priority — score via PriorityAgent
+    const priorityResult = await this.callAgent("PRIORITY_AGENT", "/score", {
+      sender: from,
+      subject,
+      content,
+      category: triageResult.category,
+      org: triageResult.org,
+      triageConfidence: triageResult.confidence,
+    });
+
+    // Step 3: Response — draft via ResponseAgent
+    const responseResult = await this.callAgent("RESPONSE_AGENT", "/draft", {
+      emailData: { subject, from, content, to },
+      triageResult: { category: triageResult.category },
+      priorityResult: { level: priorityResult.level },
+      org: triageResult.org,
+    });
+
+    return {
+      success: true,
+      pipeline: "agents-sdk",
+      triage: {
+        org: triageResult.org,
+        category: triageResult.category,
+        confidence: triageResult.confidence,
+        fallback: triageResult.fallback,
+      },
+      priority: {
+        level: priorityResult.level,
+        score: priorityResult.score,
+        escalated: priorityResult.escalated,
+        fallback: priorityResult.fallback,
+      },
+      response: {
+        shouldRespond: responseResult.shouldRespond,
+        subject: responseResult.subject,
+        body: responseResult.body,
+        responseType: responseResult.responseType,
+        fallback: responseResult.fallback,
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Call an Agents SDK Durable Object via its HTTP interface.
+   * Reuses the same stub initialization pattern as unified-worker delegateToAgent.
+   */
+  async callAgent(bindingName, path, body) {
+    const binding = this.env[bindingName];
+    if (!binding) {
+      throw new Error(`Agent binding ${bindingName} not available`);
+    }
+
+    const id = binding.idFromName(bindingName);
+    const stub = binding.get(id);
+
+    // Initialize agent name via partyserver protocol
+    const setupReq = new Request("http://dummy-example.cloudflare.com/cdn-cgi/partyserver/set-name/");
+    setupReq.headers.set("x-partykit-room", bindingName);
+    await stub.fetch(setupReq).then((r) => r.text());
+
+    const resp = await stub.fetch(new Request(`https://agent${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`${bindingName} ${path} failed (${resp.status}): ${text.slice(0, 200)}`);
+    }
+
+    return resp.json();
+  }
+
+  /**
    * Initialize service discovery for email processing
    */
   async initializeServiceDiscovery() {
