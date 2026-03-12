@@ -21,9 +21,9 @@ export class ChittyRouterMcpGateway extends McpAgent {
       this.server.tool(
         toolName,
         toolDef.description,
-        { args: toolDef.schema },
-        async ({ args }) => {
-          return this.handleToolCall(toolName, toolDef, args);
+        toolDef.schema.shape,
+        async (params) => {
+          return this.handleToolCall(toolName, toolDef, params);
         },
       );
     }
@@ -83,6 +83,11 @@ export class ChittyRouterMcpGateway extends McpAgent {
     // Singleton pattern — one instance per agent type
     const id = binding.idFromName(bindingName);
     const stub = binding.get(id);
+
+    // Initialize the agent via partyserver protocol (required before first use)
+    await stub.fetch(new Request("http://agent.internal/cdn-cgi/partyserver/set-name/", {
+      headers: { "x-partykit-room": bindingName },
+    })).then((r) => r.text());
 
     // Build request URL
     const url = new URL(path, "https://agent.internal");

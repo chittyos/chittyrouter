@@ -1,0 +1,415 @@
+// chittyrouter — Cloudflare Workers configuration
+{
+  "name": "chittyrouter",
+  "main": "src/index-minimal.js",
+  "compatibility_date": "2025-12-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "account_id": "0bc21e3a5a9de1a4cc843be9c3e98121",
+  "ai": {
+    "binding": "AI"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AI_STATE_DO",
+        "class_name": "AIStateDO"
+      },
+      {
+        "name": "SYNC_STATE",
+        "class_name": "SyncStateDurableObject"
+      },
+      {
+        "name": "TRIAGE_AGENT",
+        "class_name": "TriageAgent"
+      },
+      {
+        "name": "PRIORITY_AGENT",
+        "class_name": "PriorityAgent"
+      },
+      {
+        "name": "RESPONSE_AGENT",
+        "class_name": "ResponseAgent"
+      },
+      {
+        "name": "DOCUMENT_AGENT",
+        "class_name": "DocumentAgent"
+      },
+      {
+        "name": "ENTITY_AGENT",
+        "class_name": "EntityAgent"
+      },
+      {
+        "name": "EVIDENCE_AGENT",
+        "class_name": "EvidenceAgent"
+      },
+      {
+        "name": "CALENDAR_AGENT",
+        "class_name": "CalendarAgent"
+      },
+      {
+        "name": "FINANCE_AGENT",
+        "class_name": "FinanceAgent"
+      },
+      {
+        "name": "NOTIFICATION_AGENT",
+        "class_name": "NotificationAgent"
+      },
+      {
+        "name": "INTELLIGENCE_AGENT",
+        "class_name": "IntelligenceAgent"
+      },
+      {
+        "name": "WEBHOOK_AGENT",
+        "class_name": "WebhookIngestionAgent"
+      },
+      {
+        "name": "MESSAGING_AGENT",
+        "class_name": "MessagingAgent"
+      },
+      {
+        "name": "MCP_GATEWAY",
+        "class_name": "ChittyRouterMcpGateway"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": [
+        "AIStateDO",
+        "SyncStateDurableObject"
+      ]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": [
+        "TriageAgent",
+        "PriorityAgent",
+        "ResponseAgent",
+        "DocumentAgent",
+        "EntityAgent",
+        "EvidenceAgent",
+        "CalendarAgent",
+        "FinanceAgent",
+        "NotificationAgent",
+        "IntelligenceAgent",
+        "WebhookIngestionAgent",
+        "MessagingAgent"
+      ]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": [
+        "ChittyRouterMcpGateway"
+      ]
+    }
+  ],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "SERVICE_NAME": "ChittyRouter AI Gateway",
+    "VERSION": "2.1.0-ai",
+    "AI_MODEL_PRIMARY": "@cf/meta/llama-4-scout-17b-16e-instruct",
+    "AI_MODEL_SECONDARY": "@cf/openai/gpt-oss-120b",
+    "AI_MODEL_VISION": "@cf/meta/llama-3.2-11b-vision-instruct",
+    "AI_MODEL_AUDIO": "@cf/openai/whisper",
+    "AI_MODEL_REASONING": "@cf/google/gemma-3-12b-it",
+    "LOG_LEVEL": "INFO",
+    "PROJECT_ID": "chittyrouter",
+    "CHITTY_ORG": "ChittyOS",
+    "SESSION_REPO": "chittychat-sessions",
+    "RANDOMNESS_BEACON": "true",
+    "VERSION_MANAGEMENT": "enterprise",
+    "CHITTYCONNECT_URL": "https://connect.chitty.cc"
+  },
+  "routes": [
+    {
+      "pattern": "router.chitty.cc/*",
+      "zone_name": "chitty.cc"
+    }
+  ],
+  "email": [
+    {
+      "name": "chittyrouter-email",
+      "destination_addresses": [
+        "*@chitty.cc",
+        "*-v-*@chitty.cc",
+        "case-*@chitty.cc",
+        "matter-*@chitty.cc",
+        "intake@chitty.cc",
+        "legal@chitty.cc",
+        "evidence@chitty.cc",
+        "calendar@chitty.cc"
+      ]
+    }
+  ],
+  "env": {
+    "development": {
+      "vars": {
+        "ENVIRONMENT": "development",
+        "LOG_LEVEL": "DEBUG",
+        "AI_DEBUG": "true"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "AI_CACHE",
+          "id": "ai_cache_dev",
+          "preview_id": "ai_cache_preview"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "WEBHOOK_STORAGE",
+          "bucket_name": "notion-webhook"
+        }
+      ]
+    },
+    "staging": {
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "LOG_LEVEL": "INFO",
+        "AI_DEBUG": "false",
+        "SERVICE_NAME": "ChittyRouter AI Gateway",
+        "VERSION": "2.1.0-ai",
+        "AI_MODEL_PRIMARY": "@cf/meta/llama-4-scout-17b-16e-instruct",
+        "AI_MODEL_SECONDARY": "@cf/openai/gpt-oss-120b",
+        "AI_MODEL_VISION": "@cf/meta/llama-3.2-11b-vision-instruct",
+        "AI_MODEL_AUDIO": "@cf/openai/whisper",
+        "AI_MODEL_REASONING": "@cf/google/gemma-3-12b-it",
+        "PROJECT_ID": "chittyrouter",
+        "CHITTY_ORG": "ChittyOS",
+        "SESSION_REPO": "chittychat-sessions",
+        "RANDOMNESS_BEACON": "true",
+        "VERSION_MANAGEMENT": "enterprise"
+      },
+      "ai": {
+        "binding": "AI"
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "AI_STATE_DO",
+            "class_name": "AIStateDO"
+          },
+          {
+            "name": "SYNC_STATE",
+            "class_name": "SyncStateDurableObject"
+          },
+          {
+            "name": "TRIAGE_AGENT",
+            "class_name": "TriageAgent"
+          },
+          {
+            "name": "PRIORITY_AGENT",
+            "class_name": "PriorityAgent"
+          },
+          {
+            "name": "RESPONSE_AGENT",
+            "class_name": "ResponseAgent"
+          },
+          {
+            "name": "DOCUMENT_AGENT",
+            "class_name": "DocumentAgent"
+          },
+          {
+            "name": "ENTITY_AGENT",
+            "class_name": "EntityAgent"
+          },
+          {
+            "name": "EVIDENCE_AGENT",
+            "class_name": "EvidenceAgent"
+          },
+          {
+            "name": "CALENDAR_AGENT",
+            "class_name": "CalendarAgent"
+          },
+          {
+            "name": "FINANCE_AGENT",
+            "class_name": "FinanceAgent"
+          },
+          {
+            "name": "NOTIFICATION_AGENT",
+            "class_name": "NotificationAgent"
+          },
+          {
+            "name": "INTELLIGENCE_AGENT",
+            "class_name": "IntelligenceAgent"
+          },
+          {
+            "name": "WEBHOOK_AGENT",
+            "class_name": "WebhookIngestionAgent"
+          },
+          {
+            "name": "MESSAGING_AGENT",
+            "class_name": "MessagingAgent"
+          },
+          {
+            "name": "MCP_GATEWAY",
+            "class_name": "ChittyRouterMcpGateway"
+          }
+        ]
+      },
+      // MCP API Keys KV — create via: npx wrangler kv namespace create "MCP_API_KEYS" --env staging
+      // Then add: "kv_namespaces": [{ "binding": "MCP_API_KEYS", "id": "<staging-id>" }]
+      "r2_buckets": [
+        {
+          "binding": "WEBHOOK_STORAGE",
+          "bucket_name": "notion-webhook"
+        }
+      ]
+    },
+    "production": {
+      "name": "chittyrouter",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "LOG_LEVEL": "WARN",
+        "AI_DEBUG": "false",
+        "ENABLE_ANALYTICS": "true",
+        "SERVICE_NAME": "ChittyRouter AI Gateway",
+        "VERSION": "2.1.0-ai",
+        "AI_MODEL_PRIMARY": "@cf/meta/llama-4-scout-17b-16e-instruct",
+        "AI_MODEL_SECONDARY": "@cf/openai/gpt-oss-120b",
+        "AI_MODEL_VISION": "@cf/meta/llama-3.2-11b-vision-instruct",
+        "AI_MODEL_AUDIO": "@cf/openai/whisper",
+        "AI_MODEL_REASONING": "@cf/google/gemma-3-12b-it",
+        "PROJECT_ID": "chittyrouter",
+        "CHITTY_ORG": "ChittyOS",
+        "SESSION_REPO": "chittychat-sessions",
+        "AI_GATEWAY_VERSION": "2.1.0-ai",
+        "AI_MODEL_ENDPOINT": "@cf/meta/llama-4-scout-17b-16e-instruct",
+        "CHITTYROUTER_URL": "https://router.chitty.cc",
+        "REGION": "us-west",
+        "MCP_PORT": "3000",
+        "AGENT_COORDINATION_PORT": "8080",
+        "REDIS_PORT": "6379",
+        "RANDOMNESS_BEACON": "true",
+        "VERSION_MANAGEMENT": "enterprise",
+        "CHITTYCONNECT_URL": "https://connect.chitty.cc"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "AI_CACHE",
+          "id": "59af99e1f7994a6282a0823bfb89bda0"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "AI_STATE_DO",
+            "class_name": "AIStateDO"
+          },
+          {
+            "name": "SYNC_STATE",
+            "class_name": "SyncStateDurableObject"
+          },
+          {
+            "name": "TRIAGE_AGENT",
+            "class_name": "TriageAgent"
+          },
+          {
+            "name": "PRIORITY_AGENT",
+            "class_name": "PriorityAgent"
+          },
+          {
+            "name": "RESPONSE_AGENT",
+            "class_name": "ResponseAgent"
+          },
+          {
+            "name": "DOCUMENT_AGENT",
+            "class_name": "DocumentAgent"
+          },
+          {
+            "name": "ENTITY_AGENT",
+            "class_name": "EntityAgent"
+          },
+          {
+            "name": "EVIDENCE_AGENT",
+            "class_name": "EvidenceAgent"
+          },
+          {
+            "name": "CALENDAR_AGENT",
+            "class_name": "CalendarAgent"
+          },
+          {
+            "name": "FINANCE_AGENT",
+            "class_name": "FinanceAgent"
+          },
+          {
+            "name": "NOTIFICATION_AGENT",
+            "class_name": "NotificationAgent"
+          },
+          {
+            "name": "INTELLIGENCE_AGENT",
+            "class_name": "IntelligenceAgent"
+          },
+          {
+            "name": "WEBHOOK_AGENT",
+            "class_name": "WebhookIngestionAgent"
+          },
+          {
+            "name": "MESSAGING_AGENT",
+            "class_name": "MessagingAgent"
+          },
+          {
+            "name": "MCP_GATEWAY",
+            "class_name": "ChittyRouterMcpGateway"
+          }
+        ]
+      },
+      "r2_buckets": [
+        {
+          "binding": "DOCUMENT_STORAGE",
+          "bucket_name": "chittyrouter-documents"
+        },
+        {
+          "binding": "WEBHOOK_STORAGE",
+          "bucket_name": "notion-webhook"
+        }
+      ],
+      "tail_consumers": [
+        {
+          "service": "chittytrack"
+        }
+      ]
+    }
+  },
+  "limits": {
+    "cpu_ms": 30000
+  },
+  "triggers": {
+    "crons": [
+      "0 */6 * * *",
+      "0 0 * * *",
+      "*/30 * * * *",
+      "0 */2 * * *",
+      "*/15 * * * *"
+    ]
+  },
+  "placement": {
+    "mode": "smart"
+  },
+  "tail_consumers": [
+    {
+      "service": "chittytrack"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 0.1,
+      "persist": false,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": true,
+      "persist": false,
+      "head_sampling_rate": 0.1
+    }
+  }
+}
