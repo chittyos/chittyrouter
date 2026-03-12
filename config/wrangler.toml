@@ -1,7 +1,7 @@
 # Wrangler configuration for ChittyRouter AI Gateway
 
 name = "chittyrouter-ai-gateway"
-main = "src/index.js"
+main = "src/index-minimal.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
