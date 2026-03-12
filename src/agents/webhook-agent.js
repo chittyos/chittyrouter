@@ -7,6 +7,9 @@
  * @canon chittycanon://gov/governance#core-types
  */
 import { ChittyRouterBaseAgent } from "./base-agent.js";
+import { processNotionWebhook } from "../webhooks/notion.js";
+import { processGithubWebhook } from "../webhooks/github.js";
+import { processStripeWebhook } from "../webhooks/stripe.js";
 
 const SUPPORTED_PLATFORMS = ["notion", "github", "stripe", "generic"];
 
@@ -107,10 +110,10 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
 
     const webhookId = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray()[0]?.id;
 
-    let status = "indexed";
+    let status = "processed";
     try {
       await this.processWebhook(webhookId, platform, event_type);
-      this.rawSql.exec("UPDATE webhook_events SET status = 'indexed', processed_at = datetime('now') WHERE id = ?", webhookId);
+      this.rawSql.exec("UPDATE webhook_events SET status = 'processed', processed_at = datetime('now') WHERE id = ?", webhookId);
     } catch (err) {
       status = "failed";
       this.rawSql.exec("UPDATE webhook_events SET status = 'failed', error_message = ? WHERE id = ?", err.message, webhookId);
@@ -154,11 +157,50 @@ export class WebhookIngestionAgent extends ChittyRouterBaseAgent {
   }
 
   async processWebhook(webhookId, platform, eventType) {
-    // Platform-specific processing is handled by the direct webhook routes
-    // (src/webhooks/stripe.js, github.js, notion.js). This agent provides
-    // dedup, retry, and indexing on top of those handlers.
-    // TODO: Wire platform delegation once webhook routes are refactored to be callable from DOs.
-    this.info("Webhook indexed", { webhookId, platform, eventType });
+    const row = this.rawSql.exec("SELECT payload_hash, event_id, metadata FROM webhook_events WHERE id = ?", webhookId).toArray()[0];
+    let payload = null;
+
+    // Attempt to retrieve the payload from R2 storage
+    if (this.env.WEBHOOK_STORAGE) {
+      const r2Row = this.rawSql.exec("SELECT r2_path FROM webhook_events WHERE id = ?", webhookId).toArray()[0];
+      if (r2Row?.r2_path) {
+        const key = r2Row.r2_path.replace(/^r2:\/\/[^/]+\//, "");
+        try {
+          const obj = await this.env.WEBHOOK_STORAGE.get(key);
+          if (obj) payload = await obj.json();
+        } catch (err) {
+          this.warn("R2 payload retrieval failed, skipping platform processing", { webhookId, error: err.message });
+        }
+      }
+    }
+
+    const meta = { event_type: eventType, event_id: row?.event_id };
+
+    // Delegate to platform-specific processing
+    let result;
+    switch (platform) {
+      case "notion":
+        if (!payload) { this.info("No payload for Notion delegation", { webhookId }); break; }
+        result = await processNotionWebhook(this.env, payload);
+        break;
+      case "github":
+        if (!payload) { this.info("No payload for GitHub delegation", { webhookId }); break; }
+        result = await processGithubWebhook(this.env, payload, meta);
+        break;
+      case "stripe":
+        if (!payload) { this.info("No payload for Stripe delegation", { webhookId }); break; }
+        result = await processStripeWebhook(this.env, payload, meta);
+        break;
+      default:
+        this.info("Generic webhook indexed (no platform handler)", { webhookId, platform, eventType });
+        return;
+    }
+
+    if (result && !result.ok) {
+      throw new Error(`${platform} processing failed: ${result.error}`);
+    }
+
+    this.info("Webhook processed via platform handler", { webhookId, platform, eventType, result });
   }
 
   handleListEvents(url) {

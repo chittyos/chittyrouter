@@ -4,6 +4,31 @@
  */
 import { verifyHmacSHA256, indexToR2AndNeon, json } from './webhook-handler.js';
 
+/**
+ * Process a GitHub webhook payload (no signature verification).
+ * Indexes event to R2 + Neon.
+ * Called by WebhookIngestionAgent for platform delegation.
+ *
+ * @param {object} env - Worker env bindings
+ * @param {object} payload - Parsed webhook payload
+ * @param {{ event_type?: string, event_id?: string }} meta - Event metadata
+ * @returns {Promise<{ ok: boolean, event?: string, delivery_id?: string, r2_path?: string, sha256?: string }>}
+ */
+export async function processGithubWebhook(env, payload, meta = {}) {
+  const event = meta.event_type || payload.action || 'unknown';
+  const deliveryId = meta.event_id || payload.delivery_id || crypto.randomUUID();
+
+  const document = {
+    delivery_id: deliveryId,
+    event,
+    captured_at: new Date().toISOString(),
+    payload,
+  };
+
+  const { r2Path, sha256 } = await indexToR2AndNeon(env, 'github', deliveryId, document);
+  return { ok: true, event, delivery_id: deliveryId, r2_path: r2Path, sha256 };
+}
+
 export async function handleGithubWebhook(request, env) {
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 

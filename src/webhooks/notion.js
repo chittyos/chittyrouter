@@ -55,6 +55,35 @@ export async function handleNotionWebhook(request, env) {
   }
 }
 
+/**
+ * Process a Notion webhook payload (no signature verification).
+ * Fetches full page data and indexes to R2 + Neon.
+ * Called by WebhookIngestionAgent for platform delegation.
+ *
+ * @param {object} env - Worker env bindings
+ * @param {object} payload - Parsed webhook payload
+ * @returns {Promise<{ ok: boolean, page_id?: string, r2_path?: string, sha256?: string, error?: string }>}
+ */
+export async function processNotionWebhook(env, payload) {
+  const pageId = extractNotionPageId(payload);
+  if (!pageId) return { ok: false, error: 'no_page_id_in_event' };
+  if (!env.NOTION_TOKEN) return { ok: false, error: 'notion_token_not_configured' };
+
+  const page = await fetchNotionPage(env.NOTION_TOKEN, pageId);
+  const blocks = await fetchNotionBlocks(env.NOTION_TOKEN, pageId);
+
+  const document = {
+    page_id: pageId,
+    captured_at: new Date().toISOString(),
+    page,
+    blocks,
+    raw_event: payload,
+  };
+
+  const { r2Path, sha256 } = await indexToR2AndNeon(env, 'notion', pageId, document);
+  return { ok: true, page_id: pageId, r2_path: r2Path, sha256 };
+}
+
 function extractNotionPageId(payload) {
   if (!payload) return null;
   if (payload.record?.id) return payload.record.id;

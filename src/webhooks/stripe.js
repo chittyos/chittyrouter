@@ -4,6 +4,30 @@
  */
 import { indexToR2AndNeon, json } from './webhook-handler.js';
 
+/**
+ * Process a Stripe webhook payload (no signature verification).
+ * Indexes event to R2 + Neon.
+ * Called by WebhookIngestionAgent for platform delegation.
+ *
+ * @param {object} env - Worker env bindings
+ * @param {object} payload - Parsed webhook payload
+ * @param {{ event_id?: string }} meta - Event metadata
+ * @returns {Promise<{ ok: boolean, event_id?: string, type?: string, r2_path?: string, sha256?: string }>}
+ */
+export async function processStripeWebhook(env, payload, meta = {}) {
+  const eventId = meta.event_id || payload.id || crypto.randomUUID();
+
+  const document = {
+    event_id: eventId,
+    type: payload.type || 'unknown',
+    captured_at: new Date().toISOString(),
+    payload,
+  };
+
+  const { r2Path, sha256 } = await indexToR2AndNeon(env, 'stripe', eventId, document);
+  return { ok: true, event_id: eventId, type: payload.type, r2_path: r2Path, sha256 };
+}
+
 export async function handleStripeWebhook(request, env) {
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
