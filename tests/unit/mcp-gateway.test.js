@@ -40,6 +40,90 @@ vi.mock("@modelcontextprotocol/sdk/server/mcp.js", () => ({
 
 import { ALL_TOOL_SCHEMAS } from "../../src/mcp/tool-schemas.js";
 import { ChittyRouterMcpGateway } from "../../src/mcp/mcp-gateway.js";
+import { authenticateMcpRequest } from "../../src/mcp/mcp-auth.js";
+
+// ── Auth Middleware Tests ────────────────────────────────────────────
+
+describe("MCP Auth Middleware", () => {
+  const VALID_KEY = "chitty_abc123";
+  const ACTIVE_KEY_DATA = JSON.stringify({ status: "active", name: "test-key", userId: "user1" });
+  const EXPIRED_KEY_DATA = JSON.stringify({ status: "active", expiresAt: "2020-01-01T00:00:00Z" });
+  const REVOKED_KEY_DATA = JSON.stringify({ status: "revoked" });
+
+  function mockEnv(kvEntries = {}) {
+    return {
+      MCP_API_KEYS: {
+        get: vi.fn(async (key) => kvEntries[key] ?? null),
+      },
+    };
+  }
+
+  function makeRequest(headers = {}) {
+    return new Request("https://router.chitty.cc/mcp/v2", {
+      method: "POST",
+      headers,
+    });
+  }
+
+  it("should bypass auth when MCP_API_KEYS not bound (dev mode)", async () => {
+    const result = await authenticateMcpRequest(makeRequest(), {});
+    expect(result).toBeNull();
+  });
+
+  it("should return 401 when no API key provided", async () => {
+    const result = await authenticateMcpRequest(makeRequest(), mockEnv());
+    expect(result.status).toBe(401);
+    const body = await result.json();
+    expect(body.error).toBe("Authentication required");
+  });
+
+  it("should return 403 for invalid API key", async () => {
+    const req = makeRequest({ "X-ChittyOS-API-Key": "bad-key" });
+    const result = await authenticateMcpRequest(req, mockEnv());
+    expect(result.status).toBe(403);
+    const body = await result.json();
+    expect(body.error).toBe("Invalid or revoked API key");
+  });
+
+  it("should return null (proceed) for valid active key", async () => {
+    const req = makeRequest({ "X-ChittyOS-API-Key": VALID_KEY });
+    const env = mockEnv({ [`key:${VALID_KEY}`]: ACTIVE_KEY_DATA });
+    const result = await authenticateMcpRequest(req, env);
+    expect(result).toBeNull();
+  });
+
+  it("should accept Authorization: Bearer header", async () => {
+    const req = makeRequest({ "Authorization": `Bearer ${VALID_KEY}` });
+    const env = mockEnv({ [`key:${VALID_KEY}`]: ACTIVE_KEY_DATA });
+    const result = await authenticateMcpRequest(req, env);
+    expect(result).toBeNull();
+  });
+
+  it("should return 403 for expired key", async () => {
+    const req = makeRequest({ "X-ChittyOS-API-Key": VALID_KEY });
+    const env = mockEnv({ [`key:${VALID_KEY}`]: EXPIRED_KEY_DATA });
+    const result = await authenticateMcpRequest(req, env);
+    expect(result.status).toBe(403);
+    const body = await result.json();
+    expect(body.error).toBe("API key expired");
+  });
+
+  it("should return 403 for revoked key", async () => {
+    const req = makeRequest({ "X-ChittyOS-API-Key": VALID_KEY });
+    const env = mockEnv({ [`key:${VALID_KEY}`]: REVOKED_KEY_DATA });
+    const result = await authenticateMcpRequest(req, env);
+    expect(result.status).toBe(403);
+    const body = await result.json();
+    expect(body.error).toBe("API key is revoked");
+  });
+
+  it("should return 500 for malformed key data in KV", async () => {
+    const req = makeRequest({ "X-ChittyOS-API-Key": VALID_KEY });
+    const env = mockEnv({ [`key:${VALID_KEY}`]: "not-valid-json{" });
+    const result = await authenticateMcpRequest(req, env);
+    expect(result.status).toBe(500);
+  });
+});
 
 // ── Tool Schema Tests ────────────────────────────────────────────────
 
@@ -127,11 +211,11 @@ describe("MCP Gateway Delegation", () => {
 
   function createMockEnv() {
     mockStub = {
-      fetch: vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ id: 1, status: "ok" }), {
+      fetch: vi.fn().mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ id: 1, status: "ok" }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
-        }),
+        })),
       ),
     };
 
@@ -169,8 +253,13 @@ describe("MCP Gateway Delegation", () => {
       null,
     );
 
-    expect(mockStub.fetch).toHaveBeenCalledOnce();
-    const req = mockStub.fetch.mock.calls[0][0];
+    expect(mockStub.fetch).toHaveBeenCalledTimes(2);
+    // First call: partyserver setup
+    const setupReq = mockStub.fetch.mock.calls[0][0];
+    expect(new URL(setupReq.url).pathname).toBe("/cdn-cgi/partyserver/set-name/");
+    expect(setupReq.headers.get("x-partykit-room")).toBe("ENTITY_AGENT");
+    // Second call: actual request
+    const req = mockStub.fetch.mock.calls[1][0];
     expect(req.method).toBe("POST");
     expect(new URL(req.url).pathname).toBe("/create");
     const body = await req.clone().json();
@@ -185,8 +274,8 @@ describe("MCP Gateway Delegation", () => {
       { entity_type: "P", org: "ChittyOS" },
     );
 
-    expect(mockStub.fetch).toHaveBeenCalledOnce();
-    const req = mockStub.fetch.mock.calls[0][0];
+    expect(mockStub.fetch).toHaveBeenCalledTimes(2);
+    const req = mockStub.fetch.mock.calls[1][0];
     expect(req.method).toBe("GET");
     const url = new URL(req.url);
     expect(url.pathname).toBe("/search");
@@ -201,7 +290,7 @@ describe("MCP Gateway Delegation", () => {
       { entity_type: "P", org: undefined, status: null },
     );
 
-    const req = mockStub.fetch.mock.calls[0][0];
+    const req = mockStub.fetch.mock.calls[1][0];
     const url = new URL(req.url);
     expect(url.searchParams.get("entity_type")).toBe("P");
     expect(url.searchParams.has("org")).toBe(false);
@@ -243,8 +332,8 @@ describe("MCP Gateway handleToolCall", () => {
   });
 
   it("should return MCP content for successful responses", async () => {
-    mockStub.fetch.mockResolvedValue(
-      new Response(JSON.stringify({ id: 1, name: "Test" }), { status: 200 }),
+    mockStub.fetch.mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ id: 1, name: "Test" }), { status: 200 })),
     );
 
     const toolDef = ALL_TOOL_SCHEMAS.entity__create;
@@ -261,8 +350,8 @@ describe("MCP Gateway handleToolCall", () => {
   });
 
   it("should return isError for 4xx responses", async () => {
-    mockStub.fetch.mockResolvedValue(
-      new Response(JSON.stringify({ error: "name is required" }), { status: 400 }),
+    mockStub.fetch.mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ error: "name is required" }), { status: 400 })),
     );
 
     const toolDef = ALL_TOOL_SCHEMAS.entity__create;
@@ -274,8 +363,8 @@ describe("MCP Gateway handleToolCall", () => {
   });
 
   it("should return isError for 5xx responses", async () => {
-    mockStub.fetch.mockResolvedValue(
-      new Response(JSON.stringify({ error: "Internal error" }), { status: 500 }),
+    mockStub.fetch.mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ error: "Internal error" }), { status: 500 })),
     );
 
     const toolDef = ALL_TOOL_SCHEMAS.triage__classify;

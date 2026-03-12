@@ -1,0 +1,119 @@
+// chittyrouter-ai-gateway — Cloudflare Workers configuration
+{
+  "name": "chittyrouter-ai-gateway",
+  "main": "src/index-minimal.js",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "email": [
+    {
+      "name": "chittyrouter-email",
+      "source_domain": "example.com"
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "*example.com/*",
+      "zone_id": "your-zone-id-here"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AI_STATE",
+        "class_name": "AIStateDO"
+      },
+      {
+        "name": "CHITTYCHAIN_DO",
+        "class_name": "ChittyChainDO"
+      }
+    ]
+  },
+  "env": {
+    "staging": {
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "CHITTYOS_ENDPOINT": "https://staging.chittyos.com",
+        "CHITTYCHAT_API": "https://staging.chittychat.api.com",
+        "EVIDENCE_VAULT_URL": "https://staging.evidence.chittyos.com",
+        "AI_MODEL_ENDPOINT": "@cf/meta/llama-3.1-8b-instruct",
+        "AI_GATEWAY_VERSION": "2.0.0-ai"
+      }
+    },
+    "production": {
+      "vars": {
+        "ENVIRONMENT": "production",
+        "CHITTYOS_ENDPOINT": "https://chittyos.com",
+        "CHITTYCHAT_API": "https://chittychat.api.com",
+        "EVIDENCE_VAULT_URL": "https://evidence.chittyos.com",
+        "AI_MODEL_ENDPOINT": "@cf/meta/llama-3.1-8b-instruct",
+        "AI_GATEWAY_VERSION": "2.0.0-ai"
+      }
+    }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "CHITTYROUTER_CACHE",
+      "id": "your-kv-namespace-id"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "EMAIL_ATTACHMENTS",
+      "bucket_name": "chittyrouter-attachments"
+    }
+  ],
+  "send_email": [
+    {
+      "name": "EMAIL_SENDER",
+      "destination_address": "updates@example.com"
+    },
+    {
+      "name": "EVIDENCE_SENDER",
+      "destination_address": "evidence@example.com"
+    },
+    {
+      "name": "CALENDAR_SENDER",
+      "destination_address": "calendar@example.com"
+    },
+    {
+      "name": "CHITTYID_SENDER",
+      "destination_address": "chittyid@example.com"
+    }
+  ],
+  "services": [
+    {
+      "binding": "CHITTYOS_SERVICE",
+      "service": "chittyos-core"
+    },
+    {
+      "binding": "CHITTYCHAT_SERVICE",
+      "service": "chittychat"
+    },
+    {
+      "binding": "CHITTYID_SERVICE",
+      "service": "chittyid"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "build": {
+    "command": "npm run build",
+    "cwd": "."
+  },
+  "triggers": {
+    "crons": [
+      "0 0 * * *"
+    ]
+  },
+  "tail_consumers": [
+    {
+      "service": "chittytrack"
+    }
+  ]
+}

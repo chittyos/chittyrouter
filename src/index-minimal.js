@@ -6,6 +6,7 @@
 import UnifiedWorker from "./unified-worker.js";
 import { ChittyRouterMcpGateway } from "./mcp/mcp-gateway.js";
 import { McpAgent } from "agents/mcp";
+import { authenticateMcpRequest } from "./mcp/mcp-auth.js";
 
 // Legacy Durable Objects
 export { SyncStateDurableObject, AIStateDO } from "./unified-worker.js";
@@ -48,6 +49,8 @@ export default {
     // Route MCP requests to the gateway before unified worker
     const url = new URL(request.url);
     if (url.pathname.startsWith("/mcp/v2")) {
+      const authResult = await authenticateMcpRequest(request, env);
+      if (authResult) return authResult;
       return mcpHandler.fetch(request, env, ctx);
     }
 
