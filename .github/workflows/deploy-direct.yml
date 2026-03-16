@@ -2,8 +2,6 @@ name: Deploy ChittyRouter Gateway Direct
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   deploy:
@@ -15,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -24,7 +22,7 @@ jobs:
         run: npm ci
 
       - name: Deploy to Cloudflare Workers
-        run: npx wrangler deploy --env production
+        run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -32,16 +30,4 @@ jobs:
       - name: Test Deployment
         run: |
           sleep 10
-          curl -f https://gateway.chitty.cc/health || echo "Gateway health check pending..."
-
-      - name: Update Registry
-        run: |
-          curl -X POST https://registry.chitty.cc/api/v1/services/update \
-            -H "Content-Type: application/json" \
-            -d '{
-              "service": "chittyrouter-gateway",
-              "status": "deployed",
-              "endpoint": "https://gateway.chitty.cc",
-              "version": "2.0.0-ai",
-              "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
-            }' || echo "Registry update pending"
+          curl -f https://router.chitty.cc/health || echo "Health check pending..."
