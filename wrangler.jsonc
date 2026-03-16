@@ -2,7 +2,7 @@
 {
   "name": "chittyrouter",
   "main": "src/index-minimal.js",
-  "compatibility_date": "2025-12-01",
+  "compatibility_date": "2026-03-16",
   "compatibility_flags": [
     "nodejs_compat"
   ],
@@ -107,7 +107,7 @@
     }
   ],
   "vars": {
-    "ENVIRONMENT": "development",
+    "ENVIRONMENT": "production",
     "SERVICE_NAME": "ChittyRouter AI Gateway",
     "VERSION": "2.1.0-ai",
     "AI_MODEL_PRIMARY": "@cf/meta/llama-4-scout-17b-16e-instruct",
@@ -123,6 +123,7 @@
     "VERSION_MANAGEMENT": "enterprise",
     "CHITTYCONNECT_URL": "https://connect.chitty.cc"
   },
+  // mcp.chitty.cc/* route removed — owned by chittyconnect (canonical MCP gateway)
   "routes": [
     {
       "pattern": "router.chitty.cc/*",
