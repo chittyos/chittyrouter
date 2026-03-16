@@ -46,7 +46,7 @@
     "esbuild": "^0.27.3",
     "eslint": "^10.0.3",
     "prettier": "^3.8.1",
-    "vitest": "^0.34.0",
+    "vitest": "^4.1.0",
     "wrangler": "^4.72.0"
   },
   "keywords": [
