@@ -68,6 +68,7 @@
     "CHITTYROUTER_URL": "https://router.chitty.cc",
     "ENABLE_ANALYTICS": "true"
   },
+  // mcp.chitty.cc/* route removed — owned by chittyconnect (canonical MCP gateway)
   "routes": [
     {
       "pattern": "router.chitty.cc/*",
