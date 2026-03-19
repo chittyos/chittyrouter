@@ -37,7 +37,7 @@
     "@neondatabase/serverless": "^1.0.2",
     "@notionhq/client": "^5.13.0",
     "@octokit/rest": "^22.0.1",
-    "agents": "^0.7.5",
+    "agents": "^0.7.6",
     "mimetext": "^3.0.28",
     "zod": "^4.3.6"
   },
