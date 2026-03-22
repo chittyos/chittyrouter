@@ -28,6 +28,7 @@
       { "name": "WEBHOOK_AGENT", "class_name": "WebhookIngestionAgent" },
       { "name": "MESSAGING_AGENT", "class_name": "MessagingAgent" },
       { "name": "SECURITY_AGENT", "class_name": "SecurityAgent" },
+      { "name": "SCRAPE_AGENT", "class_name": "ScrapeAgent" },
       { "name": "MCP_GATEWAY", "class_name": "ChittyRouterMcpGateway" }
     ]
   },
@@ -52,6 +53,10 @@
     {
       "tag": "v4",
       "new_sqlite_classes": ["SecurityAgent"]
+    },
+    {
+      "tag": "v5",
+      "new_sqlite_classes": ["ScrapeAgent"]
     }
   ],
   "vars": {
