@@ -24,6 +24,7 @@ export { NotificationAgent } from "./agents/notification-agent.js";
 export { IntelligenceAgent } from "./agents/intelligence-agent.js";
 export { WebhookIngestionAgent } from "./agents/webhook-agent.js";
 export { MessagingAgent } from "./agents/messaging-agent.js";
+export { ScrapeAgent } from "./agents/scrape-agent.js";
 
 // MCP Gateway Durable Object
 export { ChittyRouterMcpGateway } from "./mcp/mcp-gateway.js";

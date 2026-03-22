@@ -122,6 +122,7 @@ class RouteMultiplexer {
       ["/agents/intelligence/*", this.delegateToAgent.bind(this, "INTELLIGENCE_AGENT")],
       ["/agents/webhook/*", this.delegateToAgent.bind(this, "WEBHOOK_AGENT")],
       ["/agents/messaging/*", this.delegateToAgent.bind(this, "MESSAGING_AGENT")],
+      ["/agents/scrape/*", this.delegateToAgent.bind(this, "SCRAPE_AGENT")],
       ["/agents/status", this.handleAgentStatus.bind(this)],
     ]);
   }
@@ -477,7 +478,7 @@ class RouteMultiplexer {
         bindings: [
           "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
           "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
-          "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+          "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT", "SCRAPE_AGENT",
         ].filter((n) => !!this.env[n]).length,
         route: "/agents/status",
       },
@@ -491,7 +492,7 @@ class RouteMultiplexer {
     const agentBindings = [
       "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
       "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
-      "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+      "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT", "SCRAPE_AGENT",
     ];
     return this.jsonResponse({
       status: "ok",
@@ -703,7 +704,7 @@ class RouteMultiplexer {
     const agentNames = [
       "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
       "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
-      "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+      "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT", "SCRAPE_AGENT",
     ];
 
     const results = await Promise.all(
