@@ -27,12 +27,13 @@ const ENTITY_SUBTYPES = {
   A: ["Granted", "Earned", "Credential", "Certification"],
 };
 
+// @canon: chittycanon://gov/governance — lifecycle uses "retired" not "archived"
 const STATUS_TRANSITIONS = {
   draft: ["active"],
-  active: ["suspended", "closed", "archived"],
+  active: ["suspended", "closed", "retired"],
   suspended: ["active", "closed"],
-  closed: ["archived"],
-  archived: [],
+  closed: ["retired"],
+  retired: [],
 };
 
 export class EntityAgent extends ChittyRouterBaseAgent {
