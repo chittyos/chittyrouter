@@ -19,6 +19,9 @@ const ORG_PATTERNS = [
 ];
 
 export class ChittyRouterBaseAgent extends Agent {
+  // Circuit breaker for prompt registry lookups
+  static _promptFailures = 0;
+  static _promptCooldownUntil = 0;
   /**
    * Called when agent first starts or wakes from hibernation.
    * Subclasses should call super.onStart() then do their own init.
@@ -135,6 +138,9 @@ export class ChittyRouterBaseAgent extends Agent {
     const connectUrl = this.env.CHITTYCONNECT_URL;
     if (!connectUrl) return null;
 
+    // Circuit breaker: skip if too many recent failures
+    if (Date.now() < this.constructor._promptCooldownUntil) return null;
+
     try {
       const environment = this.env.ENVIRONMENT || "production";
       const res = await fetch(`${connectUrl}/api/v1/context/prompts/resolve`, {
@@ -142,6 +148,7 @@ export class ChittyRouterBaseAgent extends Agent {
         headers: {
           "Content-Type": "application/json",
           "X-Source-Service": "chittyrouter",
+          "Authorization": `Bearer ${this.env.CHITTYCONNECT_TOKEN || ""}`,
         },
         body: JSON.stringify({
           promptId,
@@ -149,13 +156,25 @@ export class ChittyRouterBaseAgent extends Agent {
           variables,
           consumerService: "chittyrouter",
         }),
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(2000),
       });
 
-      if (!res.ok) return null;
+      if (!res.ok) {
+        this.constructor._promptFailures++;
+        if (this.constructor._promptFailures >= 3) {
+          this.constructor._promptCooldownUntil = Date.now() + 30000; // 30s cooldown
+          this.constructor._promptFailures = 0;
+        }
+        return null;
+      }
+      this.constructor._promptFailures = 0; // Reset on success
       return await res.json();
     } catch (err) {
-      console.error(`[base-agent] resolvePrompt(${promptId}) failed:`, err.message || err);
+      this.constructor._promptFailures++;
+      if (this.constructor._promptFailures >= 3) {
+        this.constructor._promptCooldownUntil = Date.now() + 30000; // 30s cooldown
+        this.constructor._promptFailures = 0;
+      }
       return null;
     }
   }

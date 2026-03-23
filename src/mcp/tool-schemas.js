@@ -155,7 +155,7 @@ export const entitySchemas = {
     description: "Update an existing entity (status transition, name, metadata)",
     schema: z.object({
       id: z.number().describe("Entity ID"),
-      status: z.string().optional().describe("New status (draft→active→suspended/closed→archived)"),
+      status: z.string().optional().describe("New status (draft→active→suspended/closed→retired)"),
       name: z.string().optional().describe("New name"),
       metadata: z.record(z.any()).optional().describe("Metadata to merge"),
     }),
@@ -557,7 +557,7 @@ export const messagingSchemas = {
     description: "List conversations with filtering",
     schema: z.object({
       org: z.string().optional().describe("Filter by organization"),
-      status: z.string().optional().describe("Filter by status (active, archived)"),
+      status: z.string().optional().describe("Filter by status (active, retired)"),
       limit: z.number().optional().describe("Max results (default 50)"),
     }),
     method: "GET",
