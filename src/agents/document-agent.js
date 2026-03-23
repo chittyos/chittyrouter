@@ -174,6 +174,7 @@ Respond with JSON only:
 
     const response = await this.runAIWithPrompt(prompt, {
       promptId: 'document.analyze',
+      promptId: "document.analyze",
     });
 
     if (response === null) return this.fallbackAnalyze(attachment);

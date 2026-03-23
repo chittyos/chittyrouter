@@ -194,6 +194,7 @@ Respond with JSON only:
 
     const response = await this.runAIWithPrompt(prompt, {
       promptId: 'triage.classify',
+      promptId: "triage.classify",
       variables: { org: orgResult.org, categories: categoryList },
     });
 

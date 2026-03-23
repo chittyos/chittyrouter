@@ -170,6 +170,7 @@ Respond with JSON only:
 
     const response = await this.runAIWithPrompt(prompt, {
       promptId: 'intelligence.analyze',
+      promptId: "intelligence.analyze",
       variables: { analysisType },
     });
 
