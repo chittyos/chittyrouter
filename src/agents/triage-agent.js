@@ -174,7 +174,14 @@ Respond with JSON only:
   "reasoning": "brief explanation"
 }`;
 
-    const response = await this.runAI(prompt);
+    const response = await this.runAIWithPrompt(prompt, {
+      promptId: "triage.classify",
+      variables: { org: orgResult.org, categories: categoryList },
+    });
+
+    // Environment gate returned passthrough
+    if (response === null) return this.fallbackClassify(emailData);
+
     const parsed = this.parseAIJson(response);
 
     if (parsed && parsed.category && CATEGORIES.includes(parsed.category)) {

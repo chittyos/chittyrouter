@@ -179,7 +179,13 @@ RESPONSE REQUIREMENTS:
 
 Generate only the email body text, no subject line.`;
 
-    const response = await this.runAI(prompt);
+    const response = await this.runAIWithPrompt(prompt, {
+      promptId: "response.draft",
+      variables: { category: triageResult.category },
+    });
+
+    if (response === null) return this.fallbackDraft(triageResult);
+
     const cleaned = this.cleanResponseText(response);
 
     return {

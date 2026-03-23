@@ -179,7 +179,13 @@ Respond with JSON only:
   "reasoning": "explanation"
 }`;
 
-    const response = await this.runAI(prompt);
+    const response = await this.runAIWithPrompt(prompt, {
+      promptId: "priority.classify",
+      variables: { org: data.org || "unknown" },
+    });
+
+    if (response === null) return this.fallbackPrioritize(data);
+
     const parsed = this.parseAIJson(response);
 
     if (parsed && parsed.level && PRIORITY_LEVELS.includes(parsed.level)) {

@@ -123,6 +123,69 @@ export class ChittyRouterBaseAgent extends Agent {
   }
 
   /**
+   * Resolve a prompt from ChittyConnect's managed prompt registry.
+   * Returns the composed system prompt if available, null otherwise.
+   * Agents should fall back to their inline prompt when this returns null.
+   *
+   * @param {string} promptId - e.g. "triage.classify", "document.analyze"
+   * @param {Record<string, string>} [variables] - template variables to substitute
+   * @returns {Promise<{ systemPrompt: string, aiEnabled: boolean, version: number } | null>}
+   */
+  async resolvePrompt(promptId, variables) {
+    const connectUrl = this.env.CHITTYCONNECT_URL;
+    if (!connectUrl) return null;
+
+    try {
+      const environment = this.env.ENVIRONMENT || "production";
+      const res = await fetch(`${connectUrl}/api/v1/context/prompts/resolve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Source-Service": "chittyrouter",
+        },
+        body: JSON.stringify({
+          promptId,
+          environment,
+          variables,
+          consumerService: "chittyrouter",
+        }),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (err) {
+      console.error(`[base-agent] resolvePrompt(${promptId}) failed:`, err.message || err);
+      return null;
+    }
+  }
+
+  /**
+   * Run AI with optional managed prompt resolution.
+   * Tries to resolve the prompt from ChittyConnect first; falls back to the inline prompt.
+   *
+   * @param {string} inlinePrompt - the fallback prompt text
+   * @param {{ promptId?: string, variables?: Record<string, string>, model?: string, maxTokens?: number, systemPrompt?: string }} opts
+   */
+  async runAIWithPrompt(inlinePrompt, opts = {}) {
+    let systemPrompt = opts.systemPrompt || null;
+
+    // Try managed prompt resolution
+    if (opts.promptId) {
+      const resolved = await this.resolvePrompt(opts.promptId, opts.variables);
+      if (resolved?.aiEnabled === false) {
+        // Environment gate says no AI — return null to signal passthrough
+        return null;
+      }
+      if (resolved?.systemPrompt) {
+        systemPrompt = resolved.systemPrompt;
+      }
+    }
+
+    return this.runAI(inlinePrompt, { ...opts, systemPrompt });
+  }
+
+  /**
    * Parse a JSON object from an AI response string.
    */
   parseAIJson(response) {
