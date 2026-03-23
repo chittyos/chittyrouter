@@ -172,7 +172,12 @@ Respond with JSON only:
   "reasoning": "brief explanation"
 }`;
 
-    const response = await this.runAI(prompt);
+    const response = await this.runAIWithPrompt(prompt, {
+      promptId: "document.analyze",
+    });
+
+    if (response === null) return this.fallbackAnalyze(attachment);
+
     const parsed = this.parseAIJson(response);
 
     if (parsed && parsed.document_type && DOCUMENT_TYPES.includes(parsed.document_type)) {

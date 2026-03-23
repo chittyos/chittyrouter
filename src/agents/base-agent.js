@@ -19,6 +19,9 @@ const ORG_PATTERNS = [
 ];
 
 export class ChittyRouterBaseAgent extends Agent {
+  // Circuit breaker for prompt registry lookups
+  static _promptFailures = 0;
+  static _promptCooldownUntil = 0;
   /**
    * Called when agent first starts or wakes from hibernation.
    * Subclasses should call super.onStart() then do their own init.
@@ -120,6 +123,85 @@ export class ChittyRouterBaseAgent extends Agent {
     });
 
     return response.response;
+  }
+
+  /**
+   * Resolve a prompt from ChittyConnect's managed prompt registry.
+   * Returns the composed system prompt if available, null otherwise.
+   * Agents should fall back to their inline prompt when this returns null.
+   *
+   * @param {string} promptId - e.g. "triage.classify", "document.analyze"
+   * @param {Record<string, string>} [variables] - template variables to substitute
+   * @returns {Promise<{ systemPrompt: string, aiEnabled: boolean, version: number } | null>}
+   */
+  async resolvePrompt(promptId, variables) {
+    const connectUrl = this.env.CHITTYCONNECT_URL;
+    if (!connectUrl) return null;
+
+    // Circuit breaker: skip if too many recent failures
+    if (Date.now() < this.constructor._promptCooldownUntil) return null;
+
+    try {
+      const environment = this.env.ENVIRONMENT || "production";
+      const res = await fetch(`${connectUrl}/api/v1/context/prompts/resolve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Source-Service": "chittyrouter",
+          "Authorization": `Bearer ${this.env.CHITTYCONNECT_TOKEN || ""}`,
+        },
+        body: JSON.stringify({
+          promptId,
+          environment,
+          variables,
+          consumerService: "chittyrouter",
+        }),
+        signal: AbortSignal.timeout(2000),
+      });
+
+      if (!res.ok) {
+        this.constructor._promptFailures++;
+        if (this.constructor._promptFailures >= 3) {
+          this.constructor._promptCooldownUntil = Date.now() + 30000; // 30s cooldown
+          this.constructor._promptFailures = 0;
+        }
+        return null;
+      }
+      this.constructor._promptFailures = 0; // Reset on success
+      return await res.json();
+    } catch (err) {
+      this.constructor._promptFailures++;
+      if (this.constructor._promptFailures >= 3) {
+        this.constructor._promptCooldownUntil = Date.now() + 30000; // 30s cooldown
+        this.constructor._promptFailures = 0;
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Run AI with optional managed prompt resolution.
+   * Tries to resolve the prompt from ChittyConnect first; falls back to the inline prompt.
+   *
+   * @param {string} inlinePrompt - the fallback prompt text
+   * @param {{ promptId?: string, variables?: Record<string, string>, model?: string, maxTokens?: number, systemPrompt?: string }} opts
+   */
+  async runAIWithPrompt(inlinePrompt, opts = {}) {
+    let systemPrompt = opts.systemPrompt || null;
+
+    // Try managed prompt resolution
+    if (opts.promptId) {
+      const resolved = await this.resolvePrompt(opts.promptId, opts.variables);
+      if (resolved?.aiEnabled === false) {
+        // Environment gate says no AI — return null to signal passthrough
+        return null;
+      }
+      if (resolved?.systemPrompt) {
+        systemPrompt = resolved.systemPrompt;
+      }
+    }
+
+    return this.runAI(inlinePrompt, { ...opts, systemPrompt });
   }
 
   /**

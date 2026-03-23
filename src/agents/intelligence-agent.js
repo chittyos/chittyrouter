@@ -168,7 +168,13 @@ Respond with JSON only:
   "recommended_actions": ["action1"]
 }`;
 
-    const response = await this.runAI(prompt);
+    const response = await this.runAIWithPrompt(prompt, {
+      promptId: "intelligence.analyze",
+      variables: { analysisType },
+    });
+
+    if (response === null) return this.fallbackAnalyze(observations);
+
     const parsed = this.parseAIJson(response);
     if (parsed?.summary) return { ...parsed, aiModel: this.env.AI_MODEL_PRIMARY, fallback: false };
     return this.fallbackAnalyze(observations);
