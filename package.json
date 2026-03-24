@@ -1,7 +1,7 @@
 {
   "name": "chittyrouter",
   "version": "2.1.0-ai",
-  "description": "ChittyRouter AI Gateway - Intelligent email routing with AI agents and orchestration for ChittyOS legal platform",
+  "description": "ChittyRouter — intelligent gateway with prompt-lookup, circuit breaking, and AI-powered routing",
   "main": "src/index-minimal.js",
   "type": "module",
   "scripts": {
