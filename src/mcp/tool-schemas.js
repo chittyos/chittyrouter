@@ -556,15 +556,9 @@ export const messagingSchemas = {
   messaging__conversations: {
     description: 'List conversations with filtering',
     schema: z.object({
-<<<<<<< HEAD
       org: z.string().optional().describe('Filter by organization'),
       status: z.string().optional().describe('Filter by status (active, retired)'),
       limit: z.number().optional().describe('Max results (default 50)'),
-=======
-      org: z.string().optional().describe("Filter by organization"),
-      status: z.string().optional().describe("Filter by status (active, retired)"),
-      limit: z.number().optional().describe("Max results (default 50)"),
->>>>>>> 72fc5e3 (fix: reduce prompt-lookup timeout to 2s with circuit breaker, add auth header, rename archived→retired)
     }),
     method: 'GET',
     path: '/conversations',

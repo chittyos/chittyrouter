@@ -71,8 +71,8 @@ export class InboxMonitor {
   async getConfiguredInboxes() {
     // These correspond to the rclone/Google accounts
     return [
-      { name: 'nick_aribia_main', type: 'gmail', email: 'nick@aribia.cc' },
-      { name: 'aribia_llc', type: 'gmail', email: 'admin@aribia.cc' },
+      { name: 'nick_aribia_main', type: 'gmail', email: 'nick@aribia.llc' },
+      { name: 'aribia_llc', type: 'gmail', email: 'admin@aribia.llc' },
       { name: 'it_can_be_llc', type: 'gmail', email: 'admin@itcanbe.llc' },
       { name: 'chitty_router', type: 'cloudflare', domain: 'chitty.cc' }
     ];
