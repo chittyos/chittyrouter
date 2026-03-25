@@ -17,6 +17,7 @@ import { AgentOrchestrator } from "./ai/agent-orchestrator.js";
 import { SessionService } from "./services/session-service.js";
 import { MobileBridgeService } from "./services/mobile-bridge.js";
 import { InboxMonitor, handleScheduledMonitoring } from "./email/inbox-monitor.js";
+import { CloudflareEmailHandler } from "./email/cloudflare-email-handler.js";
 
 // Webhook handlers
 import { handleNotionWebhook } from "./webhooks/notion.js";
@@ -102,6 +103,14 @@ class RouteMultiplexer {
       ["/email/monitor", this.handleInboxMonitor.bind(this)],
       ["/email/status", this.handleEmailStatus.bind(this)],
       ["/email/urgent", this.handleUrgentEmails.bind(this)],
+      ["/email/receipts", this.handleEmailReceipts.bind(this)],
+      ["/email/correct", this.handleEmailCorrection.bind(this)],
+      ["/email/training", this.handleEmailTraining.bind(this)],
+      ["/email/queue", this.handleEmailQueue.bind(this)],
+      ["/email/queue/approve", this.handleEmailQueueApprove.bind(this)],
+      ["/email/queue/approve-all", this.handleEmailQueueApproveAll.bind(this)],
+      ["/email/queue/correct", this.handleEmailQueueCorrect.bind(this)],
+      ["/email/mode", this.handleEmailMode.bind(this)],
 
       // Webhook Ingestion Routes
       ["/webhook/notion", this.handleWebhookNotion.bind(this)],
@@ -617,6 +626,121 @@ class RouteMultiplexer {
         count: urgent.length,
         items: urgent.filter(i => i.urgencyScore >= 50)
       });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // GET /email/receipts — recent routing confirmations
+  async handleEmailReceipts(request) {
+    try {
+      const handler = new CloudflareEmailHandler(this.env);
+      const url = new URL(request.url);
+      const limit = parseInt(url.searchParams.get('limit') || '20');
+      const receipts = await handler.getRecentReceipts(limit);
+      return this.jsonResponse({ count: receipts.length, receipts });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // POST /email/correct — submit a routing correction for AI training
+  // Body: { receiptId, from, subject, wasCategory, shouldBeCategory, shouldBeEntity, reason }
+  async handleEmailCorrection(request) {
+    if (request.method !== 'POST') {
+      return this.jsonResponse({ error: 'POST required' }, 405);
+    }
+    try {
+      const body = await request.json();
+      const handler = new CloudflareEmailHandler(this.env);
+      const result = await handler.submitCorrection(body);
+      return this.jsonResponse(result);
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // GET /email/training — view current training corrections
+  async handleEmailTraining(request) {
+    try {
+      const handler = new CloudflareEmailHandler(this.env);
+      const examples = await handler.getTrainingExamples();
+      return this.jsonResponse({ count: examples.length, corrections: examples });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // GET /email/queue?status=pending — view the review queue
+  async handleEmailQueue(request) {
+    try {
+      const handler = new CloudflareEmailHandler(this.env);
+      const url = new URL(request.url);
+      const status = url.searchParams.get('status') || null;
+      const limit = parseInt(url.searchParams.get('limit') || '50');
+      const items = await handler.getQueue(status, limit);
+      const mode = await handler.getRoutingMode();
+      return this.jsonResponse({ mode, count: items.length, queue: items });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // POST /email/queue/approve — approve a single queue item (AI was right)
+  // Body: { id: "q-..." }
+  async handleEmailQueueApprove(request) {
+    if (request.method !== 'POST') return this.jsonResponse({ error: 'POST required' }, 405);
+    try {
+      const { id } = await request.json();
+      const handler = new CloudflareEmailHandler(this.env);
+      const item = await handler.updateQueueItem(id, 'approved');
+      return this.jsonResponse(item || { error: 'not found' });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // POST /email/queue/approve-all — bulk approve all pending (AI nailed it)
+  async handleEmailQueueApproveAll(request) {
+    if (request.method !== 'POST') return this.jsonResponse({ error: 'POST required' }, 405);
+    try {
+      const handler = new CloudflareEmailHandler(this.env);
+      const result = await handler.approveAll();
+      return this.jsonResponse(result);
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // POST /email/queue/correct — correct a queue item (AI was wrong)
+  // Body: { id, category, entity, caseRelevant, reason }
+  async handleEmailQueueCorrect(request) {
+    if (request.method !== 'POST') return this.jsonResponse({ error: 'POST required' }, 405);
+    try {
+      const body = await request.json();
+      const { id, ...correction } = body;
+      const handler = new CloudflareEmailHandler(this.env);
+      const item = await handler.updateQueueItem(id, 'corrected', correction);
+      return this.jsonResponse(item || { error: 'not found' });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // GET/POST /email/mode — get or set routing mode (onboarding vs auto)
+  async handleEmailMode(request) {
+    try {
+      const handler = new CloudflareEmailHandler(this.env);
+      if (request.method === 'POST') {
+        const { mode } = await request.json();
+        if (!['onboarding', 'auto'].includes(mode)) {
+          return this.jsonResponse({ error: 'mode must be "onboarding" or "auto"' }, 400);
+        }
+        const result = await handler.setRoutingMode(mode);
+        return this.jsonResponse(result);
+      }
+      const mode = await handler.getRoutingMode();
+      return this.jsonResponse({ mode });
     } catch (error) {
       return this.jsonResponse({ error: error.message }, 500);
     }

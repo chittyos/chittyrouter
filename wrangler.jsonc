@@ -1,7 +1,7 @@
 // chittyrouter — Cloudflare Workers configuration
 {
   "name": "chittyrouter",
-  "main": "src/index-minimal.js",
+  "main": "dist/index.js",
   "compatibility_date": "2026-03-16",
   "compatibility_flags": [
     "nodejs_compat"
@@ -75,21 +75,11 @@
       "zone_name": "chitty.cc"
     }
   ],
-  "email": [
-    {
-      "name": "chittyrouter-email",
-      "destination_addresses": [
-        "*@chitty.cc",
-        "*-v-*@chitty.cc",
-        "case-*@chitty.cc",
-        "matter-*@chitty.cc",
-        "intake@chitty.cc",
-        "legal@chitty.cc",
-        "evidence@chitty.cc",
-        "calendar@chitty.cc"
-      ]
-    }
-  ],
+  // Email routing is configured at the zone level via Cloudflare Email Routing API,
+  // NOT in wrangler.jsonc. The "email" field is not a valid wrangler config key.
+  // Run: bash scripts/setup-email-routing.sh
+  // Routes configured: catch-all (*@chitty.cc) + evidence@, legal@, intake@, calendar@
+  // All routed to this worker's email() handler.
   "kv_namespaces": [
     {
       "binding": "AI_CACHE",

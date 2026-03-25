@@ -7,6 +7,7 @@ import UnifiedWorker from "./unified-worker.js";
 import { ChittyRouterMcpGateway } from "./mcp/mcp-gateway.js";
 import { McpAgent } from "agents/mcp";
 import { authenticateMcpRequest } from "./mcp/mcp-auth.js";
+import { email as emailHandler } from "./email/cloudflare-email-handler.js";
 
 // Legacy Durable Objects
 export { SyncStateDurableObject, AIStateDO } from "./unified-worker.js";
@@ -55,6 +56,12 @@ export default {
     }
 
     return await UnifiedWorker.fetch(request, env, ctx);
+  },
+
+  // Cloudflare Email Worker — handles all incoming *@chitty.cc emails
+  // Routed via Cloudflare Email Routing rules (zone-level config, not wrangler)
+  async email(message, env, ctx) {
+    return emailHandler(message, env, ctx);
   },
 
   async scheduled(event, env, ctx) {
