@@ -650,6 +650,7 @@ class RouteMultiplexer {
     if (request.method !== 'POST') {
       return this.jsonResponse({ error: 'POST required' }, 405);
     }
+    const authErr = this.requireAuth(request); if (authErr) return authErr;
     try {
       const body = await request.json();
       const handler = new CloudflareEmailHandler(this.env);
@@ -690,6 +691,7 @@ class RouteMultiplexer {
   // Body: { id: "q-..." }
   async handleEmailQueueApprove(request) {
     if (request.method !== 'POST') return this.jsonResponse({ error: 'POST required' }, 405);
+    const authErr = this.requireAuth(request); if (authErr) return authErr;
     try {
       const { id } = await request.json();
       const handler = new CloudflareEmailHandler(this.env);
@@ -703,6 +705,7 @@ class RouteMultiplexer {
   // POST /email/queue/approve-all — bulk approve all pending (AI nailed it)
   async handleEmailQueueApproveAll(request) {
     if (request.method !== 'POST') return this.jsonResponse({ error: 'POST required' }, 405);
+    const authErr = this.requireAuth(request); if (authErr) return authErr;
     try {
       const handler = new CloudflareEmailHandler(this.env);
       const result = await handler.approveAll();
@@ -716,6 +719,7 @@ class RouteMultiplexer {
   // Body: { id, category, entity, caseRelevant, reason }
   async handleEmailQueueCorrect(request) {
     if (request.method !== 'POST') return this.jsonResponse({ error: 'POST required' }, 405);
+    const authErr = this.requireAuth(request); if (authErr) return authErr;
     try {
       const body = await request.json();
       const { id, ...correction } = body;
@@ -732,6 +736,7 @@ class RouteMultiplexer {
     try {
       const handler = new CloudflareEmailHandler(this.env);
       if (request.method === 'POST') {
+        const authErr = this.requireAuth(request); if (authErr) return authErr;
         const { mode } = await request.json();
         if (!['onboarding', 'auto'].includes(mode)) {
           return this.jsonResponse({ error: 'mode must be "onboarding" or "auto"' }, 400);
@@ -928,6 +933,19 @@ class RouteMultiplexer {
   }
 
   // ============ Response Helpers ============
+
+  /**
+   * Verify service token for protected endpoints
+   */
+  requireAuth(request) {
+    const auth = request.headers.get('Authorization');
+    if (!auth) return this.jsonResponse({ error: 'Authorization required' }, 401);
+    const token = auth.replace('Bearer ', '');
+    if (token !== this.env.CHITTY_AUTH_SERVICE_TOKEN) {
+      return this.jsonResponse({ error: 'Invalid token' }, 403);
+    }
+    return null; // auth passed
+  }
 
   jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {

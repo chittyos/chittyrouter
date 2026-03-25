@@ -68,8 +68,10 @@ export class PDXApi {
 
     try {
       // Add CORS headers
+      const reqOrigin = new URL(request.url).origin;
+      const allowedOrigin = /^https?:\/\/(.*\.chitty\.cc|localhost(:\d+)?)$/.test(reqOrigin) ? reqOrigin : 'https://router.chitty.cc';
       const corsHeaders = {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': allowedOrigin,
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-ChittyID'
       };
