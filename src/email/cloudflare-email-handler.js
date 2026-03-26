@@ -170,147 +170,120 @@ export class CloudflareEmailHandler {
   parseMimeAttachments(rawText) {
     const attachments = [];
 
-    // Find the boundary from Content-Type header
-    const boundaryMatch = rawText.match(/boundary="?([^"\r\n;]+)"?/i);
-    if (!boundaryMatch) return attachments;
+    // Find all boundaries in the email (primary + nested multipart)
+    const boundaryMatches = rawText.match(/boundary="?([^"\r\n;]+)"?/gi);
+    if (!boundaryMatches) return attachments;
 
-    const boundary = boundaryMatch[1];
-    const parts = rawText.split('--' + boundary);
+    const seenBoundaries = new Set();
 
-    for (const part of parts) {
-      // Skip preamble and epilogue
-      if (part.trim() === '' || part.trim() === '--') continue;
+    for (const match of boundaryMatches) {
+      const parsed = match.match(/boundary="?([^"\r\n;]+)"?/i);
+      if (!parsed) continue;
+      const boundary = parsed[1];
+      if (seenBoundaries.has(boundary)) continue;
+      seenBoundaries.add(boundary);
 
-      // Check for attachment disposition or non-inline content type
-      const hasAttachment = /Content-Disposition:\s*attachment/i.test(part);
-      const hasInline = /Content-Disposition:\s*inline/i.test(part);
+      const parts = rawText.split('--' + boundary);
 
-      // Get content type
-      const ctMatch = part.match(/Content-Type:\s*([^\r\n;]+)/i);
-      const contentType = ctMatch ? ctMatch[1].trim().toLowerCase() : '';
+      for (const part of parts) {
+        const attachment = this.extractAttachmentFromPart(part, boundary);
+        if (!attachment) continue;
 
-      // Get filename from Content-Disposition or Content-Type
-      let filename = '';
-      const fnMatch = part.match(/filename="?([^"\r\n;]+)"?/i);
-      if (fnMatch) filename = fnMatch[1].trim();
-      const nameMatch = part.match(/name="?([^"\r\n;]+)"?/i);
-      if (!filename && nameMatch) filename = nameMatch[1].trim();
+        // Skip duplicates (same filename found in nested boundary)
+        if (attachments.some(a => a.filename === attachment.filename)) continue;
 
-      // Skip if no filename or if it's a small inline image (logo etc)
-      if (!filename) continue;
-      if (hasInline && contentType.startsWith('image/')) continue;
-
-      // Only extract document types we care about
-      if (!hasAttachment && !this.extractableTypes.has(contentType)) continue;
-
-      // Check encoding
-      const encodingMatch = part.match(/Content-Transfer-Encoding:\s*(\S+)/i);
-      const encoding = encodingMatch ? encodingMatch[1].toLowerCase() : '7bit';
-
-      // Extract the body (after the blank line separating headers from content)
-      const bodyStart = part.indexOf('\r\n\r\n');
-      if (bodyStart === -1) continue;
-
-      let body = part.substring(bodyStart + 4).trim();
-      // Remove trailing boundary marker if present
-      const trailingBoundary = body.lastIndexOf('--' + boundary);
-      if (trailingBoundary > -1) {
-        body = body.substring(0, trailingBoundary).trim();
-      }
-
-      let data;
-      if (encoding === 'base64') {
-        // Decode base64
-        const cleaned = body.replace(/[\r\n\s]/g, '');
-        try {
-          const binaryString = atob(cleaned);
-          data = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            data[i] = binaryString.charCodeAt(i);
-          }
-        } catch (e) {
-          console.error(`Failed to decode base64 for ${filename}:`, e.message);
-          continue;
-        }
-      } else {
-        // For non-base64, store as-is
-        data = new TextEncoder().encode(body);
-      }
-
-      // Skip tiny files (likely signature images that slipped through)
-      if (data.length < 500) continue;
-
-      attachments.push({
-        filename,
-        contentType,
-        size: data.length,
-        data
-      });
-    }
-
-    // Handle nested multipart (e.g., multipart/mixed containing multipart/alternative)
-    // Look for additional boundaries in nested parts
-    const nestedBoundaries = rawText.match(/boundary="?([^"\r\n;]+)"?/gi);
-    if (nestedBoundaries && nestedBoundaries.length > 1) {
-      for (let i = 1; i < nestedBoundaries.length; i++) {
-        const nbMatch = nestedBoundaries[i].match(/boundary="?([^"\r\n;]+)"?/i);
-        if (!nbMatch) continue;
-        const nestedBoundary = nbMatch[1];
-        if (nestedBoundary === boundary) continue;
-
-        const nestedParts = rawText.split('--' + nestedBoundary);
-        for (const part of nestedParts) {
-          if (part.trim() === '' || part.trim() === '--') continue;
-
-          const hasAttachment = /Content-Disposition:\s*attachment/i.test(part);
-          if (!hasAttachment) continue;
-
-          const fnMatch = part.match(/filename="?([^"\r\n;]+)"?/i);
-          if (!fnMatch) continue;
-          const filename = fnMatch[1].trim();
-
-          // Skip if already found
-          if (attachments.some(a => a.filename === filename)) continue;
-
-          const ctMatch = part.match(/Content-Type:\s*([^\r\n;]+)/i);
-          const contentType = ctMatch ? ctMatch[1].trim().toLowerCase() : '';
-
-          const encodingMatch = part.match(/Content-Transfer-Encoding:\s*(\S+)/i);
-          const encoding = encodingMatch ? encodingMatch[1].toLowerCase() : '7bit';
-
-          const bodyStart = part.indexOf('\r\n\r\n');
-          if (bodyStart === -1) continue;
-
-          let body = part.substring(bodyStart + 4).trim();
-          const trailingBoundary = body.lastIndexOf('--');
-          if (trailingBoundary > body.length - 50) {
-            body = body.substring(0, trailingBoundary).trim();
-          }
-
-          let data;
-          if (encoding === 'base64') {
-            const cleaned = body.replace(/[\r\n\s]/g, '');
-            try {
-              const binaryString = atob(cleaned);
-              data = new Uint8Array(binaryString.length);
-              for (let i = 0; i < binaryString.length; i++) {
-                data[i] = binaryString.charCodeAt(i);
-              }
-            } catch (e) {
-              continue;
-            }
-          } else {
-            data = new TextEncoder().encode(body);
-          }
-
-          if (data.length < 500) continue;
-
-          attachments.push({ filename, contentType, size: data.length, data });
-        }
+        attachments.push(attachment);
       }
     }
 
     return attachments;
+  }
+
+  /**
+   * Extract a single attachment from a MIME part, or return null if not an attachment
+   */
+  extractAttachmentFromPart(part, boundary) {
+    if (part.trim() === '' || part.trim() === '--') return null;
+
+    const hasAttachment = /Content-Disposition:\s*attachment/i.test(part);
+    const hasInline = /Content-Disposition:\s*inline/i.test(part);
+
+    // Get content type
+    const ctMatch = part.match(/Content-Type:\s*([^\r\n;]+)/i);
+    const contentType = ctMatch ? ctMatch[1].trim().toLowerCase() : '';
+
+    // Get filename from Content-Disposition or Content-Type
+    let filename = '';
+    const fnMatch = part.match(/filename="?([^"\r\n;]+)"?/i);
+    if (fnMatch) filename = fnMatch[1].trim();
+    const nameMatch = part.match(/name="?([^"\r\n;]+)"?/i);
+    if (!filename && nameMatch) filename = nameMatch[1].trim();
+
+    if (!filename) return null;
+    if (hasInline && contentType.startsWith('image/')) return null;
+    if (!hasAttachment && !this.extractableTypes.has(contentType)) return null;
+
+    // Check encoding
+    const encodingMatch = part.match(/Content-Transfer-Encoding:\s*(\S+)/i);
+    const encoding = encodingMatch ? encodingMatch[1].toLowerCase() : '7bit';
+
+    // Extract the body (after the blank line separating headers from content)
+    const bodyStart = part.indexOf('\r\n\r\n');
+    if (bodyStart === -1) return null;
+
+    let body = part.substring(bodyStart + 4).trim();
+    // Remove trailing boundary marker if present
+    const trailingBoundary = body.lastIndexOf('--' + boundary);
+    if (trailingBoundary > -1) {
+      body = body.substring(0, trailingBoundary).trim();
+    }
+
+    const data = this.decodePartBody(body, encoding, filename);
+    if (!data || data.length < 500) return null;
+
+    return { filename, contentType, size: data.length, data };
+  }
+
+  /**
+   * Decode a MIME part body from its transfer encoding into bytes
+   * Returns null if decoding fails
+   */
+  decodePartBody(body, encoding, filename) {
+    if (encoding === 'base64') {
+      const cleaned = body.replace(/[\r\n\s]/g, '');
+      try {
+        const binaryString = atob(cleaned);
+        const data = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          data[i] = binaryString.charCodeAt(i);
+        }
+        return data;
+      } catch (e) {
+        console.error(`Failed to decode base64 for ${filename}:`, e.message);
+        return null;
+      }
+    }
+    return new TextEncoder().encode(body);
+  }
+
+  /**
+   * Resolve R2 storage base path from classification data (triage or correction)
+   */
+  resolveStoragePath(classification) {
+    if (classification.caseRelevant || classification.category === 'case' || classification.category === 'legal') {
+      return `cases/arias-v-bianchi/${classification.category}`;
+    } else if (classification.entity === 'ARIBIA') {
+      return `business/aribia/${classification.category}`;
+    } else if (classification.entity === 'ITCANBE') {
+      return `business/itcanbe/${classification.category}`;
+    } else if (classification.entity === 'personal') {
+      return `inbox/nick/${classification.category}`;
+    } else if (classification.entity === 'chittyos') {
+      return `ops/${classification.category}`;
+    } else if (classification.category === 'spam') {
+      return 'spam';
+    }
+    return `inbox/unsorted/${classification.category}`;
   }
 
   /**
@@ -325,32 +298,12 @@ export class CloudflareEmailHandler {
 
     const stored = [];
     const dateStr = new Date().toISOString().split('T')[0];
-    const fromClean = emailData.from.replace(/[^a-zA-Z0-9@._-]/g, '').substring(0, 50);
-
-    // AI-driven storage routing — no specific addresses needed
-    // The AI triage already analyzed from/to/cc/bcc/body/attachments
-    let basePath;
-
-    if (triage.caseRelevant || triage.category === 'case' || triage.category === 'legal') {
-      // Anything the AI thinks is case-related → case folder, subcategorized
-      basePath = `cases/arias-v-bianchi/${triage.category}`;
-    } else if (triage.entity === 'ARIBIA') {
-      basePath = `business/aribia/${triage.category}`;
-    } else if (triage.entity === 'ITCANBE') {
-      basePath = `business/itcanbe/${triage.category}`;
-    } else if (triage.entity === 'personal') {
-      basePath = `inbox/nick/${triage.category}`;
-    } else if (triage.entity === 'chittyos') {
-      basePath = `ops/${triage.category}`;
-    } else if (triage.category === 'spam') {
-      basePath = 'spam';
-    } else {
-      // AI couldn't tie it to a specific bucket — inbox unsorted
-      basePath = `inbox/unsorted/${triage.category}`;
-    }
+    const basePath = this.resolveStoragePath(triage);
+    // Derive a short slug from the email message ID to prevent same-day filename collisions
+    const emailSlug = (emailData.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(-12) || Date.now().toString(36);
 
     for (const att of attachments) {
-      const key = `${basePath}/${dateStr}/${att.filename}`;
+      const key = `${basePath}/${dateStr}/${emailSlug}/${att.filename}`;
 
       try {
         // Compute SHA-256 hash for chain of custody
@@ -892,12 +845,27 @@ Respond with ONLY the JSON object, no other text.`;
    * Approve all pending items (bulk approve — "AI got it right")
    */
   async approveAll() {
-    const pending = await this.getQueue('pending');
+    // Read index once, update all pending items, write index back once
+    const index = await this.env.AI_CACHE?.get('email_queue_index', 'json') || [];
+    const now = new Date().toISOString();
     let approved = 0;
-    for (const item of pending) {
-      await this.updateQueueItem(item.id, 'approved');
+
+    for (const entry of index) {
+      if (entry.status !== 'pending') continue;
+      // Update individual item
+      const item = await this.env.AI_CACHE?.get(`email_queue_${entry.id}`, 'json');
+      if (item) {
+        item.status = 'approved';
+        item.reviewedAt = now;
+        item.finalClassification = item.aiClassification;
+        await this.env.AI_CACHE?.put(`email_queue_${entry.id}`, JSON.stringify(item), { expirationTtl: 86400 * 30 });
+      }
+      entry.status = 'approved';
       approved++;
     }
+
+    // Write index back once
+    await this.env.AI_CACHE?.put('email_queue_index', JSON.stringify(index), { expirationTtl: 86400 * 30 });
     return { approved };
   }
 
@@ -913,22 +881,9 @@ Respond with ONLY the JSON object, no other text.`;
         const obj = await this.env.DOCUMENT_STORAGE.get(oldKey);
         if (!obj) continue;
 
-        // Build new key based on correction
         const filename = oldKey.split('/').pop();
         const dateStr = new Date().toISOString().split('T')[0];
-        let newBase;
-        if (correction.caseRelevant || correction.category === 'case' || correction.category === 'legal') {
-          newBase = `cases/arias-v-bianchi/${correction.category}`;
-        } else if (correction.entity === 'ARIBIA') {
-          newBase = `business/aribia/${correction.category}`;
-        } else if (correction.entity === 'ITCANBE') {
-          newBase = `business/itcanbe/${correction.category}`;
-        } else if (correction.entity === 'personal') {
-          newBase = `inbox/nick/${correction.category}`;
-        } else {
-          newBase = `inbox/reclassified/${correction.category}`;
-        }
-
+        const newBase = this.resolveStoragePath(correction);
         const newKey = `${newBase}/${dateStr}/${filename}`;
 
         // Copy to new location with updated metadata

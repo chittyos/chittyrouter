@@ -49,6 +49,7 @@ class RouteMultiplexer {
       },
       email: {
         inboxMonitor: new InboxMonitor(env),
+        handler: new CloudflareEmailHandler(env),
       },
     };
 
@@ -631,13 +632,25 @@ class RouteMultiplexer {
     }
   }
 
-  // GET /email/receipts — recent routing confirmations
+  /**
+   * Guard helper: returns an error Response if method is not POST or auth fails,
+   * otherwise returns null (proceed).
+   */
+  requirePostWithAuth(request) {
+    if (request.method !== 'POST') {
+      return this.jsonResponse({ error: 'POST required' }, 405);
+    }
+    return this.requireAuth(request);
+  }
+
+  // GET /email/receipts — recent routing confirmations (auth required)
   async handleEmailReceipts(request) {
+    const authErr = this.requireAuth(request);
+    if (authErr) return authErr;
     try {
-      const handler = new CloudflareEmailHandler(this.env);
       const url = new URL(request.url);
       const limit = parseInt(url.searchParams.get('limit') || '20');
-      const receipts = await handler.getRecentReceipts(limit);
+      const receipts = await this.services.email.handler.getRecentReceipts(limit);
       return this.jsonResponse({ count: receipts.length, receipts });
     } catch (error) {
       return this.jsonResponse({ error: error.message }, 500);
@@ -645,40 +658,39 @@ class RouteMultiplexer {
   }
 
   // POST /email/correct — submit a routing correction for AI training
-  // Body: { receiptId, from, subject, wasCategory, shouldBeCategory, shouldBeEntity, reason }
   async handleEmailCorrection(request) {
-    if (request.method !== 'POST') {
-      return this.jsonResponse({ error: 'POST required' }, 405);
-    }
-    const authErr = this.requireAuth(request); if (authErr) return authErr;
+    const guard = this.requirePostWithAuth(request);
+    if (guard) return guard;
     try {
       const body = await request.json();
-      const handler = new CloudflareEmailHandler(this.env);
-      const result = await handler.submitCorrection(body);
+      const result = await this.services.email.handler.submitCorrection(body);
       return this.jsonResponse(result);
     } catch (error) {
       return this.jsonResponse({ error: error.message }, 500);
     }
   }
 
-  // GET /email/training — view current training corrections
+  // GET /email/training — view current training corrections (auth required)
   async handleEmailTraining(request) {
+    const authErr = this.requireAuth(request);
+    if (authErr) return authErr;
     try {
-      const handler = new CloudflareEmailHandler(this.env);
-      const examples = await handler.getTrainingExamples();
+      const examples = await this.services.email.handler.getTrainingExamples();
       return this.jsonResponse({ count: examples.length, corrections: examples });
     } catch (error) {
       return this.jsonResponse({ error: error.message }, 500);
     }
   }
 
-  // GET /email/queue?status=pending — view the review queue
+  // GET /email/queue?status=pending — view the review queue (auth required)
   async handleEmailQueue(request) {
+    const authErr = this.requireAuth(request);
+    if (authErr) return authErr;
     try {
-      const handler = new CloudflareEmailHandler(this.env);
       const url = new URL(request.url);
       const status = url.searchParams.get('status') || null;
       const limit = parseInt(url.searchParams.get('limit') || '50');
+      const handler = this.services.email.handler;
       const items = await handler.getQueue(status, limit);
       const mode = await handler.getRoutingMode();
       return this.jsonResponse({ mode, count: items.length, queue: items });
@@ -688,27 +700,24 @@ class RouteMultiplexer {
   }
 
   // POST /email/queue/approve — approve a single queue item (AI was right)
-  // Body: { id: "q-..." }
   async handleEmailQueueApprove(request) {
-    if (request.method !== 'POST') return this.jsonResponse({ error: 'POST required' }, 405);
-    const authErr = this.requireAuth(request); if (authErr) return authErr;
+    const guard = this.requirePostWithAuth(request);
+    if (guard) return guard;
     try {
       const { id } = await request.json();
-      const handler = new CloudflareEmailHandler(this.env);
-      const item = await handler.updateQueueItem(id, 'approved');
+      const item = await this.services.email.handler.updateQueueItem(id, 'approved');
       return this.jsonResponse(item || { error: 'not found' });
     } catch (error) {
       return this.jsonResponse({ error: error.message }, 500);
     }
   }
 
-  // POST /email/queue/approve-all — bulk approve all pending (AI nailed it)
+  // POST /email/queue/approve-all — bulk approve all pending
   async handleEmailQueueApproveAll(request) {
-    if (request.method !== 'POST') return this.jsonResponse({ error: 'POST required' }, 405);
-    const authErr = this.requireAuth(request); if (authErr) return authErr;
+    const guard = this.requirePostWithAuth(request);
+    if (guard) return guard;
     try {
-      const handler = new CloudflareEmailHandler(this.env);
-      const result = await handler.approveAll();
+      const result = await this.services.email.handler.approveAll();
       return this.jsonResponse(result);
     } catch (error) {
       return this.jsonResponse({ error: error.message }, 500);
@@ -716,15 +725,13 @@ class RouteMultiplexer {
   }
 
   // POST /email/queue/correct — correct a queue item (AI was wrong)
-  // Body: { id, category, entity, caseRelevant, reason }
   async handleEmailQueueCorrect(request) {
-    if (request.method !== 'POST') return this.jsonResponse({ error: 'POST required' }, 405);
-    const authErr = this.requireAuth(request); if (authErr) return authErr;
+    const guard = this.requirePostWithAuth(request);
+    if (guard) return guard;
     try {
       const body = await request.json();
       const { id, ...correction } = body;
-      const handler = new CloudflareEmailHandler(this.env);
-      const item = await handler.updateQueueItem(id, 'corrected', correction);
+      const item = await this.services.email.handler.updateQueueItem(id, 'corrected', correction);
       return this.jsonResponse(item || { error: 'not found' });
     } catch (error) {
       return this.jsonResponse({ error: error.message }, 500);
@@ -734,9 +741,10 @@ class RouteMultiplexer {
   // GET/POST /email/mode — get or set routing mode (onboarding vs auto)
   async handleEmailMode(request) {
     try {
-      const handler = new CloudflareEmailHandler(this.env);
+      const handler = this.services.email.handler;
       if (request.method === 'POST') {
-        const authErr = this.requireAuth(request); if (authErr) return authErr;
+        const authErr = this.requireAuth(request);
+        if (authErr) return authErr;
         const { mode } = await request.json();
         if (!['onboarding', 'auto'].includes(mode)) {
           return this.jsonResponse({ error: 'mode must be "onboarding" or "auto"' }, 400);

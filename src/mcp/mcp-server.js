@@ -100,7 +100,7 @@ export class ChittyRouterMCPServer {
 
     // Add CORS headers
     const origin = req.headers?.origin || '';
-    const allowedOrigin = /^https?:\/\/(.*\.chitty\.cc|localhost(:\d+)?)$/.test(origin) ? origin : 'https://router.chitty.cc';
+    const allowedOrigin = /^(https:\/\/[\w-]+\.chitty\.cc|http:\/\/localhost(:\d+)?)$/.test(origin) ? origin : 'https://router.chitty.cc';
     res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-ChittyID');
