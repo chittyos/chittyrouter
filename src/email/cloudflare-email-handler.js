@@ -367,6 +367,15 @@ export class CloudflareEmailHandler {
 
       } catch (error) {
         console.error(`Failed to store ${att.filename}:`, error);
+        stored.push({
+          filename: att.filename,
+          key,
+          size: att.size,
+          sha256: null,
+          contentType: att.contentType,
+          failed: true,
+          error: error.message
+        });
       }
     }
 
@@ -753,7 +762,7 @@ Respond with ONLY the JSON object, no other text.`;
         }
       }];
 
-      await fetch('https://notion-ops.chitty.cc/update-page-content', {
+      const notionResp = await fetch('https://notion-ops.chitty.cc/update-page-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -762,6 +771,9 @@ Respond with ONLY the JSON object, no other text.`;
           blocks
         })
       });
+      if (!notionResp.ok) {
+        console.error(`Notion push failed: ${notionResp.status} ${await notionResp.text().catch(() => '')}`);
+      }
     } catch (err) {
       console.error('Failed to push confirmation to Notion:', err);
     }
@@ -775,7 +787,8 @@ Respond with ONLY the JSON object, no other text.`;
     try {
       const examples = await this.env.AI_CACHE?.get('email_training_corrections', 'json');
       return examples || [];
-    } catch {
+    } catch (err) {
+      console.error('Failed to load training examples from KV:', err);
       return [];
     }
   }
@@ -821,7 +834,8 @@ Respond with ONLY the JSON object, no other text.`;
     try {
       const recent = await this.env.AI_CACHE?.get('email_receipts_recent', 'json') || [];
       return recent.slice(0, limit);
-    } catch {
+    } catch (err) {
+      console.error('Failed to load recent receipts from KV:', err);
       return [];
     }
   }
@@ -835,7 +849,8 @@ Respond with ONLY the JSON object, no other text.`;
     try {
       const mode = await this.env.AI_CACHE?.get('email_routing_mode');
       return mode || 'onboarding'; // default to onboarding until user switches
-    } catch {
+    } catch (err) {
+      console.error('Failed to read routing mode from KV:', err);
       return 'onboarding';
     }
   }
@@ -963,7 +978,8 @@ Respond with ONLY the JSON object, no other text.`;
       );
 
       return items;
-    } catch {
+    } catch (err) {
+      console.error('Failed to read email queue from KV:', err);
       return [];
     }
   }
