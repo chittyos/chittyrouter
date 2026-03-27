@@ -272,16 +272,24 @@ class RouteMultiplexer {
     return this.jsonResponse(results);
   }
 
-  // ============ MCP Handlers (Model Context Protocol) ============
+  // ============ CORS Helper ============
 
-  async handleMCP(request, url) {
-    // MCP info endpoint - returns server metadata
-    const headers = {
-      "Access-Control-Allow-Origin": "*",
+  corsHeaders(request) {
+    const origin = request?.headers?.get?.('Origin') || '';
+    const allowed = /^(https:\/\/[\w-]+\.chitty\.cc|http:\/\/localhost(:\d+)?)$/.test(origin) ? origin : 'https://router.chitty.cc';
+    return {
+      "Access-Control-Allow-Origin": allowed,
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Content-Type": "application/json",
     };
+  }
+
+  // ============ MCP Handlers (Model Context Protocol) ============
+
+  async handleMCP(request, url) {
+    // MCP info endpoint - returns server metadata
+    const headers = this.corsHeaders(request);
 
     return new Response(
       JSON.stringify({
@@ -315,12 +323,7 @@ class RouteMultiplexer {
   }
 
   async handleMCPTools(request, url) {
-    const headers = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Content-Type": "application/json",
-    };
+    const headers = this.corsHeaders(request);
 
     const tools = {
       categories: [
@@ -396,12 +399,7 @@ class RouteMultiplexer {
   }
 
   async handleMCPOpenAPI(request, url) {
-    const headers = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Content-Type": "application/json",
-    };
+    const headers = this.corsHeaders(request);
 
     const openapi = {
       openapi: "3.0.0",
@@ -452,12 +450,7 @@ class RouteMultiplexer {
   }
 
   async handleMCPHealth(request, url) {
-    const headers = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Content-Type": "application/json",
-    };
+    const headers = this.corsHeaders(request);
 
     return new Response(
       JSON.stringify({

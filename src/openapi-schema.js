@@ -199,6 +199,11 @@ const openAPISchema = {
 /**
  * Handle OpenAPI schema requests
  */
+function corsOrigin(request) {
+  const origin = request?.headers?.get?.('Origin') || '';
+  return /^(https:\/\/[\w-]+\.chitty\.cc|http:\/\/localhost(:\d+)?)$/.test(origin) ? origin : 'https://router.chitty.cc';
+}
+
 export async function handleOpenAPISchema(request) {
   const url = new URL(request.url);
   const pathname = url.pathname;
@@ -208,7 +213,7 @@ export async function handleOpenAPISchema(request) {
     return new Response(JSON.stringify(openAPISchema, null, 2), {
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": corsOrigin(request),
         "Cache-Control": "public, max-age=3600",
       },
     });
@@ -220,7 +225,7 @@ export async function handleOpenAPISchema(request) {
     return new Response(yamlContent, {
       headers: {
         "Content-Type": "text/yaml",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": corsOrigin(request),
         "Cache-Control": "public, max-age=3600",
       },
     });
@@ -231,7 +236,7 @@ export async function handleOpenAPISchema(request) {
     return new Response(generateSchemaHTML(), {
       headers: {
         "Content-Type": "text/html",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": corsOrigin(request),
       },
     });
   }

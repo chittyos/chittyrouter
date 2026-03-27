@@ -98,7 +98,9 @@ export class AgentCoordinationServer {
     const url = new URL(req.url, `http://localhost:${this.port}`);
 
     // Add CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const origin = req.headers?.origin || '';
+    const allowedOrigin = /^(https:\/\/[\w-]+\.chitty\.cc|http:\/\/localhost(:\d+)?)$/.test(origin) ? origin : 'https://router.chitty.cc';
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-ChittyID');
     res.setHeader('X-ChittyID', this.chittyId);
