@@ -375,6 +375,7 @@ export const EMAIL_WORKER_CONFIG = {
     'general_inquiry': 'intake@example.com',
     'court_notice': 'case-management@example.com',
     'billing_matter': 'billing@example.com',
+    'compliance_notice': 'governance@example.com',
     'fallback': 'intake@example.com'
   }
 };

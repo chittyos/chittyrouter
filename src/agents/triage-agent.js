@@ -24,6 +24,7 @@ const CATEGORIES = [
   'service_incident',
   'support_ticket',
   'security_incident',
+  'compliance_notice',
 ];
 
 // Keyword fallback patterns per category
@@ -57,6 +58,19 @@ const FALLBACK_PATTERNS = {
   grant_management: ['grant', 'proposal', 'funding', 'disbursement', 'reporting'],
   service_incident: ['outage', 'deployment', 'incident', 'worker', 'error 5'],
   support_ticket: ['ticket', 'bug', 'feature request', 'support', 'help'],
+  compliance_notice: [
+    'annual report', 'filing reminder', 'administrative dissolution', 'good standing',
+    'articles of organization', 'certificate of formation', 'franchise tax',
+    'registered agent', 'statutory agent', 'service of process',
+    'assessment notice', 'tax lien', 'lien release', 'exemption', 'appeal deadline',
+    'reassessment', 'property tax', 'tax sale', 'redemption period',
+    'renewal notice', 'declarations page', 'policy expiration', 'premium due',
+    'certificate of insurance', 'lapse notice',
+    'special assessment', 'rule violation', 'board resolution', 'annual meeting',
+    'budget ratification', 'covenant violation',
+    'estimated tax', 'form 1065', 'k-1', 'tax notice', 'irs notice',
+    'underpayment penalty', 'quarterly payment',
+  ],
 };
 
 export class TriageAgent extends ChittyRouterBaseAgent {
