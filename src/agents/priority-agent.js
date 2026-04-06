@@ -19,8 +19,8 @@ const DEFAULT_ESCALATION_RULES = {
     criticalKeywords: ["flood", "fire", "water damage", "lockout", "eviction"],
   },
   ChittyCounsel: {
-    autoEscalate: ["court_notice", "emergency_legal"],
-    criticalKeywords: ["court date", "deadline", "subpoena", "motion", "filing due"],
+    autoEscalate: ["court_notice", "emergency_legal", "compliance_notice"],
+    criticalKeywords: ["court date", "deadline", "subpoena", "motion", "filing due", "annual report", "dissolution", "good standing"],
   },
   ChittyFoundation: {
     autoEscalate: ["grant_management"],
@@ -210,7 +210,7 @@ Respond with JSON only:
     const category = data.category || "";
 
     // Critical categories
-    if (["emergency_legal", "court_notice"].includes(category)) {
+    if (["emergency_legal", "court_notice", "compliance_notice"].includes(category)) {
       return { level: "CRITICAL", score: 0.9, factors: ["category-escalation"], reasoning: "Category implies critical priority", fallback: true };
     }
 

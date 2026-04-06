@@ -95,7 +95,8 @@ function extractCategory(response) {
     'emergency_legal',
     'general_inquiry',
     'court_notice',
-    'billing_matter'
+    'billing_matter',
+    'compliance_notice'
   ];
 
   const lowercaseResponse = response.toLowerCase();
@@ -139,7 +140,11 @@ function fallbackTriage(emailData) {
     appointment_request: ['meeting', 'appointment', 'schedule', 'consultation', 'availability'],
     emergency_legal: ['urgent', 'emergency', 'asap', 'immediate', 'deadline'],
     court_notice: ['court', 'hearing', 'judge', 'motion', 'subpoena'],
-    billing_matter: ['invoice', 'payment', 'bill', 'retainer', 'fee']
+    billing_matter: ['invoice', 'payment', 'bill', 'retainer', 'fee'],
+    compliance_notice: ['annual report', 'filing reminder', 'dissolution', 'good standing',
+      'registered agent', 'service of process', 'assessment notice', 'tax lien',
+      'appeal deadline', 'renewal notice', 'policy expiration', 'special assessment',
+      'estimated tax', 'irs notice', 'k-1']
   };
 
   for (const [category, keywords] of Object.entries(patterns)) {
