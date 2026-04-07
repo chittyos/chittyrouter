@@ -19,6 +19,7 @@ export async function intelligentTriage(ai, emailData) {
   - general_inquiry (questions, information requests)
   - court_notice (official court communications)
   - billing_matter (invoices, payment-related)
+  - compliance_notice (SOS filings, registered agent notices, tax assessments, insurance renewals, HOA governance)
 
   EMAIL DATA:
   Subject: ${emailData.subject}
@@ -95,7 +96,8 @@ function extractCategory(response) {
     'emergency_legal',
     'general_inquiry',
     'court_notice',
-    'billing_matter'
+    'billing_matter',
+    'compliance_notice'
   ];
 
   const lowercaseResponse = response.toLowerCase();
@@ -135,11 +137,15 @@ function fallbackTriage(emailData) {
 
   const patterns = {
     lawsuit_communication: ['case', 'plaintiff', 'defendant', 'litigation', 'legal action'],
+    compliance_notice: ['annual report', 'filing reminder', 'dissolution', 'good standing',
+      'registered agent', 'service of process', 'assessment notice', 'tax lien',
+      'appeal deadline', 'renewal notice', 'policy expiration', 'special assessment',
+      'estimated tax', 'irs notice', 'k-1'],
     document_submission: ['attached', 'document', 'contract', 'evidence', 'filing'],
     appointment_request: ['meeting', 'appointment', 'schedule', 'consultation', 'availability'],
     emergency_legal: ['urgent', 'emergency', 'asap', 'immediate', 'deadline'],
     court_notice: ['court', 'hearing', 'judge', 'motion', 'subpoena'],
-    billing_matter: ['invoice', 'payment', 'bill', 'retainer', 'fee']
+    billing_matter: ['invoice', 'payment', 'bill', 'retainer', 'fee'],
   };
 
   for (const [category, keywords] of Object.entries(patterns)) {

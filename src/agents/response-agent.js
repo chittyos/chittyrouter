@@ -28,6 +28,7 @@ const RESPONSE_TEMPLATES = {
   grant_management: `Thank you for your grant-related inquiry. Our grants team will review your submission and respond within 5 business days.\n\nBest regards,\nGrants Team`,
   service_incident: `We have received your incident report and our operations team has been notified. We are investigating and will provide an update as soon as possible.\n\nBest regards,\nOperations Team`,
   support_ticket: `Thank you for contacting support. Your request has been logged and our team will respond within 1 business day.\n\nBest regards,\nSupport Team`,
+  compliance_notice: `We have received this compliance-related communication. It has been flagged for immediate review by our governance and compliance team, and any applicable filing deadlines have been logged.\n\nBest regards,\nGovernance Team`,
 };
 
 const LEGAL_DISCLAIMERS = {

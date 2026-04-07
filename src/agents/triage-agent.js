@@ -23,11 +23,30 @@ const CATEGORIES = [
   "grant_management",
   "service_incident",
   "support_ticket",
+  "compliance_notice",
 ];
 
 // Keyword fallback patterns per category
 const FALLBACK_PATTERNS = {
   lawsuit_communication: ["case", "plaintiff", "defendant", "litigation", "legal action"],
+  compliance_notice: [
+    // Secretary of State / corporate filings
+    "annual report", "filing reminder", "administrative dissolution", "good standing",
+    "articles of organization", "certificate of formation", "franchise tax",
+    "registered agent", "statutory agent", "service of process",
+    // Property compliance
+    "assessment notice", "tax lien", "lien release", "exemption", "appeal deadline",
+    "reassessment", "property tax", "tax sale", "redemption period",
+    // Insurance
+    "renewal notice", "declarations page", "policy expiration", "premium due",
+    "certificate of insurance", "lapse notice",
+    // HOA governance
+    "special assessment", "rule violation", "board resolution", "annual meeting",
+    "budget ratification", "covenant violation",
+    // IRS / tax authority
+    "estimated tax", "form 1065", "k-1", "tax notice", "irs notice",
+    "underpayment penalty", "quarterly payment",
+  ],
   document_submission: ["attached", "document", "contract", "evidence", "filing"],
   appointment_request: ["meeting", "appointment", "schedule", "consultation", "availability"],
   emergency_legal: ["urgent", "emergency", "asap", "immediate", "deadline"],
