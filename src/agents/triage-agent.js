@@ -29,17 +29,6 @@ const CATEGORIES = [
 // Keyword fallback patterns per category
 const FALLBACK_PATTERNS = {
   lawsuit_communication: ["case", "plaintiff", "defendant", "litigation", "legal action"],
-  document_submission: ["attached", "document", "contract", "evidence", "filing"],
-  appointment_request: ["meeting", "appointment", "schedule", "consultation", "availability"],
-  emergency_legal: ["urgent", "emergency", "asap", "immediate", "deadline"],
-  court_notice: ["court", "hearing", "judge", "motion", "subpoena"],
-  billing_matter: ["invoice", "payment", "bill", "retainer", "fee"],
-  property_management: ["property", "unit", "building", "maintenance", "repair"],
-  tenant_communication: ["tenant", "lease", "rent", "move-in", "move-out"],
-  permit_application: ["permit", "inspection", "violation", "zoning", "building code"],
-  grant_management: ["grant", "proposal", "funding", "disbursement", "reporting"],
-  service_incident: ["outage", "deployment", "incident", "worker", "error 5"],
-  support_ticket: ["ticket", "bug", "feature request", "support", "help"],
   compliance_notice: [
     // Secretary of State / corporate filings
     "annual report", "filing reminder", "administrative dissolution", "good standing",
@@ -58,6 +47,17 @@ const FALLBACK_PATTERNS = {
     "estimated tax", "form 1065", "k-1", "tax notice", "irs notice",
     "underpayment penalty", "quarterly payment",
   ],
+  document_submission: ["attached", "document", "contract", "evidence", "filing"],
+  appointment_request: ["meeting", "appointment", "schedule", "consultation", "availability"],
+  emergency_legal: ["urgent", "emergency", "asap", "immediate", "deadline"],
+  court_notice: ["court", "hearing", "judge", "motion", "subpoena"],
+  billing_matter: ["invoice", "payment", "bill", "retainer", "fee"],
+  property_management: ["property", "unit", "building", "maintenance", "repair"],
+  tenant_communication: ["tenant", "lease", "rent", "move-in", "move-out"],
+  permit_application: ["permit", "inspection", "violation", "zoning", "building code"],
+  grant_management: ["grant", "proposal", "funding", "disbursement", "reporting"],
+  service_incident: ["outage", "deployment", "incident", "worker", "error 5"],
+  support_ticket: ["ticket", "bug", "feature request", "support", "help"],
 };
 
 export class TriageAgent extends ChittyRouterBaseAgent {
