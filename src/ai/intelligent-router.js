@@ -103,7 +103,7 @@ export class ChittyRouterAI {
 
     Provide analysis in JSON format:
     {
-      "category": "lawsuit|document_submission|court_notice|emergency|appointment|billing|inquiry",
+      "category": "lawsuit|document_submission|court_notice|emergency|appointment|billing|inquiry|compliance_notice",
       "priority": "CRITICAL|HIGH|NORMAL|LOW",
       "urgency_score": 0.95,
       "case_related": true|false,
