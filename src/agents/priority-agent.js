@@ -12,6 +12,18 @@ const PRIORITY_LEVELS = ["CRITICAL", "HIGH", "NORMAL", "LOW"];
 
 const PRIORITY_SCORES = { CRITICAL: 4, HIGH: 3, NORMAL: 2, LOW: 1 };
 
+/**
+ * Address-based priority overrides. Mail sent TO these addresses is
+ * auto-flagged CRITICAL regardless of content, because these inboxes
+ * are dedicated to time-sensitive classes of communication.
+ *
+ * Security disclosure inbox: chittyentity/SECURITY.md declares a
+ * 48-hour acknowledgement SLA — any delay in triage breaches that SLA.
+ */
+const CRITICAL_RECIPIENT_ADDRESSES = new Set([
+  "security@chitty.cc",
+]);
+
 // Default escalation rules per org
 const DEFAULT_ESCALATION_RULES = {
   "Furnished-Condos": {
@@ -105,6 +117,48 @@ export class PriorityAgent extends ChittyRouterBaseAgent {
   async handleScore(request) {
     const body = await request.json();
     const { category, org, content } = body;
+
+    // Address-based override: dedicated inboxes are CRITICAL by policy.
+    // Checked BEFORE AI/fallback so a model error can't downgrade a
+    // security disclosure to NORMAL.
+    const recipient = this.extractRecipient(body);
+    if (recipient && CRITICAL_RECIPIENT_ADDRESSES.has(recipient.toLowerCase())) {
+      const override = {
+        level: "CRITICAL",
+        score: PRIORITY_SCORES.CRITICAL,
+        factors: ["recipient_override", `to:${recipient.toLowerCase()}`],
+        reasoning: `Mail to ${recipient} is CRITICAL by policy (see chittyentity/SECURITY.md).`,
+        aiModel: null,
+        fallback: false,
+        recipientOverride: true,
+      };
+      const shouldEscalate = true;
+      this.rawSql.exec(
+        `INSERT INTO priority_decisions (org, category, level, score, factors, ai_model, fallback, escalated)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        org || "ChittyOS",
+        category || "security_incident",
+        override.level,
+        override.score,
+        JSON.stringify(override.factors),
+        null,
+        0,
+        1,
+      );
+      const result = {
+        level: override.level,
+        score: override.score,
+        numericScore: PRIORITY_SCORES.CRITICAL,
+        factors: override.factors,
+        reasoning: override.reasoning,
+        escalated: shouldEscalate,
+        fallback: false,
+        recipientOverride: true,
+        timestamp: new Date().toISOString(),
+      };
+      this.info("prioritized-override", { org, recipient, level: result.level });
+      return this.jsonResponse(result);
+    }
 
     let priority;
     try {
@@ -253,6 +307,24 @@ Respond with JSON only:
     }
 
     return level === "CRITICAL";
+  }
+
+  /**
+   * Extract the recipient address from the scoring payload. Handles
+   * several shapes the caller may pass (email routing provides `to`,
+   * MCP callers may pass `recipient`, some pipelines nest under
+   * `email.to`). Returns a lowercase address or null.
+   */
+  extractRecipient(body) {
+    if (!body) return null;
+    const direct = body.recipient || body.to || body.toAddress;
+    if (typeof direct === "string" && direct.includes("@")) return direct.trim();
+    if (Array.isArray(direct) && direct.length > 0 && typeof direct[0] === "string") {
+      return direct[0].trim();
+    }
+    const nested = body.email && (body.email.to || body.email.recipient);
+    if (typeof nested === "string" && nested.includes("@")) return nested.trim();
+    return null;
   }
 
   handleStats() {

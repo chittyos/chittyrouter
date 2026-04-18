@@ -46,6 +46,14 @@ export class CloudflareEmailHandler {
       // Log to KV
       await this.logEmail(emailData, triage);
 
+      // Security disclosure path — dispatched BEFORE general routing so that
+      // mail to security@chitty.cc (or triaged as a security_incident) is
+      // guaranteed to reach the SecurityAgent within the 48h SLA declared in
+      // chittyentity/SECURITY.md, even if downstream routing fails.
+      if (this.isSecurityIncident(emailData, triage)) {
+        await this.dispatchToSecurityAgent(emailData, triage, env, ctx);
+      }
+
       // Route based on address and triage result
       await this.routeEmail(message, emailData, triage);
 
@@ -242,6 +250,63 @@ export class CloudflareEmailHandler {
   /**
    * Route email based on address and triage
    */
+  /**
+   * True when an inbound email should be dispatched to SecurityAgent.
+   *
+   * Two independent signals:
+   *   1. Recipient is in the critical-address set (security@chitty.cc) —
+   *      address-based override, trusted unconditionally.
+   *   2. TriageAgent/LLM classifier tagged it as a security_incident.
+   *
+   * Either signal is sufficient; both are common.
+   */
+  isSecurityIncident(emailData, triage) {
+    const to = String(emailData?.to || "").toLowerCase();
+    if (to === "security@chitty.cc" || to.startsWith("security@chitty.cc")) {
+      return true;
+    }
+    if (triage?.category === "security_incident") return true;
+    if (triage?.class === "security-incident") return true;
+    return false;
+  }
+
+  /**
+   * Dispatch the email to SecurityAgent's /ingest endpoint. Uses DO stub
+   * (idFromName("default") — one agent instance per deployment keeps the
+   * incident table global). Failures are logged but do not reject — the
+   * email still gets logged + routed by the caller.
+   */
+  async dispatchToSecurityAgent(emailData, triage, env, ctx) {
+    if (!env || !env.SECURITY_AGENT) {
+      console.warn("SECURITY_AGENT binding absent — cannot dispatch security incident", emailData.id);
+      return;
+    }
+    try {
+      const stub = env.SECURITY_AGENT.get(env.SECURITY_AGENT.idFromName("default"));
+      const res = await stub.fetch("https://internal/agents/security/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reporter: emailData.from,
+          subject: emailData.subject,
+          content: emailData.content,
+          message_id: emailData.id,
+          recipient: emailData.to,
+          triage_category: triage?.category,
+          triage_urgency: triage?.urgencyLevel,
+        }),
+      });
+      if (!res.ok) {
+        console.error(`SecurityAgent /ingest returned ${res.status} for ${emailData.id}`);
+        return;
+      }
+      const body = await res.json();
+      console.log(`🔒 Dispatched to SecurityAgent: incident ${body.incident_id}, ACK due ${body.ack_sla_deadline}`);
+    } catch (err) {
+      console.error("SecurityAgent dispatch failed:", err?.message || err);
+    }
+  }
+
   async routeEmail(message, emailData, triage) {
     const route = this.addressRoutes[emailData.to];
 

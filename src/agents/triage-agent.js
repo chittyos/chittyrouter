@@ -23,6 +23,7 @@ const CATEGORIES = [
   "grant_management",
   "service_incident",
   "support_ticket",
+  "security_incident",
 ];
 
 // Keyword fallback patterns per category
@@ -39,6 +40,21 @@ const FALLBACK_PATTERNS = {
   grant_management: ["grant", "proposal", "funding", "disbursement", "reporting"],
   service_incident: ["outage", "deployment", "incident", "worker", "error 5"],
   support_ticket: ["ticket", "bug", "feature request", "support", "help"],
+  security_incident: [
+    "vulnerability",
+    "cve",
+    "exploit",
+    "disclosure",
+    "security advisory",
+    "rce",
+    "sql injection",
+    "xss",
+    "credential leak",
+    "breach",
+    "unauthorized access",
+    "attestation bypass",
+    "cvss",
+  ],
 };
 
 export class TriageAgent extends ChittyRouterBaseAgent {

@@ -122,6 +122,7 @@ class RouteMultiplexer {
       ["/agents/intelligence/*", this.delegateToAgent.bind(this, "INTELLIGENCE_AGENT")],
       ["/agents/webhook/*", this.delegateToAgent.bind(this, "WEBHOOK_AGENT")],
       ["/agents/messaging/*", this.delegateToAgent.bind(this, "MESSAGING_AGENT")],
+      ["/agents/security/*", this.delegateToAgent.bind(this, "SECURITY_AGENT")],
       ["/agents/status", this.handleAgentStatus.bind(this)],
     ]);
   }
@@ -476,11 +477,12 @@ class RouteMultiplexer {
         storage: await this.checkStorageHealth(),
       },
       agents: {
-        count: 12,
+        count: 13,
         bindings: [
           "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
           "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
           "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+          "SECURITY_AGENT",
         ].filter((n) => !!this.env[n]).length,
         route: "/agents/status",
       },
@@ -495,6 +497,7 @@ class RouteMultiplexer {
       "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
       "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
       "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+      "SECURITY_AGENT",
     ];
     return this.jsonResponse({
       status: "ok",
@@ -505,7 +508,7 @@ class RouteMultiplexer {
       organization: "CHITTYOS",
       environment: this.env.ENVIRONMENT,
       agents: {
-        total: 12,
+        total: 13,
         available: agentBindings.filter((n) => !!this.env[n]).length,
       },
       aiModels: {
@@ -707,6 +710,7 @@ class RouteMultiplexer {
       "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
       "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
       "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+      "SECURITY_AGENT",
     ];
 
     const results = await Promise.all(
