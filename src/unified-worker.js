@@ -129,14 +129,14 @@ class RouteMultiplexer {
   /**
    * Main request router
    */
-  async route(request) {
+  async route(request, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
 
     // Find matching route
     for (const [pattern, handler] of this.routes) {
       if (this.matchPath(path, pattern)) {
-        return handler(request, url);
+        return handler(request, url, ctx);
       }
     }
 
@@ -171,9 +171,12 @@ class RouteMultiplexer {
     return this.jsonResponse(result);
   }
 
-  async handleEmailProcessing(request) {
+  async handleEmailProcessing(request, _url, ctx) {
     const body = await request.json();
-    const result = await this.services.ai.emailProcessor.processEmail(body);
+    const result = await this.services.ai.emailProcessor.processEmail(
+      body,
+      ctx,
+    );
     return this.jsonResponse(result);
   }
 
@@ -847,7 +850,7 @@ export default {
       ctx.waitUntil(this.logRequest(env, requestId, request));
 
       // Route the request
-      const response = await multiplexer.route(request);
+      const response = await multiplexer.route(request, ctx);
 
       // Clone with additional headers (response.headers may be immutable)
       const headers = new Headers(response.headers);

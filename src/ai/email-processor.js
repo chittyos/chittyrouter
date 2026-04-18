@@ -8,6 +8,7 @@ import { ChittyIDValidator } from '../chittyid/chittyid-validator.js';
 import { storeInChittyChain } from '../utils/storage.js';
 import { ServiceDiscovery } from '../utils/service-discovery.js';
 import { generateEmailChittyID } from '../utils/chittyid-generator.js';
+import { forwardToDisputeIntake } from '../integration/dispute-forwarder.js';
 
 export class EmailProcessor {
   constructor(ai, env) {
@@ -23,9 +24,12 @@ export class EmailProcessor {
    * Called from the /ai/process-email HTTP endpoint.
    *
    * @param {{ subject: string, from: string, content: string, to?: string, channel?: string, metadata?: object }} body
+   * @param {ExecutionContext} [ctx] Optional Cloudflare ExecutionContext — when
+   *   provided, out-of-band forwards (e.g. dispute intake) are scheduled via
+   *   ctx.waitUntil so they never block the triage → priority → response path.
    * @returns {Promise<object>}
    */
-  async processEmail(body) {
+  async processEmail(body, ctx) {
     const { subject, from, content, to, channel, metadata } = body;
 
     // Step 1: Triage — classify via TriageAgent
@@ -36,6 +40,31 @@ export class EmailProcessor {
       channel: channel || "email",
       metadata,
     });
+
+    // Step 1.5: Fire-and-forget forward of qualifying classifications to
+    // chittydispute intake. The forwarder handles its own gating (category
+    // worthiness + auth token presence) and never throws.
+    const emailDataForForward = {
+      subject,
+      from,
+      to,
+      content,
+      messageId: metadata?.messageId,
+      timestamp: new Date().toISOString(),
+      metadata,
+    };
+    const forwardPromise = forwardToDisputeIntake(
+      this.env,
+      triageResult,
+      emailDataForForward,
+    );
+    if (ctx && typeof ctx.waitUntil === "function") {
+      ctx.waitUntil(forwardPromise);
+    } else {
+      // No execution context available — attach a no-op catch so the
+      // dangling promise doesn't surface as an unhandled rejection.
+      forwardPromise.catch(() => {});
+    }
 
     // Step 2: Priority — score via PriorityAgent
     const priorityResult = await this.callAgent("PRIORITY_AGENT", "/score", {
@@ -183,6 +212,38 @@ export class EmailProcessor {
 
       // Convert email message to structured data
       const emailData = await this.extractEmailData(message);
+
+      // Triage via TriageAgent so the dispute forwarder sees the same
+      // classification contract as the /ai/process-email path. The failure
+      // mode here is "skip the forward" — a triage error must not break
+      // the legacy routing pipeline below.
+      let triageForForward = null;
+      try {
+        triageForForward = await this.callAgent("TRIAGE_AGENT", "/classify", {
+          sender: emailData.from,
+          subject: emailData.subject,
+          content: emailData.content,
+          channel: "email",
+          metadata: { messageId: emailData.messageId },
+        });
+      } catch (triageErr) {
+        console.warn(
+          `[dispute-forwarder] triage call failed, skipping forward: ${triageErr?.message || triageErr}`,
+        );
+      }
+
+      if (triageForForward) {
+        const forwardPromise = forwardToDisputeIntake(
+          this.env,
+          triageForForward,
+          emailData,
+        );
+        if (ctx && typeof ctx.waitUntil === "function") {
+          ctx.waitUntil(forwardPromise);
+        } else {
+          forwardPromise.catch(() => {});
+        }
+      }
 
       // AI-powered processing pipeline
       const routingResult = await this.router.intelligentRoute(emailData);
