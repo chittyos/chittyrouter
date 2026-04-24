@@ -4,6 +4,8 @@
  * AI triages and logs immediately - no polling needed
  */
 
+import { CASE_EMAIL_ROUTES } from '../config/case-registry.js';
+
 export class CloudflareEmailHandler {
   constructor(env) {
     this.env = env;
@@ -19,15 +21,33 @@ export class CloudflareEmailHandler {
       financial: /invoice|payment|transfer|wire|bank|balance|overdue|ACH/i
     };
 
-    // Address-based routing rules
-    this.addressRoutes = {
+    // Non-case address routing rules. Case-specific addresses are merged in
+    // below from the canonical case registry so there is a single source of
+    // truth for case → email attribution.
+    const nonCaseRoutes = {
       'intake@chitty.cc': { forward: 'nick@aribia.cc', priority: 'HIGH' },
       'legal@chitty.cc': { forward: 'nick@aribia.cc', priority: 'CRITICAL' },
       'evidence@chitty.cc': { forward: 'nick@aribia.cc', priority: 'HIGH' },
       'calendar@chitty.cc': { forward: 'nick@aribia.cc', priority: 'MEDIUM' },
-      'arias-v-bianchi@chitty.cc': { forward: 'nick@aribia.cc', priority: 'CRITICAL', case: 'ARIAS_v_BIANCHI' },
       'chittyos@chitty.cc': { forward: 'nick@aribia.cc', priority: 'MEDIUM' }
     };
+
+    // Derive case-specific routes from the registry (never hardcode case
+    // aliases here — add them to src/config/case-registry.js).
+    const caseRoutes = Object.fromEntries(
+      Object.entries(CASE_EMAIL_ROUTES).map(([addr, route]) => [
+        addr,
+        {
+          forward: route.forward,
+          priority: route.priority,
+          case: route.chittyThread ?? route.caseSlug,
+          caseSlug: route.caseSlug,
+          caseNumber: route.caseNumber,
+        },
+      ]),
+    );
+
+    this.addressRoutes = { ...nonCaseRoutes, ...caseRoutes };
   }
 
   /**

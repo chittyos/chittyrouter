@@ -260,13 +260,20 @@ export class EmailProcessor {
     - Matter references
     - Court case identifiers
 
-    Respond with JSON:
+    CRITICAL: Only extract values that actually appear in the email text above.
+    If no case pattern is clearly present, set has_case_pattern to false and
+    use null for extracted_pattern and case_number. Do NOT invent, guess, or
+    default to any specific case. Placeholder values in the schema below are
+    illustrative ONLY and must not be echoed back unless present in the email.
+
+    Respond with JSON (this is the shape; populate from the email, not from
+    these placeholders):
     {
       "has_case_pattern": true|false,
       "pattern_type": "lawsuit|case_number|matter|none",
-      "extracted_pattern": "PLAINTIFF_v_DEFENDANT",
-      "case_number": "2024D007847",
-      "confidence": 0.95
+      "extracted_pattern": "<PLAINTIFF>_v_<DEFENDANT> or null",
+      "case_number": "<case number extracted from email or null>",
+      "confidence": 0.0
     }
     `;
 

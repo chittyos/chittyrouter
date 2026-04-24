@@ -2,14 +2,13 @@
  * Email routing configuration for ChittyRouter
  */
 
+import { CASE_EMAIL_ROUTES } from './case-registry.js';
+
 export const EMAIL_ROUTES = {
-  // Case-specific routing patterns
-  'arias-v-bianchi@example.com': {
-    caseNumber: '2024D007847',
-    attorneys: ['attorney1@example.com', 'attorney2@example.com'],
-    chittyThread: 'ARIAS_v_BIANCHI_2024',
-    priority: 'HIGH'
-  },
+  // Case-specific routes derived from the canonical case registry — DO NOT
+  // hardcode additional case entries here. Add new cases to case-registry.js
+  // and they will appear here automatically.
+  ...CASE_EMAIL_ROUTES,
 
   // General intake
   'intake@example.com': {
