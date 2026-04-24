@@ -49,11 +49,23 @@ export const CASE_REGISTRY = Object.freeze([
     filenamePatterns: ['bianchi v schatz', 'bianchi vs schatz', 'schatz'],
   },
   {
-    slug: 'colombia-eviction',
+    // Formal matter name. See detailed matter brief in private evidence-db
+    // at docs/cases/aribia-v-camilo-arias/matter-brief.md — not repeated here
+    // (public repo). Keep this entry to routing/classification keywords only.
+    slug: 'aribia-v-camilo-arias',
     caseNumber: 'UNKNOWN',
-    displayName: 'Colombia Eviction (Medellín)',
+    displayName: 'ARIBIA LLC v. Camilo Arias (Colombia — Medellín)',
     status: 'active',
-    filenamePatterns: ['morada mami', 'medellin property', 'colombia eviction'],
+    filenamePatterns: [
+      // Property identifiers (public, already in public cadastro records)
+      'plaza de colores', 'morada mami',
+      'carrera 76 a', '53-215', 'apartment 1112', 'apt 1112',
+      '01n-5270691', '01n-5270572',
+      // Legal-form file types common for this matter
+      'promesa de compraventa', 'otrosi', 'otrosí', 'formulario 4',
+      // Generic descriptors
+      'medellin property', 'colombia eviction', 'aribia colombia',
+    ],
   },
   {
     slug: 'clarendon-1610',
