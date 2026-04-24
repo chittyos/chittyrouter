@@ -48,31 +48,31 @@ export class MobileBridgeService {
     const pathname = url.pathname;
 
     // Mobile-optimized endpoints
-    if (pathname === "/mobile/quick-start" && request.method === "POST") {
+    if (pathname === '/mobile/quick-start' && request.method === 'POST') {
       return await this.quickStart(request);
     }
 
-    if (pathname === "/mobile/handoff" && request.method === "POST") {
+    if (pathname === '/mobile/handoff' && request.method === 'POST') {
       return await this.createMobileHandoff(request);
     }
 
-    if (pathname === "/mobile/continue" && request.method === "POST") {
+    if (pathname === '/mobile/continue' && request.method === 'POST') {
       return await this.continueMobileSession(request);
     }
 
-    if (pathname === "/mobile/sync" && request.method === "GET") {
+    if (pathname === '/mobile/sync' && request.method === 'GET') {
       return await this.getMobileSync(request);
     }
 
-    if (pathname === "/mobile/status" && request.method === "GET") {
+    if (pathname === '/mobile/status' && request.method === 'GET') {
       return await this.getMobileStatus(request);
     }
 
-    if (pathname === "/mobile/context" && request.method === "GET") {
+    if (pathname === '/mobile/context' && request.method === 'GET') {
       return await this.getMobileContext(request);
     }
 
-    return new Response("Mobile endpoint not found", { status: 404 });
+    return new Response('Mobile endpoint not found', { status: 404 });
   }
 
   /**
@@ -95,7 +95,7 @@ export class MobileBridgeService {
 
       if (!sessionData) {
         // Get most recent session
-        const indexData = await this.get("session:index");
+        const indexData = await this.get('session:index');
         const sessionIndex = indexData ? JSON.parse(indexData) : [];
 
         if (sessionIndex.length > 0) {
@@ -110,14 +110,14 @@ export class MobileBridgeService {
         return new Response(
           JSON.stringify({
             success: false,
-            message: "No recent sessions found",
+            message: 'No recent sessions found',
             quickStartData: {
-              platform: platform || "mobile",
-              context: "Starting fresh mobile session",
-              nextSteps: ["Begin new work"],
+              platform: platform || 'mobile',
+              context: 'Starting fresh mobile session',
+              nextSteps: ['Begin new work'],
             },
           }),
-          { headers: { "Content-Type": "application/json" } },
+          { headers: { 'Content-Type': 'application/json' } },
         );
       }
 
@@ -134,7 +134,7 @@ export class MobileBridgeService {
             platform,
           ),
         }),
-        { headers: { "Content-Type": "application/json" } },
+        { headers: { 'Content-Type': 'application/json' } },
       );
     } catch (error) {
       return new Response(
@@ -144,7 +144,7 @@ export class MobileBridgeService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -162,11 +162,11 @@ export class MobileBridgeService {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Session not found",
+            error: 'Session not found',
           }),
           {
             status: 404,
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           },
         );
       }
@@ -177,7 +177,7 @@ export class MobileBridgeService {
       const mobileHandoff = {
         handoffId,
         originalSessionId: sessionId,
-        mobilePlatform: mobilePlatform || "unknown",
+        mobilePlatform: mobilePlatform || 'unknown',
         deviceInfo: deviceInfo || {},
         mobileContext: this.optimizeForMobile(session),
         instructions: this.generateMobileInstructions(session, mobilePlatform),
@@ -197,9 +197,9 @@ export class MobileBridgeService {
         JSON.stringify({
           success: true,
           mobileHandoff,
-          quickAccessCode: handoffId.split("-").pop(), // Last part for easy entry
+          quickAccessCode: handoffId.split('-').pop(), // Last part for easy entry
         }),
-        { headers: { "Content-Type": "application/json" } },
+        { headers: { 'Content-Type': 'application/json' } },
       );
     } catch (error) {
       return new Response(
@@ -209,7 +209,7 @@ export class MobileBridgeService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -228,7 +228,7 @@ export class MobileBridgeService {
         mobileHandoffData = await this.get(`mobile:${handoffId}`);
       } else if (quickAccessCode) {
         // Find handoff by access code
-        const allKeys = await this.list({ prefix: "mobile:" });
+        const allKeys = await this.list({ prefix: 'mobile:' });
         for (const key of allKeys.keys) {
           if (key.name.endsWith(quickAccessCode)) {
             mobileHandoffData = await this.get(key.name);
@@ -241,11 +241,11 @@ export class MobileBridgeService {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Mobile handoff not found or expired",
+            error: 'Mobile handoff not found or expired',
           }),
           {
             status: 404,
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           },
         );
       }
@@ -257,11 +257,11 @@ export class MobileBridgeService {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Mobile handoff expired",
+            error: 'Mobile handoff expired',
           }),
           {
             status: 410,
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           },
         );
       }
@@ -282,7 +282,7 @@ export class MobileBridgeService {
         }
         if (updates.todos) {
           originalSession.todos.push(
-            ...updates.todos.map((t) => ({ ...t, source: "mobile" })),
+            ...updates.todos.map((t) => ({ ...t, source: 'mobile' })),
           );
         }
         if (updates.nextSteps) {
@@ -309,7 +309,7 @@ export class MobileBridgeService {
           updated: !!updates,
           nextSteps: this.generateMobileContinuationSteps(mobileHandoff),
         }),
-        { headers: { "Content-Type": "application/json" } },
+        { headers: { 'Content-Type': 'application/json' } },
       );
     } catch (error) {
       return new Response(
@@ -319,7 +319,7 @@ export class MobileBridgeService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -331,17 +331,17 @@ export class MobileBridgeService {
   async getMobileSync(request) {
     try {
       const url = new URL(request.url);
-      const sessionId = url.searchParams.get("sessionId");
+      const sessionId = url.searchParams.get('sessionId');
 
       if (!sessionId) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "sessionId parameter required",
+            error: 'sessionId parameter required',
           }),
           {
             status: 400,
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           },
         );
       }
@@ -351,11 +351,11 @@ export class MobileBridgeService {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Session not found",
+            error: 'Session not found',
           }),
           {
             status: 404,
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           },
         );
       }
@@ -374,7 +374,7 @@ export class MobileBridgeService {
             hasGitHubSync: !!this.env.GITHUB_TOKEN,
           },
         }),
-        { headers: { "Content-Type": "application/json" } },
+        { headers: { 'Content-Type': 'application/json' } },
       );
     } catch (error) {
       return new Response(
@@ -384,7 +384,7 @@ export class MobileBridgeService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -395,7 +395,7 @@ export class MobileBridgeService {
    */
   async getMobileStatus() {
     try {
-      const indexData = await this.get("session:index");
+      const indexData = await this.get('session:index');
       const sessionIndex = indexData ? JSON.parse(indexData) : [];
 
       const now = new Date();
@@ -405,14 +405,14 @@ export class MobileBridgeService {
         (s) => new Date(s.lastActivity) > oneHourAgo,
       );
 
-      const mobileHandoffs = await this.list({ prefix: "mobile:" });
+      const mobileHandoffs = await this.list({ prefix: 'mobile:' });
 
       return new Response(
         JSON.stringify({
           success: true,
           status: {
-            service: "ChittyRouter Mobile Bridge",
-            version: "1.0.0",
+            service: 'ChittyRouter Mobile Bridge',
+            version: '1.0.0',
             timestamp: new Date().toISOString(),
             sessions: {
               total: sessionIndex.length,
@@ -421,14 +421,14 @@ export class MobileBridgeService {
             mobile: {
               activeHandoffs: mobileHandoffs.keys.length,
               supportedPlatforms: [
-                "claude-mobile",
-                "chatgpt-mobile",
-                "mobile-browser",
+                'claude-mobile',
+                'chatgpt-mobile',
+                'mobile-browser',
               ],
             },
           },
         }),
-        { headers: { "Content-Type": "application/json" } },
+        { headers: { 'Content-Type': 'application/json' } },
       );
     } catch (error) {
       return new Response(
@@ -438,7 +438,7 @@ export class MobileBridgeService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -450,8 +450,8 @@ export class MobileBridgeService {
   async getMobileContext(request) {
     try {
       const url = new URL(request.url);
-      const sessionId = url.searchParams.get("sessionId");
-      const handoffId = url.searchParams.get("handoffId");
+      const sessionId = url.searchParams.get('sessionId');
+      const handoffId = url.searchParams.get('handoffId');
 
       let contextData;
 
@@ -465,7 +465,7 @@ export class MobileBridgeService {
               context: handoff.mobileContext,
               instructions: handoff.instructions,
             }),
-            { headers: { "Content-Type": "application/json" } },
+            { headers: { 'Content-Type': 'application/json' } },
           );
         }
       }
@@ -480,9 +480,9 @@ export class MobileBridgeService {
             JSON.stringify({
               success: true,
               context: mobileContext,
-              instructions: this.generateMobileInstructions(session, "mobile"),
+              instructions: this.generateMobileInstructions(session, 'mobile'),
             }),
-            { headers: { "Content-Type": "application/json" } },
+            { headers: { 'Content-Type': 'application/json' } },
           );
         }
       }
@@ -490,11 +490,11 @@ export class MobileBridgeService {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "No context found for provided ID",
+          error: 'No context found for provided ID',
         }),
         {
           status: 404,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     } catch (error) {
@@ -505,7 +505,7 @@ export class MobileBridgeService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -518,20 +518,20 @@ export class MobileBridgeService {
     return {
       context:
         session.context?.substring(0, 300) +
-        (session.context?.length > 300 ? "..." : ""),
+        (session.context?.length > 300 ? '...' : ''),
       intent: session.intent,
       recentFiles: Object.entries(session.files || {})
         .slice(-3)
         .map(([path, content]) => ({
           path,
           preview:
-            content.substring(0, 100) + (content.length > 100 ? "..." : ""),
+            content.substring(0, 100) + (content.length > 100 ? '...' : ''),
         })),
       pendingTodos: (session.todos || [])
         .filter((t) => !t.completed)
         .slice(0, 5)
         .map((t) => ({
-          text: t.text?.substring(0, 80) + (t.text?.length > 80 ? "..." : ""),
+          text: t.text?.substring(0, 80) + (t.text?.length > 80 ? '...' : ''),
           priority: t.priority,
         })),
       nextSteps: (session.nextSteps || []).slice(0, 3),
@@ -545,27 +545,27 @@ export class MobileBridgeService {
    */
   generateMobileInstructions(session, platform) {
     const platformName =
-      platform === "claude-mobile"
-        ? "Claude mobile"
-        : platform === "chatgpt-mobile"
-          ? "ChatGPT mobile"
-          : "mobile platform";
+      platform === 'claude-mobile'
+        ? 'Claude mobile'
+        : platform === 'chatgpt-mobile'
+          ? 'ChatGPT mobile'
+          : 'mobile platform';
 
     return {
       greeting: `Continue work from desktop on ${platformName}`,
       context: session.context?.substring(0, 200),
       quickStart: [
-        "Review the context and recent files",
-        "Check pending todos for next actions",
-        "Continue from where desktop session left off",
+        'Review the context and recent files',
+        'Check pending todos for next actions',
+        'Continue from where desktop session left off',
       ],
       mobileTips: [
-        "Use voice input for faster updates",
-        "Focus on planning and high-level decisions",
-        "Sync back to desktop for detailed coding",
+        'Use voice input for faster updates',
+        'Focus on planning and high-level decisions',
+        'Sync back to desktop for detailed coding',
       ],
       returnInstructions:
-        "Use the same handoff ID to sync changes back to desktop",
+        'Use the same handoff ID to sync changes back to desktop',
     };
   }
 
@@ -574,9 +574,9 @@ export class MobileBridgeService {
    */
   generateMobileContinuationSteps(mobileHandoff) {
     return [
-      "Review updates made on mobile",
-      "Continue detailed implementation on desktop",
-      "Use desktop Claude for file editing and testing",
+      'Review updates made on mobile',
+      'Continue detailed implementation on desktop',
+      'Use desktop Claude for file editing and testing',
       `Mobile session: ${mobileHandoff.mobilePlatform}`,
     ];
   }

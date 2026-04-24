@@ -6,39 +6,57 @@
  * @service chittycanon://core/services/chittyrouter
  * @canon chittycanon://gov/governance#core-types
  */
-import { ChittyRouterBaseAgent } from "./base-agent.js";
+import { ChittyRouterBaseAgent } from './base-agent.js';
 
 // Classification categories (expanded from original for multi-org)
 const CATEGORIES = [
-  "lawsuit_communication",
-  "document_submission",
-  "appointment_request",
-  "emergency_legal",
-  "general_inquiry",
-  "court_notice",
-  "billing_matter",
-  "property_management",
-  "tenant_communication",
-  "permit_application",
-  "grant_management",
-  "service_incident",
-  "support_ticket",
+  'lawsuit_communication',
+  'document_submission',
+  'appointment_request',
+  'emergency_legal',
+  'general_inquiry',
+  'court_notice',
+  'billing_matter',
+  'property_management',
+  'tenant_communication',
+  'permit_application',
+  'grant_management',
+  'service_incident',
+  'support_ticket',
+  'security_incident',
 ];
 
 // Keyword fallback patterns per category
+// NOTE: Order matters! More specific categories (like security_incident) must
+// come before broader categories (like emergency_legal) to prevent shadowing.
 const FALLBACK_PATTERNS = {
-  lawsuit_communication: ["case", "plaintiff", "defendant", "litigation", "legal action"],
-  document_submission: ["attached", "document", "contract", "evidence", "filing"],
-  appointment_request: ["meeting", "appointment", "schedule", "consultation", "availability"],
-  emergency_legal: ["urgent", "emergency", "asap", "immediate", "deadline"],
-  court_notice: ["court", "hearing", "judge", "motion", "subpoena"],
-  billing_matter: ["invoice", "payment", "bill", "retainer", "fee"],
-  property_management: ["property", "unit", "building", "maintenance", "repair"],
-  tenant_communication: ["tenant", "lease", "rent", "move-in", "move-out"],
-  permit_application: ["permit", "inspection", "violation", "zoning", "building code"],
-  grant_management: ["grant", "proposal", "funding", "disbursement", "reporting"],
-  service_incident: ["outage", "deployment", "incident", "worker", "error 5"],
-  support_ticket: ["ticket", "bug", "feature request", "support", "help"],
+  security_incident: [
+    'vulnerability',
+    'cve',
+    'exploit',
+    'disclosure',
+    'security advisory',
+    'rce',
+    'sql injection',
+    'xss',
+    'credential leak',
+    'breach',
+    'unauthorized access',
+    'attestation bypass',
+    'cvss',
+  ],
+  lawsuit_communication: ['case', 'plaintiff', 'defendant', 'litigation', 'legal action'],
+  document_submission: ['attached', 'document', 'contract', 'evidence', 'filing'],
+  appointment_request: ['meeting', 'appointment', 'schedule', 'consultation', 'availability'],
+  emergency_legal: ['urgent', 'emergency', 'asap', 'immediate', 'deadline'],
+  court_notice: ['court', 'hearing', 'judge', 'motion', 'subpoena'],
+  billing_matter: ['invoice', 'payment', 'bill', 'retainer', 'fee'],
+  property_management: ['property', 'unit', 'building', 'maintenance', 'repair'],
+  tenant_communication: ['tenant', 'lease', 'rent', 'move-in', 'move-out'],
+  permit_application: ['permit', 'inspection', 'violation', 'zoning', 'building code'],
+  grant_management: ['grant', 'proposal', 'funding', 'disbursement', 'reporting'],
+  service_incident: ['outage', 'deployment', 'incident', 'worker', 'error 5'],
+  support_ticket: ['ticket', 'bug', 'feature request', 'support', 'help'],
 };
 
 export class TriageAgent extends ChittyRouterBaseAgent {
@@ -78,23 +96,23 @@ export class TriageAgent extends ChittyRouterBaseAgent {
   async onRequest(request) {
     const url = new URL(request.url);
 
-    if (request.method === "POST" && url.pathname.endsWith("/classify")) {
+    if (request.method === 'POST' && url.pathname.endsWith('/classify')) {
       return this.handleClassify(request);
     }
 
-    if (request.method === "GET" && url.pathname.endsWith("/stats")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/stats')) {
       return this.handleStats();
     }
 
-    if (request.method === "GET" && url.pathname.endsWith("/status")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/status')) {
       return this.handleStatus();
     }
 
     // Default: return agent info
     return this.jsonResponse({
-      agent: "TriageAgent",
-      status: "active",
-      endpoints: ["/classify", "/stats", "/status"],
+      agent: 'TriageAgent',
+      status: 'active',
+      endpoints: ['/classify', '/stats', '/status'],
     });
   }
 
@@ -114,7 +132,7 @@ export class TriageAgent extends ChittyRouterBaseAgent {
     try {
       classification = await this.aiClassify({ sender, subject, content, channel }, orgResult);
     } catch (err) {
-      this.error("AI triage failed, using fallback", { error: err.message });
+      this.error('AI triage failed, using fallback', { error: err.message });
       classification = this.fallbackClassify({ sender, subject, content });
     }
 
@@ -144,7 +162,7 @@ export class TriageAgent extends ChittyRouterBaseAgent {
       timestamp: new Date().toISOString(),
     };
 
-    this.info("classified", { org: result.org, category: result.category, confidence: result.confidence });
+    this.info('classified', { org: result.org, category: result.category, confidence: result.confidence });
     return this.jsonResponse(result);
   }
 
@@ -152,7 +170,7 @@ export class TriageAgent extends ChittyRouterBaseAgent {
    * AI-powered classification using Cloudflare AI.
    */
   async aiClassify(emailData, orgResult) {
-    const categoryList = CATEGORIES.map((c) => `  - ${c}`).join("\n");
+    const categoryList = CATEGORIES.map((c) => `  - ${c}`).join('\n');
 
     const prompt = `Classify this communication for the ${orgResult.org} organization.
 
@@ -160,10 +178,10 @@ CATEGORIES:
 ${categoryList}
 
 COMMUNICATION:
-From: ${emailData.sender || "unknown"}
-Subject: ${emailData.subject || "none"}
-Channel: ${emailData.channel || "email"}
-Content: ${(emailData.content || "").substring(0, 800)}
+From: ${emailData.sender || 'unknown'}
+Subject: ${emailData.subject || 'none'}
+Channel: ${emailData.channel || 'email'}
+Content: ${(emailData.content || '').substring(0, 800)}
 
 Respond with JSON only:
 {
@@ -175,7 +193,7 @@ Respond with JSON only:
 }`;
 
     const response = await this.runAIWithPrompt(prompt, {
-      promptId: "triage.classify",
+      promptId: 'triage.classify',
       variables: { org: orgResult.org, categories: categoryList },
     });
 
@@ -190,7 +208,7 @@ Respond with JSON only:
         confidence: parsed.confidence || 0.7,
         keywords: parsed.keywords || [],
         urgencyIndicators: parsed.urgency_indicators || [],
-        reasoning: parsed.reasoning || "AI classification",
+        reasoning: parsed.reasoning || 'AI classification',
         aiModel: this.env.AI_MODEL_PRIMARY,
         fallback: false,
       };
@@ -204,7 +222,7 @@ Respond with JSON only:
    * Keyword-based fallback classification.
    */
   fallbackClassify(emailData) {
-    const text = ((emailData.subject || "") + " " + (emailData.content || "")).toLowerCase();
+    const text = ((emailData.subject || '') + ' ' + (emailData.content || '')).toLowerCase();
 
     for (const [category, keywords] of Object.entries(FALLBACK_PATTERNS)) {
       const matches = keywords.filter((kw) => text.includes(kw));
@@ -214,18 +232,18 @@ Respond with JSON only:
           confidence: Math.min(0.8, matches.length * 0.2 + 0.4),
           keywords: matches,
           urgencyIndicators: [],
-          reasoning: `Keyword-based classification: ${matches.join(", ")}`,
+          reasoning: `Keyword-based classification: ${matches.join(', ')}`,
           fallback: true,
         };
       }
     }
 
     return {
-      category: "general_inquiry",
+      category: 'general_inquiry',
       confidence: 0.5,
       keywords: [],
       urgencyIndicators: [],
-      reasoning: "No clear classification patterns found",
+      reasoning: 'No clear classification patterns found',
       fallback: true,
     };
   }
@@ -242,7 +260,7 @@ Respond with JSON only:
        LIMIT 50`
     ).toArray();
 
-    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM classifications").toArray();
+    const total = this.rawSql.exec('SELECT COUNT(*) as total FROM classifications').toArray();
 
     return this.jsonResponse({
       totalClassifications: total[0]?.total || 0,
@@ -252,12 +270,12 @@ Respond with JSON only:
 
   handleStatus() {
     const recent = this.rawSql.exec(
-      "SELECT COUNT(*) as count FROM classifications WHERE created_at > datetime('now', '-1 hour')"
+      'SELECT COUNT(*) as count FROM classifications WHERE created_at > datetime(\'now\', \'-1 hour\')'
     ).toArray();
 
     return this.jsonResponse({
-      agent: "TriageAgent",
-      status: "active",
+      agent: 'TriageAgent',
+      status: 'active',
       classificationsLastHour: recent[0]?.count || 0,
       categories: CATEGORIES.length,
       orgs: 6,

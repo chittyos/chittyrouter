@@ -27,6 +27,7 @@
       { "name": "INTELLIGENCE_AGENT", "class_name": "IntelligenceAgent" },
       { "name": "WEBHOOK_AGENT", "class_name": "WebhookIngestionAgent" },
       { "name": "MESSAGING_AGENT", "class_name": "MessagingAgent" },
+      { "name": "SECURITY_AGENT", "class_name": "SecurityAgent" },
       { "name": "MCP_GATEWAY", "class_name": "ChittyRouterMcpGateway" }
     ]
   },
@@ -47,6 +48,10 @@
     {
       "tag": "v3",
       "new_sqlite_classes": ["ChittyRouterMcpGateway"]
+    },
+    {
+      "tag": "v4",
+      "new_sqlite_classes": ["SecurityAgent"]
     }
   ],
   "vars": {
@@ -66,6 +71,8 @@
     "VERSION_MANAGEMENT": "enterprise",
     "CHITTYCONNECT_URL": "https://connect.chitty.cc",
     "CHITTYROUTER_URL": "https://router.chitty.cc",
+    "CHITTYDISPUTE_URL": "https://dispute.chitty.cc",
+    "DISPUTE_WORTHY_CATEGORIES": "lawsuit,court_filing,legal_demand,dispute,complaint,summons,subpoena,attorney_correspondence",
     "ENABLE_ANALYTICS": "true"
   },
   // mcp.chitty.cc/* route removed — owned by chittyconnect (canonical MCP gateway)

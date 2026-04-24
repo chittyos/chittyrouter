@@ -6,16 +6,16 @@
  * @service chittycanon://core/services/chittyrouter
  * @canon chittycanon://gov/governance#core-types
  */
-import { Agent } from "agents";
+import { Agent } from 'agents';
 
 // Organization detection patterns
 const ORG_PATTERNS = [
-  { org: "Furnished-Condos", domains: ["furnished-condos.com"], keywords: ["property", "tenant", "lease", "maintenance", "condo"] },
-  { org: "ChittyCounsel", domains: ["chittycounsel.com"], keywords: ["case", "court", "filing", "hearing", "motion", "counsel"] },
-  { org: "ChittyFoundation", domains: ["chittyfoundation.org"], keywords: ["grant", "donation", "board", "governance", "foundation"] },
-  { org: "ChittyOS", domains: ["chitty.cc"], keywords: ["service", "deployment", "incident", "worker", "api"] },
-  { org: "ChittyApps", domains: ["chittyapps.com"], keywords: ["ticket", "feature", "support", "app"] },
-  { org: "ChicagoApps", domains: ["chicagoapps.com"], keywords: ["permit", "inspection", "violation", "zoning"] },
+  { org: 'Furnished-Condos', domains: ['furnished-condos.com'], keywords: ['property', 'tenant', 'lease', 'maintenance', 'condo'] },
+  { org: 'ChittyCounsel', domains: ['chittycounsel.com'], keywords: ['case', 'court', 'filing', 'hearing', 'motion', 'counsel'] },
+  { org: 'ChittyFoundation', domains: ['chittyfoundation.org'], keywords: ['grant', 'donation', 'board', 'governance', 'foundation'] },
+  { org: 'ChittyOS', domains: ['chitty.cc'], keywords: ['service', 'deployment', 'incident', 'worker', 'api'] },
+  { org: 'ChittyApps', domains: ['chittyapps.com'], keywords: ['ticket', 'feature', 'support', 'app'] },
+  { org: 'ChicagoApps', domains: ['chicagoapps.com'], keywords: ['permit', 'inspection', 'violation', 'zoning'] },
 ];
 
 export class ChittyRouterBaseAgent extends Agent {
@@ -53,7 +53,7 @@ export class ChittyRouterBaseAgent extends Agent {
    * @returns {{ org: string, confidence: number, signals: string[] }}
    */
   detectOrg(ctx) {
-    let bestOrg = "ChittyOS"; // default
+    let bestOrg = 'ChittyOS'; // default
     let bestScore = 0;
     let bestSignals = [];
 
@@ -63,7 +63,7 @@ export class ChittyRouterBaseAgent extends Agent {
 
       // Domain match (strongest signal)
       if (ctx.sender) {
-        const senderDomain = ctx.sender.split("@")[1]?.toLowerCase() || "";
+        const senderDomain = ctx.sender.split('@')[1]?.toLowerCase() || '';
         if (pattern.domains.some((d) => senderDomain.includes(d))) {
           score += 3;
           patternSignals.push(`domain:${senderDomain}`);
@@ -76,7 +76,7 @@ export class ChittyRouterBaseAgent extends Agent {
       }
 
       // Keyword match
-      const text = ((ctx.content || "") + " " + (ctx.sender || "")).toLowerCase();
+      const text = ((ctx.content || '') + ' ' + (ctx.sender || '')).toLowerCase();
       for (const kw of pattern.keywords) {
         if (text.includes(kw)) {
           score += 1;
@@ -87,7 +87,7 @@ export class ChittyRouterBaseAgent extends Agent {
       // Metadata org hint
       if (ctx.metadata?.org === pattern.org) {
         score += 5;
-        patternSignals.push("metadata-hint");
+        patternSignals.push('metadata-hint');
       }
 
       if (score > bestScore) {
@@ -110,12 +110,12 @@ export class ChittyRouterBaseAgent extends Agent {
    * Run an AI inference call using the worker's AI binding.
    */
   async runAI(prompt, opts = {}) {
-    const model = opts.model || this.env.AI_MODEL_PRIMARY || "@cf/meta/llama-4-scout-17b-16e-instruct";
+    const model = opts.model || this.env.AI_MODEL_PRIMARY || '@cf/meta/llama-4-scout-17b-16e-instruct';
     const messages = [];
     if (opts.systemPrompt) {
-      messages.push({ role: "system", content: opts.systemPrompt });
+      messages.push({ role: 'system', content: opts.systemPrompt });
     }
-    messages.push({ role: "user", content: prompt });
+    messages.push({ role: 'user', content: prompt });
 
     const response = await this.env.AI.run(model, {
       messages,
@@ -142,19 +142,19 @@ export class ChittyRouterBaseAgent extends Agent {
     if (Date.now() < this.constructor._promptCooldownUntil) return null;
 
     try {
-      const environment = this.env.ENVIRONMENT || "production";
+      const environment = this.env.ENVIRONMENT || 'production';
       const res = await fetch(`${connectUrl}/api/v1/context/prompts/resolve`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "X-Source-Service": "chittyrouter",
-          "Authorization": `Bearer ${this.env.CHITTYCONNECT_TOKEN || ""}`,
+          'Content-Type': 'application/json',
+          'X-Source-Service': 'chittyrouter',
+          'Authorization': `Bearer ${this.env.CHITTYCONNECT_TOKEN || ''}`,
         },
         body: JSON.stringify({
           promptId,
           environment,
           variables,
-          consumerService: "chittyrouter",
+          consumerService: 'chittyrouter',
         }),
         signal: AbortSignal.timeout(2000),
       });
@@ -214,7 +214,7 @@ export class ChittyRouterBaseAgent extends Agent {
         return JSON.parse(jsonMatch[0]);
       }
     } catch (err) {
-      console.error("parseAIJson failed", { error: err.message, responseLength: (response || "").length });
+      console.error('parseAIJson failed', { error: err.message, responseLength: (response || '').length });
     }
     return null;
   }
@@ -228,7 +228,7 @@ export class ChittyRouterBaseAgent extends Agent {
       const data = await request.json();
       return { data };
     } catch (err) {
-      return { error: this.jsonResponse({ error: "Invalid JSON body", detail: err.message }, 400) };
+      return { error: this.jsonResponse({ error: 'Invalid JSON body', detail: err.message }, 400) };
     }
   }
 
@@ -249,7 +249,7 @@ export class ChittyRouterBaseAgent extends Agent {
   log(level, message, metadata) {
     const meta = metadata ? JSON.stringify(metadata) : null;
     this.rawSql.exec(
-      "INSERT INTO agent_log (level, message, metadata) VALUES (?, ?, ?)",
+      'INSERT INTO agent_log (level, message, metadata) VALUES (?, ?, ?)',
       level,
       message,
       meta
@@ -257,15 +257,15 @@ export class ChittyRouterBaseAgent extends Agent {
   }
 
   info(message, metadata) {
-    this.log("info", message, metadata);
+    this.log('info', message, metadata);
   }
 
   warn(message, metadata) {
-    this.log("warn", message, metadata);
+    this.log('warn', message, metadata);
   }
 
   error(message, metadata) {
-    this.log("error", message, metadata);
+    this.log('error', message, metadata);
   }
 
   // -- HTTP Helpers --
@@ -273,7 +273,7 @@ export class ChittyRouterBaseAgent extends Agent {
   jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {
       status,
-      headers: { "Content-Type": "application/json" },
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 }

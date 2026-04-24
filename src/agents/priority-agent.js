@@ -6,37 +6,49 @@
  * @service chittycanon://core/services/chittyrouter
  * @canon chittycanon://gov/governance#core-types
  */
-import { ChittyRouterBaseAgent } from "./base-agent.js";
+import { ChittyRouterBaseAgent } from './base-agent.js';
 
-const PRIORITY_LEVELS = ["CRITICAL", "HIGH", "NORMAL", "LOW"];
+const PRIORITY_LEVELS = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW'];
 
 const PRIORITY_SCORES = { CRITICAL: 4, HIGH: 3, NORMAL: 2, LOW: 1 };
 
+/**
+ * Address-based priority overrides. Mail sent TO these addresses is
+ * auto-flagged CRITICAL regardless of content, because these inboxes
+ * are dedicated to time-sensitive classes of communication.
+ *
+ * Security disclosure inbox: chittyentity/SECURITY.md declares a
+ * 48-hour acknowledgement SLA — any delay in triage breaches that SLA.
+ */
+const CRITICAL_RECIPIENT_ADDRESSES = new Set([
+  'security@chitty.cc',
+]);
+
 // Default escalation rules per org
 const DEFAULT_ESCALATION_RULES = {
-  "Furnished-Condos": {
-    autoEscalate: ["emergency_legal", "tenant_communication"],
-    criticalKeywords: ["flood", "fire", "water damage", "lockout", "eviction"],
+  'Furnished-Condos': {
+    autoEscalate: ['emergency_legal', 'tenant_communication'],
+    criticalKeywords: ['flood', 'fire', 'water damage', 'lockout', 'eviction'],
   },
   ChittyCounsel: {
-    autoEscalate: ["court_notice", "emergency_legal"],
-    criticalKeywords: ["court date", "deadline", "subpoena", "motion", "filing due"],
+    autoEscalate: ['court_notice', 'emergency_legal'],
+    criticalKeywords: ['court date', 'deadline', 'subpoena', 'motion', 'filing due'],
   },
   ChittyFoundation: {
-    autoEscalate: ["grant_management"],
-    criticalKeywords: ["deadline", "compliance", "audit", "reporting due"],
+    autoEscalate: ['grant_management'],
+    criticalKeywords: ['deadline', 'compliance', 'audit', 'reporting due'],
   },
   ChittyOS: {
-    autoEscalate: ["service_incident"],
-    criticalKeywords: ["outage", "p0", "production down", "data loss"],
+    autoEscalate: ['service_incident'],
+    criticalKeywords: ['outage', 'p0', 'production down', 'data loss'],
   },
   ChittyApps: {
-    autoEscalate: ["support_ticket"],
-    criticalKeywords: ["data loss", "security", "breach", "billing error"],
+    autoEscalate: ['support_ticket'],
+    criticalKeywords: ['data loss', 'security', 'breach', 'billing error'],
   },
   ChicagoApps: {
-    autoEscalate: ["permit_application"],
-    criticalKeywords: ["violation", "citation", "hearing date", "deadline"],
+    autoEscalate: ['permit_application'],
+    criticalKeywords: ['violation', 'citation', 'hearing date', 'deadline'],
   },
 };
 
@@ -79,22 +91,22 @@ export class PriorityAgent extends ChittyRouterBaseAgent {
   async onRequest(request) {
     const url = new URL(request.url);
 
-    if (request.method === "POST" && url.pathname.endsWith("/score")) {
+    if (request.method === 'POST' && url.pathname.endsWith('/score')) {
       return this.handleScore(request);
     }
 
-    if (request.method === "GET" && url.pathname.endsWith("/stats")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/stats')) {
       return this.handleStats();
     }
 
-    if (request.method === "GET" && url.pathname.endsWith("/status")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/status')) {
       return this.handleStatus();
     }
 
     return this.jsonResponse({
-      agent: "PriorityAgent",
-      status: "active",
-      endpoints: ["/score", "/stats", "/status"],
+      agent: 'PriorityAgent',
+      status: 'active',
+      endpoints: ['/score', '/stats', '/status'],
     });
   }
 
@@ -106,11 +118,53 @@ export class PriorityAgent extends ChittyRouterBaseAgent {
     const body = await request.json();
     const { category, org, content } = body;
 
+    // Address-based override: dedicated inboxes are CRITICAL by policy.
+    // Checked BEFORE AI/fallback so a model error can't downgrade a
+    // security disclosure to NORMAL.
+    const recipient = this.extractRecipient(body);
+    if (recipient && CRITICAL_RECIPIENT_ADDRESSES.has(recipient.toLowerCase())) {
+      const override = {
+        level: 'CRITICAL',
+        score: PRIORITY_SCORES.CRITICAL,
+        factors: ['recipient_override', `to:${recipient.toLowerCase()}`],
+        reasoning: `Mail to ${recipient} is CRITICAL by policy (see chittyentity/SECURITY.md).`,
+        aiModel: null,
+        fallback: false,
+        recipientOverride: true,
+      };
+      const shouldEscalate = true;
+      this.rawSql.exec(
+        `INSERT INTO priority_decisions (org, category, level, score, factors, ai_model, fallback, escalated)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        org || 'ChittyOS',
+        category || 'general_inquiry',
+        override.level,
+        override.score,
+        JSON.stringify(override.factors),
+        null,
+        0,
+        1,
+      );
+      const result = {
+        level: override.level,
+        score: override.score,
+        numericScore: PRIORITY_SCORES.CRITICAL,
+        factors: override.factors,
+        reasoning: override.reasoning,
+        escalated: shouldEscalate,
+        fallback: false,
+        recipientOverride: true,
+        timestamp: new Date().toISOString(),
+      };
+      this.info('prioritized-override', { org, recipient, level: result.level });
+      return this.jsonResponse(result);
+    }
+
     let priority;
     try {
       priority = await this.aiPrioritize(body);
     } catch (err) {
-      this.error("AI priority failed, using fallback", { error: err.message });
+      this.error('AI priority failed, using fallback', { error: err.message });
       priority = this.fallbackPrioritize(body);
     }
 
@@ -121,8 +175,8 @@ export class PriorityAgent extends ChittyRouterBaseAgent {
     this.rawSql.exec(
       `INSERT INTO priority_decisions (org, category, level, score, factors, ai_model, fallback, escalated)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      org || "ChittyOS",
-      category || "general_inquiry",
+      org || 'ChittyOS',
+      category || 'general_inquiry',
       priority.level,
       priority.score,
       JSON.stringify(priority.factors),
@@ -142,7 +196,7 @@ export class PriorityAgent extends ChittyRouterBaseAgent {
       timestamp: new Date().toISOString(),
     };
 
-    this.info("prioritized", { org, category, level: result.level, escalated: shouldEscalate });
+    this.info('prioritized', { org, category, level: result.level, escalated: shouldEscalate });
     return this.jsonResponse(result);
   }
 
@@ -150,7 +204,7 @@ export class PriorityAgent extends ChittyRouterBaseAgent {
    * AI-powered priority scoring.
    */
   async aiPrioritize(data) {
-    const prompt = `Determine the priority level for this ${data.org || "unknown"} communication:
+    const prompt = `Determine the priority level for this ${data.org || 'unknown'} communication:
 
 PRIORITY LEVELS:
 - CRITICAL (immediate attention required)
@@ -159,11 +213,11 @@ PRIORITY LEVELS:
 - LOW (can wait, informational)
 
 COMMUNICATION:
-Subject: ${data.subject || "none"}
-From: ${data.sender || "unknown"}
-Category: ${data.category || "unknown"}
+Subject: ${data.subject || 'none'}
+From: ${data.sender || 'unknown'}
+Category: ${data.category || 'unknown'}
 Classification Confidence: ${data.triageConfidence || 0.7}
-Content Preview: ${(data.content || "").substring(0, 500)}
+Content Preview: ${(data.content || '').substring(0, 500)}
 
 CONTEXT:
 - Court deadlines and emergencies are CRITICAL
@@ -180,8 +234,8 @@ Respond with JSON only:
 }`;
 
     const response = await this.runAIWithPrompt(prompt, {
-      promptId: "priority.classify",
-      variables: { org: data.org || "unknown" },
+      promptId: 'priority.classify',
+      variables: { org: data.org || 'unknown' },
     });
 
     if (response === null) return this.fallbackPrioritize(data);
@@ -193,7 +247,7 @@ Respond with JSON only:
         level: parsed.level,
         score: parsed.score || 0.7,
         factors: parsed.factors || [],
-        reasoning: parsed.reasoning || "AI priority classification",
+        reasoning: parsed.reasoning || 'AI priority classification',
         aiModel: this.env.AI_MODEL_PRIMARY,
         fallback: false,
       };
@@ -206,32 +260,32 @@ Respond with JSON only:
    * Keyword/rule-based fallback priority.
    */
   fallbackPrioritize(data) {
-    const content = ((data.subject || "") + " " + (data.content || "")).toLowerCase();
-    const category = data.category || "";
+    const content = ((data.subject || '') + ' ' + (data.content || '')).toLowerCase();
+    const category = data.category || '';
 
     // Critical categories
-    if (["emergency_legal", "court_notice"].includes(category)) {
-      return { level: "CRITICAL", score: 0.9, factors: ["category-escalation"], reasoning: "Category implies critical priority", fallback: true };
+    if (['emergency_legal', 'court_notice'].includes(category)) {
+      return { level: 'CRITICAL', score: 0.9, factors: ['category-escalation'], reasoning: 'Category implies critical priority', fallback: true };
     }
 
     // Urgent keyword check
-    const urgentKeywords = ["urgent", "emergency", "asap", "immediate", "court date", "deadline", "subpoena"];
+    const urgentKeywords = ['urgent', 'emergency', 'asap', 'immediate', 'court date', 'deadline', 'subpoena'];
     const urgentMatches = urgentKeywords.filter((kw) => content.includes(kw));
     if (urgentMatches.length > 0) {
-      return { level: "HIGH", score: 0.8, factors: urgentMatches, reasoning: `Urgent keywords: ${urgentMatches.join(", ")}`, fallback: true };
+      return { level: 'HIGH', score: 0.8, factors: urgentMatches, reasoning: `Urgent keywords: ${urgentMatches.join(', ')}`, fallback: true };
     }
 
     // Document submissions
-    if (category === "document_submission") {
-      return { level: "HIGH", score: 0.7, factors: ["document-submission"], reasoning: "Document submissions are high priority", fallback: true };
+    if (category === 'document_submission') {
+      return { level: 'HIGH', score: 0.7, factors: ['document-submission'], reasoning: 'Document submissions are high priority', fallback: true };
     }
 
     // Low priority categories
-    if (["billing_matter", "general_inquiry"].includes(category)) {
-      return { level: "LOW", score: 0.6, factors: ["low-priority-category"], reasoning: "Category is typically low priority", fallback: true };
+    if (['billing_matter', 'general_inquiry'].includes(category)) {
+      return { level: 'LOW', score: 0.6, factors: ['low-priority-category'], reasoning: 'Category is typically low priority', fallback: true };
     }
 
-    return { level: "NORMAL", score: 0.6, factors: ["default"], reasoning: "Default priority", fallback: true };
+    return { level: 'NORMAL', score: 0.6, factors: ['default'], reasoning: 'Default priority', fallback: true };
   }
 
   /**
@@ -239,7 +293,7 @@ Respond with JSON only:
    */
   checkEscalation(org, category, level, content) {
     const rules = DEFAULT_ESCALATION_RULES[org];
-    if (!rules) return level === "CRITICAL";
+    if (!rules) return level === 'CRITICAL';
 
     // Auto-escalate certain categories
     if (rules.autoEscalate.includes(category) && PRIORITY_SCORES[level] >= PRIORITY_SCORES.HIGH) {
@@ -247,12 +301,64 @@ Respond with JSON only:
     }
 
     // Check critical keywords
-    const text = (content || "").toLowerCase();
+    const text = (content || '').toLowerCase();
     if (rules.criticalKeywords.some((kw) => text.includes(kw))) {
       return true;
     }
 
-    return level === "CRITICAL";
+    return level === 'CRITICAL';
+  }
+
+  /**
+   * Extract the recipient address from the scoring payload. Handles
+   * several shapes the caller may pass (email routing provides `to`,
+   * MCP callers may pass `recipient`, some pipelines nest under
+   * `email.to`). Returns a lowercase normalized address or null.
+   */
+  extractRecipient(body) {
+    if (!body) return null;
+
+    // Simple email regex to extract valid email tokens
+    const emailRegex = /[\w.+-]+@[\w.-]+\.[a-z]{2,}/i;
+
+    // Helper to extract and normalize email from a string
+    const extractEmail = (str) => {
+      if (!str || typeof str !== 'string') return null;
+      const match = str.match(emailRegex);
+      return match ? match[0].toLowerCase().trim() : null;
+    };
+
+    // Check direct fields
+    const direct = body.recipient || body.to || body.toAddress;
+    if (typeof direct === 'string') {
+      const email = extractEmail(direct);
+      if (email) return email;
+    }
+    if (Array.isArray(direct)) {
+      for (const item of direct) {
+        if (typeof item === 'string') {
+          const email = extractEmail(item);
+          if (email) return email;
+        }
+      }
+    }
+
+    // Check nested email.* fields
+    const nested = body.email && (body.email.to || body.email.recipient);
+    if (typeof nested === 'string') {
+      const email = extractEmail(nested);
+      if (email) return email;
+    }
+    if (Array.isArray(nested)) {
+      for (const item of nested) {
+        if (typeof item === 'string') {
+          const email = extractEmail(item);
+          if (email) return email;
+        }
+      }
+    }
+
+    return null;
   }
 
   handleStats() {
@@ -265,7 +371,7 @@ Respond with JSON only:
        LIMIT 50`
     ).toArray();
 
-    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM priority_decisions").toArray();
+    const total = this.rawSql.exec('SELECT COUNT(*) as total FROM priority_decisions').toArray();
 
     return this.jsonResponse({
       totalDecisions: total[0]?.total || 0,
@@ -275,12 +381,12 @@ Respond with JSON only:
 
   handleStatus() {
     const recent = this.rawSql.exec(
-      "SELECT COUNT(*) as count, SUM(escalated) as escalated FROM priority_decisions WHERE created_at > datetime('now', '-1 hour')"
+      'SELECT COUNT(*) as count, SUM(escalated) as escalated FROM priority_decisions WHERE created_at > datetime(\'now\', \'-1 hour\')'
     ).toArray();
 
     return this.jsonResponse({
-      agent: "PriorityAgent",
-      status: "active",
+      agent: 'PriorityAgent',
+      status: 'active',
       decisionsLastHour: recent[0]?.count || 0,
       escalationsLastHour: recent[0]?.escalated || 0,
       priorityLevels: PRIORITY_LEVELS.length,
@@ -297,8 +403,8 @@ export function combinePrioritySignals(aiLevel, existingLevel, aiScore = 0.7) {
   const existingNumeric = PRIORITY_SCORES[existingLevel] || 2;
   const combined = aiNumeric * aiScore + existingNumeric * (1 - aiScore);
 
-  if (combined >= 3.5) return "CRITICAL";
-  if (combined >= 2.5) return "HIGH";
-  if (combined >= 1.5) return "NORMAL";
-  return "LOW";
+  if (combined >= 3.5) return 'CRITICAL';
+  if (combined >= 2.5) return 'HIGH';
+  if (combined >= 1.5) return 'NORMAL';
+  return 'LOW';
 }

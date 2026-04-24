@@ -8,7 +8,7 @@ export class VersionManager {
 
   async getVersion() {
     return {
-      version: env.VERSION || "v1.0.0",
+      version: env.VERSION || 'v1.0.0',
       deployment: env.CF_VERSION_METADATA || {},
       timestamp: new Date().toISOString(),
     };
@@ -21,7 +21,7 @@ export class VectorStore {
     this.vectorize = env.VECTORIZE;
   }
 
-  async search(query, namespace = "default") {
+  async search(query, namespace = 'default') {
     if (!this.vectorize) return [];
 
     return await this.vectorize.query({
@@ -31,7 +31,7 @@ export class VectorStore {
     });
   }
 
-  async insert(vectors, namespace = "default") {
+  async insert(vectors, namespace = 'default') {
     if (!this.vectorize) return;
 
     return await this.vectorize.insert({
@@ -47,8 +47,8 @@ export class AIService {
     this.ai = env.AI;
   }
 
-  async generateText(prompt, model = "@cf/meta/llama-2-7b-chat-int8") {
-    if (!this.ai) return "AI service not configured";
+  async generateText(prompt, model = '@cf/meta/llama-2-7b-chat-int8') {
+    if (!this.ai) return 'AI service not configured';
 
     const response = await this.ai.run(model, {
       prompt,
@@ -61,7 +61,7 @@ export class AIService {
   async generateEmbeddings(text) {
     if (!this.ai) return [];
 
-    return await this.ai.run("@cf/baai/bge-base-en-v1.5", {
+    return await this.ai.run('@cf/baai/bge-base-en-v1.5', {
       text: [text],
     });
   }
@@ -76,7 +76,7 @@ export class PlatformManager {
 
   async routeToTenant(request, tenantId) {
     if (!this.dispatch) {
-      return new Response("Platform dispatch not configured", { status: 503 });
+      return new Response('Platform dispatch not configured', { status: 503 });
     }
 
     const tenantWorker = this.dispatch.get(tenantId);
@@ -87,7 +87,7 @@ export class PlatformManager {
     // In production, this would create a new worker for the tenant
     return {
       tenantId,
-      status: "created",
+      status: 'created',
       timestamp: new Date().toISOString(),
     };
   }
@@ -101,7 +101,7 @@ export class WorkflowEngine {
 
   async startWorkflow(workflowId, params) {
     if (!this.workflows) {
-      return { error: "Workflows not configured" };
+      return { error: 'Workflows not configured' };
     }
 
     const instance = await this.workflows.create({
@@ -111,13 +111,13 @@ export class WorkflowEngine {
 
     return {
       instanceId: instance.id,
-      status: "started",
+      status: 'started',
     };
   }
 
   async getWorkflowStatus(instanceId) {
     if (!this.workflows) {
-      return { error: "Workflows not configured" };
+      return { error: 'Workflows not configured' };
     }
 
     return await this.workflows.get(instanceId).status();
@@ -132,7 +132,7 @@ export class DataPipeline {
 
   async sendEvent(eventData) {
     if (!this.pipeline) {
-      console.log("Pipeline not configured, skipping event:", eventData);
+      console.log('Pipeline not configured, skipping event:', eventData);
       return;
     }
 
@@ -155,84 +155,84 @@ export async function handleServices(request, env) {
   const pathname = url.pathname;
 
   // Version endpoint
-  if (pathname === "/api/version") {
+  if (pathname === '/api/version') {
     const versionManager = new VersionManager(env);
     const version = await versionManager.getVersion();
     return new Response(JSON.stringify(version), {
-      headers: { "content-type": "application/json" },
+      headers: { 'content-type': 'application/json' },
     });
   }
 
   // AI endpoint
-  if (pathname.startsWith("/api/ai/")) {
+  if (pathname.startsWith('/api/ai/')) {
     const aiService = new AIService(env);
 
-    if (pathname === "/api/ai/chat") {
+    if (pathname === '/api/ai/chat') {
       const { prompt } = await request.json();
       const response = await aiService.generateText(prompt);
       return new Response(JSON.stringify({ response }), {
-        headers: { "content-type": "application/json" },
+        headers: { 'content-type': 'application/json' },
       });
     }
 
-    if (pathname === "/api/ai/embed") {
+    if (pathname === '/api/ai/embed') {
       const { text } = await request.json();
       const embeddings = await aiService.generateEmbeddings(text);
       return new Response(JSON.stringify({ embeddings }), {
-        headers: { "content-type": "application/json" },
+        headers: { 'content-type': 'application/json' },
       });
     }
   }
 
   // Vector search endpoint
-  if (pathname === "/api/search") {
+  if (pathname === '/api/search') {
     const vectorStore = new VectorStore(env);
     const { query, namespace } = await request.json();
     const results = await vectorStore.search(query, namespace);
     return new Response(JSON.stringify({ results }), {
-      headers: { "content-type": "application/json" },
+      headers: { 'content-type': 'application/json' },
     });
   }
 
   // Workflow endpoint
-  if (pathname.startsWith("/api/workflow/")) {
+  if (pathname.startsWith('/api/workflow/')) {
     const workflowEngine = new WorkflowEngine(env);
 
-    if (pathname === "/api/workflow/start") {
+    if (pathname === '/api/workflow/start') {
       const { workflowId, params } = await request.json();
       const result = await workflowEngine.startWorkflow(workflowId, params);
       return new Response(JSON.stringify(result), {
-        headers: { "content-type": "application/json" },
+        headers: { 'content-type': 'application/json' },
       });
     }
 
-    if (pathname.includes("/status/")) {
-      const instanceId = pathname.split("/").pop();
+    if (pathname.includes('/status/')) {
+      const instanceId = pathname.split('/').pop();
       const status = await workflowEngine.getWorkflowStatus(instanceId);
       return new Response(JSON.stringify(status), {
-        headers: { "content-type": "application/json" },
+        headers: { 'content-type': 'application/json' },
       });
     }
   }
 
   // Platform routing for multi-tenant
-  if (pathname.startsWith("/api/tenant/")) {
+  if (pathname.startsWith('/api/tenant/')) {
     const platformManager = new PlatformManager(env);
-    const tenantId = pathname.split("/")[3];
+    const tenantId = pathname.split('/')[3];
     return await platformManager.routeToTenant(request, tenantId);
   }
 
   // Events endpoint for pipeline
-  if (pathname === "/api/events") {
+  if (pathname === '/api/events') {
     const pipeline = new DataPipeline(env);
     const eventData = await request.json();
     await pipeline.sendEvent(eventData);
-    return new Response(JSON.stringify({ status: "event sent" }), {
-      headers: { "content-type": "application/json" },
+    return new Response(JSON.stringify({ status: 'event sent' }), {
+      headers: { 'content-type': 'application/json' },
     });
   }
 
-  return new Response("Service endpoint not found", { status: 404 });
+  return new Response('Service endpoint not found', { status: 404 });
 }
 
 // Services are already exported individually above

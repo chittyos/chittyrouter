@@ -30,14 +30,14 @@ export default {
         caseId,
         chittyId,
         from: message.from,
-        subject: message.headers.get("subject"),
+        subject: message.headers.get('subject'),
         content: await streamToText(message.raw),
         attachments: await processAttachments(message)
       }, env);
 
       // Send confirmation
       await message.reply({
-        subject: `Re: ${message.headers.get("subject")} [ChittyID: ${chittyId}]`,
+        subject: `Re: ${message.headers.get('subject')} [ChittyID: ${chittyId}]`,
         text: `Your message has been received and assigned ChittyID: ${chittyId}\n\nThis communication is now part of the secure ChittyOS case management system.\n\nLegal Team\nSecure Legal Communications`
       });
     }
@@ -50,7 +50,7 @@ export default {
       }
     } else {
       // Default forward to intake
-      await message.forward("intake@example.com");
+      await message.forward('intake@example.com');
     }
   }
 };
