@@ -348,7 +348,8 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
 
   handleListOpen() {
     const rows = this.rawSql.exec(
-      `SELECT id, reporter, subject, state, severity, ack_sla_deadline, fix_sla_deadline, assignee
+      `SELECT id, subject, state, severity, ack_sla_deadline, fix_sla_deadline, assignee,
+              CASE WHEN reporter IS NOT NULL THEN 1 ELSE 0 END as reporter_present
        FROM security_incidents
        WHERE state NOT IN ('closed', 'disclosed')
        ORDER BY created_at DESC`,
@@ -363,14 +364,16 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
   handleSlaBreaches() {
     const now = new Date().toISOString();
     const ackBreached = this.rawSql.exec(
-      `SELECT id, reporter, subject, state, severity, ack_sla_deadline
+      `SELECT id, subject, state, severity, ack_sla_deadline,
+              CASE WHEN reporter IS NOT NULL THEN 1 ELSE 0 END as reporter_present
        FROM security_incidents
        WHERE state IN ('received')
          AND ack_sla_deadline < ?`,
       now,
     ).toArray();
     const fixBreached = this.rawSql.exec(
-      `SELECT id, reporter, subject, state, severity, fix_sla_deadline
+      `SELECT id, subject, state, severity, fix_sla_deadline,
+              CASE WHEN reporter IS NOT NULL THEN 1 ELSE 0 END as reporter_present
        FROM security_incidents
        WHERE state NOT IN ('fix_shipped', 'disclosed', 'closed')
          AND fix_sla_deadline IS NOT NULL
@@ -387,7 +390,11 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
 
   handleGetIncident(id) {
     const rows = this.rawSql.exec(
-      'SELECT * FROM security_incidents WHERE id = ?',
+      `SELECT id, created_at, updated_at, subject, content_snippet, state, severity,
+              acknowledged_at, triaged_at, fixed_at, disclosed_at,
+              ack_sla_deadline, fix_sla_deadline, assignee, notion_page_id, task_id, escalated,
+              CASE WHEN reporter IS NOT NULL THEN 1 ELSE 0 END as reporter_present
+       FROM security_incidents WHERE id = ?`,
       id,
     ).toArray();
     if (rows.length === 0) return this.notFound(`incident ${id}`);

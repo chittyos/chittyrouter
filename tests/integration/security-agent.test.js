@@ -26,7 +26,7 @@
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
-import { generateIntegrationProbeEmail } from "../data/test-emails-security.js";
+import { generateIntegrationProbeEmail } from "../data/test-emails.js";
 
 const URL_BASE = process.env.CHITTYROUTER_URL;
 const TOKEN = process.env.CHITTYROUTER_AUTH_TOKEN;

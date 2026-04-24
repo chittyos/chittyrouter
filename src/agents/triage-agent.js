@@ -27,19 +27,9 @@ const CATEGORIES = [
 ];
 
 // Keyword fallback patterns per category
+// NOTE: Order matters! More specific categories (like security_incident) must
+// come before broader categories (like emergency_legal) to prevent shadowing.
 const FALLBACK_PATTERNS = {
-  lawsuit_communication: ['case', 'plaintiff', 'defendant', 'litigation', 'legal action'],
-  document_submission: ['attached', 'document', 'contract', 'evidence', 'filing'],
-  appointment_request: ['meeting', 'appointment', 'schedule', 'consultation', 'availability'],
-  emergency_legal: ['urgent', 'emergency', 'asap', 'immediate', 'deadline'],
-  court_notice: ['court', 'hearing', 'judge', 'motion', 'subpoena'],
-  billing_matter: ['invoice', 'payment', 'bill', 'retainer', 'fee'],
-  property_management: ['property', 'unit', 'building', 'maintenance', 'repair'],
-  tenant_communication: ['tenant', 'lease', 'rent', 'move-in', 'move-out'],
-  permit_application: ['permit', 'inspection', 'violation', 'zoning', 'building code'],
-  grant_management: ['grant', 'proposal', 'funding', 'disbursement', 'reporting'],
-  service_incident: ['outage', 'deployment', 'incident', 'worker', 'error 5'],
-  support_ticket: ['ticket', 'bug', 'feature request', 'support', 'help'],
   security_incident: [
     'vulnerability',
     'cve',
@@ -55,6 +45,18 @@ const FALLBACK_PATTERNS = {
     'attestation bypass',
     'cvss',
   ],
+  lawsuit_communication: ['case', 'plaintiff', 'defendant', 'litigation', 'legal action'],
+  document_submission: ['attached', 'document', 'contract', 'evidence', 'filing'],
+  appointment_request: ['meeting', 'appointment', 'schedule', 'consultation', 'availability'],
+  emergency_legal: ['urgent', 'emergency', 'asap', 'immediate', 'deadline'],
+  court_notice: ['court', 'hearing', 'judge', 'motion', 'subpoena'],
+  billing_matter: ['invoice', 'payment', 'bill', 'retainer', 'fee'],
+  property_management: ['property', 'unit', 'building', 'maintenance', 'repair'],
+  tenant_communication: ['tenant', 'lease', 'rent', 'move-in', 'move-out'],
+  permit_application: ['permit', 'inspection', 'violation', 'zoning', 'building code'],
+  grant_management: ['grant', 'proposal', 'funding', 'disbursement', 'reporting'],
+  service_incident: ['outage', 'deployment', 'incident', 'worker', 'error 5'],
+  support_ticket: ['ticket', 'bug', 'feature request', 'support', 'help'],
 };
 
 export class TriageAgent extends ChittyRouterBaseAgent {

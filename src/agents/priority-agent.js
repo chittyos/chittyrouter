@@ -313,17 +313,51 @@ Respond with JSON only:
    * Extract the recipient address from the scoring payload. Handles
    * several shapes the caller may pass (email routing provides `to`,
    * MCP callers may pass `recipient`, some pipelines nest under
-   * `email.to`). Returns a lowercase address or null.
+   * `email.to`). Returns a lowercase normalized address or null.
    */
   extractRecipient(body) {
     if (!body) return null;
+
+    // Simple email regex to extract valid email tokens
+    const emailRegex = /[\w.+-]+@[\w.-]+\.[a-z]{2,}/i;
+
+    // Helper to extract and normalize email from a string
+    const extractEmail = (str) => {
+      if (!str || typeof str !== 'string') return null;
+      const match = str.match(emailRegex);
+      return match ? match[0].toLowerCase().trim() : null;
+    };
+
+    // Check direct fields
     const direct = body.recipient || body.to || body.toAddress;
-    if (typeof direct === 'string' && direct.includes('@')) return direct.trim();
-    if (Array.isArray(direct) && direct.length > 0 && typeof direct[0] === 'string') {
-      return direct[0].trim();
+    if (typeof direct === 'string') {
+      const email = extractEmail(direct);
+      if (email) return email;
     }
+    if (Array.isArray(direct)) {
+      for (const item of direct) {
+        if (typeof item === 'string') {
+          const email = extractEmail(item);
+          if (email) return email;
+        }
+      }
+    }
+
+    // Check nested email.* fields
     const nested = body.email && (body.email.to || body.email.recipient);
-    if (typeof nested === 'string' && nested.includes('@')) return nested.trim();
+    if (typeof nested === 'string') {
+      const email = extractEmail(nested);
+      if (email) return email;
+    }
+    if (Array.isArray(nested)) {
+      for (const item of nested) {
+        if (typeof item === 'string') {
+          const email = extractEmail(item);
+          if (email) return email;
+        }
+      }
+    }
+
     return null;
   }
 

@@ -132,6 +132,7 @@ export async function forwardToDisputeIntake(env, triageResult, emailData) {
         'X-Chitty-Source': 'chittyrouter',
       },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!resp.ok) {
@@ -146,6 +147,11 @@ export async function forwardToDisputeIntake(env, triageResult, emailData) {
     );
     return { forwarded: true, status: resp.status };
   } catch (error) {
+    // Handle timeout/abort errors specifically
+    if (error?.name === 'AbortError' || error?.name === 'TimeoutError') {
+      console.warn('[dispute-forwarder] request timed out after 15s');
+      return { forwarded: false, reason: 'timeout' };
+    }
     console.warn(
       `[dispute-forwarder] forward failed: ${error?.message || String(error)}`,
     );
