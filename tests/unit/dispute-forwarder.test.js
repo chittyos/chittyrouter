@@ -14,6 +14,7 @@ import {
   buildIntakePayload,
   forwardToDisputeIntake,
 } from "../../src/integration/dispute-forwarder.js";
+import { testEmails } from "../data/test-emails.js";
 
 const WORTHY_ENV = {
   DISPUTE_WORTHY_CATEGORIES:
@@ -67,7 +68,10 @@ describe("buildIntakePayload", () => {
     timestamp: "2026-04-18T12:00:00.000Z",
   };
 
+  // Use shared test fixture with overrides for specific test fields
+  const baseEmail = testEmails.document_filing;
   const email = {
+    ...baseEmail,
     subject: "Summons - Smith v Jones 2024D007847",
     from: "clerk@cookcountycourt.example",
     to: "intake@chitty.cc",
@@ -137,7 +141,10 @@ describe("buildIntakePayload", () => {
 
 describe("forwardToDisputeIntake short-circuits (no network)", () => {
   const triage = { category: "lawsuit", confidence: 0.9 };
+  // Use shared test fixture with minimal overrides
+  const baseEmail = testEmails.general_question;
   const email = {
+    ...baseEmail,
     subject: "s",
     from: "a@b",
     content: "c",

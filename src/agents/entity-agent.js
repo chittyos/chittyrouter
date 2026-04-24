@@ -6,33 +6,33 @@
  * @service chittycanon://core/services/chittyrouter
  * @canon chittycanon://gov/governance#core-types
  */
-import { ChittyRouterBaseAgent } from "./base-agent.js";
+import { ChittyRouterBaseAgent } from './base-agent.js';
 
 // @canon: chittycanon://gov/governance#core-types
 // All five types MUST be present — never omit Authority (A).
-const ENTITY_TYPES = ["P", "L", "T", "E", "A"];
+const ENTITY_TYPES = ['P', 'L', 'T', 'E', 'A'];
 const ENTITY_TYPE_NAMES = {
-  P: "Person",   // Actor with agency (Natural / Synthetic / Legal)
-  L: "Location", // Context in space (jurisdiction, venue, place)
-  T: "Thing",    // Object without agency (document, asset, artifact)
-  E: "Event",    // Occurrence in time (transaction, decision, action)
-  A: "Authority" // Source of weight (credential, certification, decision)
+  P: 'Person',   // Actor with agency (Natural / Synthetic / Legal)
+  L: 'Location', // Context in space (jurisdiction, venue, place)
+  T: 'Thing',    // Object without agency (document, asset, artifact)
+  E: 'Event',    // Occurrence in time (transaction, decision, action)
+  A: 'Authority' // Source of weight (credential, certification, decision)
 };
 
 const ENTITY_SUBTYPES = {
-  P: ["Natural", "Synthetic", "Legal"],
-  L: ["Jurisdiction", "Venue", "Address", "Virtual"],
-  T: ["Document", "Asset", "Artifact", "Account"],
-  E: ["Transaction", "Decision", "Action", "Filing", "Hearing"],
-  A: ["Granted", "Earned", "Credential", "Certification"],
+  P: ['Natural', 'Synthetic', 'Legal'],
+  L: ['Jurisdiction', 'Venue', 'Address', 'Virtual'],
+  T: ['Document', 'Asset', 'Artifact', 'Account'],
+  E: ['Transaction', 'Decision', 'Action', 'Filing', 'Hearing'],
+  A: ['Granted', 'Earned', 'Credential', 'Certification'],
 };
 
 // @canon: chittycanon://gov/governance — lifecycle uses "retired" not "archived"
 const STATUS_TRANSITIONS = {
-  draft: ["active"],
-  active: ["suspended", "closed", "retired"],
-  suspended: ["active", "closed"],
-  closed: ["retired"],
+  draft: ['active'],
+  active: ['suspended', 'closed', 'retired'],
+  suspended: ['active', 'closed'],
+  closed: ['retired'],
   retired: [],
 };
 
@@ -83,37 +83,37 @@ export class EntityAgent extends ChittyRouterBaseAgent {
   async onRequest(request) {
     const url = new URL(request.url);
 
-    if (request.method === "POST" && url.pathname.endsWith("/create")) {
+    if (request.method === 'POST' && url.pathname.endsWith('/create')) {
       return this.handleCreate(request);
     }
-    if (request.method === "POST" && url.pathname.endsWith("/update")) {
+    if (request.method === 'POST' && url.pathname.endsWith('/update')) {
       return this.handleUpdate(request);
     }
-    if (request.method === "POST" && url.pathname.endsWith("/link")) {
+    if (request.method === 'POST' && url.pathname.endsWith('/link')) {
       return this.handleLink(request);
     }
-    if (request.method === "POST" && url.pathname.endsWith("/timeline")) {
+    if (request.method === 'POST' && url.pathname.endsWith('/timeline')) {
       return this.handleAddTimeline(request);
     }
-    if (request.method === "GET" && url.pathname.endsWith("/get")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/get')) {
       return this.handleGet(url);
     }
-    if (request.method === "GET" && url.pathname.endsWith("/search")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/search')) {
       return this.handleSearch(url);
     }
-    if (request.method === "GET" && url.pathname.endsWith("/stats")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/stats')) {
       return this.handleStats();
     }
-    if (request.method === "GET" && url.pathname.endsWith("/status")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/status')) {
       return this.handleStatus();
     }
 
     return this.jsonResponse({
-      agent: "EntityAgent",
-      status: "active",
+      agent: 'EntityAgent',
+      status: 'active',
       entityTypes: ENTITY_TYPES,
       entityTypeNames: ENTITY_TYPE_NAMES,
-      endpoints: ["/create", "/update", "/link", "/timeline", "/get", "/search", "/stats", "/status"],
+      endpoints: ['/create', '/update', '/link', '/timeline', '/get', '/search', '/stats', '/status'],
     });
   }
 
@@ -126,13 +126,13 @@ export class EntityAgent extends ChittyRouterBaseAgent {
     const { entity_type, subtype, name, org, chitty_id, metadata } = body;
 
     if (!entity_type || !ENTITY_TYPES.includes(entity_type)) {
-      return this.jsonResponse({ error: `entity_type must be one of: ${ENTITY_TYPES.join(", ")}` }, 400);
+      return this.jsonResponse({ error: `entity_type must be one of: ${ENTITY_TYPES.join(', ')}` }, 400);
     }
     if (!name) {
-      return this.jsonResponse({ error: "name is required" }, 400);
+      return this.jsonResponse({ error: 'name is required' }, 400);
     }
     if (subtype && ENTITY_SUBTYPES[entity_type] && !ENTITY_SUBTYPES[entity_type].includes(subtype)) {
-      return this.jsonResponse({ error: `Invalid subtype for ${entity_type}. Valid: ${ENTITY_SUBTYPES[entity_type].join(", ")}` }, 400);
+      return this.jsonResponse({ error: `Invalid subtype for ${entity_type}. Valid: ${ENTITY_SUBTYPES[entity_type].join(', ')}` }, 400);
     }
 
     this.rawSql.exec(
@@ -142,16 +142,16 @@ export class EntityAgent extends ChittyRouterBaseAgent {
       chitty_id || null, metadata ? JSON.stringify(metadata) : null,
     );
 
-    const created = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray();
+    const created = this.rawSql.exec('SELECT last_insert_rowid() as id').toArray();
     const entityId = created[0]?.id;
 
     this.rawSql.exec(
       `INSERT INTO entity_timeline (entity_id, event_type, description, actor)
        VALUES (?, 'created', ?, ?)`,
-      entityId, `Entity created: ${ENTITY_TYPE_NAMES[entity_type]} "${name}"`, "system",
+      entityId, `Entity created: ${ENTITY_TYPE_NAMES[entity_type]} "${name}"`, 'system',
     );
 
-    this.info("Entity created", { entityId, entity_type, name, org });
+    this.info('Entity created', { entityId, entity_type, name, org });
 
     return this.jsonResponse({
       id: entityId,
@@ -159,7 +159,7 @@ export class EntityAgent extends ChittyRouterBaseAgent {
       entity_type_name: ENTITY_TYPE_NAMES[entity_type],
       subtype: subtype || null,
       name,
-      status: "draft",
+      status: 'draft',
       org: org || null,
       chitty_id: chitty_id || null,
     });
@@ -173,10 +173,10 @@ export class EntityAgent extends ChittyRouterBaseAgent {
     const body = await request.json();
     const { id, status, name, metadata } = body;
 
-    if (!id) return this.jsonResponse({ error: "id is required" }, 400);
+    if (!id) return this.jsonResponse({ error: 'id is required' }, 400);
 
-    const rows = this.rawSql.exec("SELECT * FROM entities WHERE id = ?", id).toArray();
-    if (rows.length === 0) return this.jsonResponse({ error: "Entity not found" }, 404);
+    const rows = this.rawSql.exec('SELECT * FROM entities WHERE id = ?', id).toArray();
+    if (rows.length === 0) return this.jsonResponse({ error: 'Entity not found' }, 404);
 
     const entity = rows[0];
 
@@ -184,10 +184,10 @@ export class EntityAgent extends ChittyRouterBaseAgent {
       const allowed = STATUS_TRANSITIONS[entity.status] || [];
       if (!allowed.includes(status)) {
         return this.jsonResponse({
-          error: `Cannot transition from "${entity.status}" to "${status}". Allowed: ${allowed.join(", ") || "none"}`,
+          error: `Cannot transition from "${entity.status}" to "${status}". Allowed: ${allowed.join(', ') || 'none'}`,
         }, 400);
       }
-      this.rawSql.exec("UPDATE entities SET status = ?, updated_at = datetime('now') WHERE id = ?", status, id);
+      this.rawSql.exec('UPDATE entities SET status = ?, updated_at = datetime(\'now\') WHERE id = ?', status, id);
       this.rawSql.exec(
         `INSERT INTO entity_timeline (entity_id, event_type, description, actor)
          VALUES (?, 'status_change', ?, 'system')`,
@@ -196,16 +196,16 @@ export class EntityAgent extends ChittyRouterBaseAgent {
     }
 
     if (name) {
-      this.rawSql.exec("UPDATE entities SET name = ?, updated_at = datetime('now') WHERE id = ?", name, id);
+      this.rawSql.exec('UPDATE entities SET name = ?, updated_at = datetime(\'now\') WHERE id = ?', name, id);
     }
 
     if (metadata) {
       const existingMeta = entity.metadata ? JSON.parse(entity.metadata) : {};
       const merged = { ...existingMeta, ...metadata };
-      this.rawSql.exec("UPDATE entities SET metadata = ?, updated_at = datetime('now') WHERE id = ?", JSON.stringify(merged), id);
+      this.rawSql.exec('UPDATE entities SET metadata = ?, updated_at = datetime(\'now\') WHERE id = ?', JSON.stringify(merged), id);
     }
 
-    const updated = this.rawSql.exec("SELECT * FROM entities WHERE id = ?", id).toArray();
+    const updated = this.rawSql.exec('SELECT * FROM entities WHERE id = ?', id).toArray();
     return this.jsonResponse(this.formatEntity(updated[0]));
   }
 
@@ -216,11 +216,11 @@ export class EntityAgent extends ChittyRouterBaseAgent {
   async handleLink(request) {
     const { source_id, target_id, link_type, metadata } = await request.json();
     if (!source_id || !target_id || !link_type) {
-      return this.jsonResponse({ error: "source_id, target_id, and link_type are required" }, 400);
+      return this.jsonResponse({ error: 'source_id, target_id, and link_type are required' }, 400);
     }
 
     this.rawSql.exec(
-      `INSERT INTO entity_links (source_id, target_id, link_type, metadata) VALUES (?, ?, ?, ?)`,
+      'INSERT INTO entity_links (source_id, target_id, link_type, metadata) VALUES (?, ?, ?, ?)',
       source_id, target_id, link_type, metadata ? JSON.stringify(metadata) : null,
     );
 
@@ -230,7 +230,7 @@ export class EntityAgent extends ChittyRouterBaseAgent {
       source_id, `Linked to entity ${target_id} via "${link_type}"`,
     );
 
-    return this.jsonResponse({ source_id, target_id, link_type, status: "linked" });
+    return this.jsonResponse({ source_id, target_id, link_type, status: 'linked' });
   }
 
   /**
@@ -240,17 +240,17 @@ export class EntityAgent extends ChittyRouterBaseAgent {
   async handleAddTimeline(request) {
     const { entity_id, event_type, description, actor, metadata } = await request.json();
     if (!entity_id || !event_type) {
-      return this.jsonResponse({ error: "entity_id and event_type are required" }, 400);
+      return this.jsonResponse({ error: 'entity_id and event_type are required' }, 400);
     }
 
     this.rawSql.exec(
       `INSERT INTO entity_timeline (entity_id, event_type, description, actor, metadata)
        VALUES (?, ?, ?, ?, ?)`,
-      entity_id, event_type, description || null, actor || "system",
+      entity_id, event_type, description || null, actor || 'system',
       metadata ? JSON.stringify(metadata) : null,
     );
 
-    return this.jsonResponse({ entity_id, event_type, status: "recorded" });
+    return this.jsonResponse({ entity_id, event_type, status: 'recorded' });
   }
 
   /**
@@ -258,18 +258,18 @@ export class EntityAgent extends ChittyRouterBaseAgent {
    * GET /get?id=N
    */
   handleGet(url) {
-    const id = url.searchParams.get("id");
-    if (!id) return this.jsonResponse({ error: "id query param is required" }, 400);
+    const id = url.searchParams.get('id');
+    if (!id) return this.jsonResponse({ error: 'id query param is required' }, 400);
 
-    const rows = this.rawSql.exec("SELECT * FROM entities WHERE id = ?", parseInt(id)).toArray();
-    if (rows.length === 0) return this.jsonResponse({ error: "Entity not found" }, 404);
+    const rows = this.rawSql.exec('SELECT * FROM entities WHERE id = ?', parseInt(id)).toArray();
+    if (rows.length === 0) return this.jsonResponse({ error: 'Entity not found' }, 404);
 
     const links = this.rawSql.exec(
-      `SELECT * FROM entity_links WHERE source_id = ? OR target_id = ?`, parseInt(id), parseInt(id),
+      'SELECT * FROM entity_links WHERE source_id = ? OR target_id = ?', parseInt(id), parseInt(id),
     ).toArray();
 
     const timeline = this.rawSql.exec(
-      `SELECT * FROM entity_timeline WHERE entity_id = ? ORDER BY occurred_at DESC LIMIT 50`, parseInt(id),
+      'SELECT * FROM entity_timeline WHERE entity_id = ? ORDER BY occurred_at DESC LIMIT 50', parseInt(id),
     ).toArray();
 
     return this.jsonResponse({
@@ -284,22 +284,22 @@ export class EntityAgent extends ChittyRouterBaseAgent {
    * GET /search?entity_type=P&org=ChittyOS&status=active&q=name
    */
   handleSearch(url) {
-    let query = "SELECT * FROM entities WHERE 1=1";
+    let query = 'SELECT * FROM entities WHERE 1=1';
     const params = [];
 
-    const entityType = url.searchParams.get("entity_type");
-    if (entityType) { query += " AND entity_type = ?"; params.push(entityType); }
+    const entityType = url.searchParams.get('entity_type');
+    if (entityType) { query += ' AND entity_type = ?'; params.push(entityType); }
 
-    const org = url.searchParams.get("org");
-    if (org) { query += " AND org = ?"; params.push(org); }
+    const org = url.searchParams.get('org');
+    if (org) { query += ' AND org = ?'; params.push(org); }
 
-    const status = url.searchParams.get("status");
-    if (status) { query += " AND status = ?"; params.push(status); }
+    const status = url.searchParams.get('status');
+    if (status) { query += ' AND status = ?'; params.push(status); }
 
-    const q = url.searchParams.get("q");
-    if (q) { query += " AND name LIKE ?"; params.push(`%${q}%`); }
+    const q = url.searchParams.get('q');
+    if (q) { query += ' AND name LIKE ?'; params.push(`%${q}%`); }
 
-    query += " ORDER BY updated_at DESC LIMIT 100";
+    query += ' ORDER BY updated_at DESC LIMIT 100';
 
     const rows = this.rawSql.exec(query, ...params).toArray();
     return this.jsonResponse({ count: rows.length, entities: rows.map((r) => this.formatEntity(r)) });
@@ -315,10 +315,10 @@ export class EntityAgent extends ChittyRouterBaseAgent {
 
   handleStats() {
     const byType = this.rawSql.exec(
-      `SELECT entity_type, status, COUNT(*) as count FROM entities GROUP BY entity_type, status ORDER BY count DESC`
+      'SELECT entity_type, status, COUNT(*) as count FROM entities GROUP BY entity_type, status ORDER BY count DESC'
     ).toArray();
-    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM entities").toArray();
-    const linkCount = this.rawSql.exec("SELECT COUNT(*) as total FROM entity_links").toArray();
+    const total = this.rawSql.exec('SELECT COUNT(*) as total FROM entities').toArray();
+    const linkCount = this.rawSql.exec('SELECT COUNT(*) as total FROM entity_links').toArray();
     return this.jsonResponse({
       totalEntities: total[0]?.total || 0,
       totalLinks: linkCount[0]?.total || 0,
@@ -328,10 +328,10 @@ export class EntityAgent extends ChittyRouterBaseAgent {
 
   handleStatus() {
     const recent = this.rawSql.exec(
-      "SELECT COUNT(*) as count FROM entities WHERE created_at > datetime('now', '-1 hour')"
+      'SELECT COUNT(*) as count FROM entities WHERE created_at > datetime(\'now\', \'-1 hour\')'
     ).toArray();
     return this.jsonResponse({
-      agent: "EntityAgent", status: "active",
+      agent: 'EntityAgent', status: 'active',
       entitiesLastHour: recent[0]?.count || 0,
       entityTypes: ENTITY_TYPES.length,
     });

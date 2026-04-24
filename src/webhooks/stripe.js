@@ -100,7 +100,7 @@ async function verifyStripeSignature(secret, rawBody, sigHeader) {
   for (const expectedSig of v1Signatures) {
     const expBuf = enc.encode(expectedSig);
     if (compBuf.byteLength !== expBuf.byteLength) continue;
-    const isEqual = typeof crypto.subtle.timingSafeEqual === "function"
+    const isEqual = typeof crypto.subtle.timingSafeEqual === 'function'
       ? crypto.subtle.timingSafeEqual(compBuf, expBuf)
       : (() => { let d = 0; for (let i = 0; i < compBuf.byteLength; i++) d |= compBuf[i] ^ expBuf[i]; return d === 0; })();
     if (isEqual) {

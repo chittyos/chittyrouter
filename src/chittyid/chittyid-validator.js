@@ -7,7 +7,7 @@
  * CLI demo format: ^[0-9]{2}-[0-9]-[A-Z]{3}-[0-9]{4}-[A-Z]-[0-9]{6}-[0-9]+-[0-9]+$
  */
 
-import crypto from "node:crypto";
+import crypto from 'node:crypto';
 
 // Export the canonical ChittyID regex pattern
 export const CHITTY_ID_RX =
@@ -16,7 +16,7 @@ export const CHITTY_ID_RX =
 export class ChittyIDValidator {
   constructor(env) {
     this.env = env;
-    this.baseURL = env.CHITTYID_SERVER || "https://id.chitty.cc";
+    this.baseURL = env.CHITTYID_SERVER || 'https://id.chitty.cc';
     this.apiKey = env.CHITTYID_API_KEY;
 
     // Validation cache (TTL: 1 hour)
@@ -44,11 +44,11 @@ export class ChittyIDValidator {
       avgLatency: 0,
     };
 
-    console.log("🔐 ChittyID Validator initialized with id.chitty.cc");
+    console.log('🔐 ChittyID Validator initialized with id.chitty.cc');
     console.log(
-      "⚠️  ONLINE ONLY: All ChittyIDs must be validated through id.chitty.cc",
+      '⚠️  ONLINE ONLY: All ChittyIDs must be validated through id.chitty.cc',
     );
-    console.log("🚫 No offline generation or validation permitted");
+    console.log('🚫 No offline generation or validation permitted');
   }
 
   /**
@@ -64,8 +64,8 @@ export class ChittyIDValidator {
           valid: false,
           chittyId,
           error:
-            "Invalid ChittyID format - must be validated through id.chitty.cc",
-          source: "format-check",
+            'Invalid ChittyID format - must be validated through id.chitty.cc',
+          source: 'format-check',
         };
       }
 
@@ -78,7 +78,7 @@ export class ChittyIDValidator {
 
       // Rate limiting check
       if (!this.checkRateLimit()) {
-        throw new Error("Rate limit exceeded - please retry later");
+        throw new Error('Rate limit exceeded - please retry later');
       }
 
       // API validation
@@ -102,7 +102,7 @@ export class ChittyIDValidator {
         valid: false,
         chittyId,
         error: `id.chitty.cc validation failed: ${error.message}`,
-        source: "api-error",
+        source: 'api-error',
         requiresOnlineValidation: true,
       };
     }
@@ -157,7 +157,7 @@ export class ChittyIDValidator {
     try {
       // Check rate limit
       if (!this.checkRateLimit()) {
-        throw new Error("Rate limit exceeded - please retry later");
+        throw new Error('Rate limit exceeded - please retry later');
       }
 
       // Validate entity data
@@ -168,19 +168,19 @@ export class ChittyIDValidator {
 
       // Generate through API
       const response = await fetch(`${this.baseURL}/api/v1/generate`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
-          "X-Client-ID": "chittyrouter",
-          "X-Request-ID": this.generateRequestId(),
+          'X-Client-ID': 'chittyrouter',
+          'X-Request-ID': this.generateRequestId(),
         },
         body: JSON.stringify({
           entityType: entityData.type,
           entityData: {
             ...entityData,
             timestamp: new Date().toISOString(),
-            source: "chittyrouter",
+            source: 'chittyrouter',
           },
           options: {
             ...options,
@@ -202,7 +202,7 @@ export class ChittyIDValidator {
         chittyId: result.chittyId,
         entityType: entityData.type,
         createdAt: result.createdAt,
-        source: "generated",
+        source: 'generated',
       });
 
       const latency = Date.now() - startTime;
@@ -220,7 +220,7 @@ export class ChittyIDValidator {
       };
     } catch (error) {
       this.metrics.failures++;
-      console.error("❌ ChittyID generation failed:", error.message);
+      console.error('❌ ChittyID generation failed:', error.message);
 
       // No offline generation - must use id.chitty.cc
       throw new Error(
@@ -235,18 +235,18 @@ export class ChittyIDValidator {
   async registerChittyID(chittyId, metadata, options = {}) {
     try {
       const response = await fetch(`${this.baseURL}/api/v1/register`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
-          "X-Client-ID": "chittyrouter",
+          'X-Client-ID': 'chittyrouter',
         },
         body: JSON.stringify({
           chittyId,
           metadata: {
             ...metadata,
             registeredAt: new Date().toISOString(),
-            source: "chittyrouter",
+            source: 'chittyrouter',
           },
           options,
         }),
@@ -289,7 +289,7 @@ export class ChittyIDValidator {
         {
           headers: {
             Authorization: `Bearer ${this.apiKey}`,
-            "X-Client-ID": "chittyrouter",
+            'X-Client-ID': 'chittyrouter',
           },
         },
       );
@@ -333,8 +333,8 @@ export class ChittyIDValidator {
         {
           headers: {
             Authorization: `Bearer ${this.apiKey}`,
-            "X-Client-ID": "chittyrouter",
-            "X-Request-ID": this.generateRequestId(),
+            'X-Client-ID': 'chittyrouter',
+            'X-Request-ID': this.generateRequestId(),
           },
         },
       );
@@ -344,8 +344,8 @@ export class ChittyIDValidator {
           return {
             valid: false,
             chittyId,
-            error: "ChittyID not found",
-            source: "api",
+            error: 'ChittyID not found',
+            source: 'api',
           };
         }
         throw new Error(`API error: ${response.status}`);
@@ -360,7 +360,7 @@ export class ChittyIDValidator {
         createdAt: result.createdAt,
         lastVerified: new Date().toISOString(),
         metadata: result.metadata,
-        source: "api",
+        source: 'api',
       };
     } catch (error) {
       throw new Error(`API validation failed: ${error.message}`);
@@ -375,11 +375,11 @@ export class ChittyIDValidator {
 
     try {
       const response = await fetch(`${this.baseURL}/api/v1/validate/batch`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
-          "X-Client-ID": "chittyrouter",
+          'X-Client-ID': 'chittyrouter',
         },
         body: JSON.stringify({
           chittyIds,
@@ -399,12 +399,12 @@ export class ChittyIDValidator {
         entityType: v.entityType,
         createdAt: v.createdAt,
         lastVerified: new Date().toISOString(),
-        source: "api-batch",
+        source: 'api-batch',
       }));
     } catch (error) {
       // Fallback to individual validation
       console.warn(
-        "Batch validation failed, falling back to individual:",
+        'Batch validation failed, falling back to individual:',
         error.message,
       );
 
@@ -436,7 +436,7 @@ export class ChittyIDValidator {
    * Validate ChittyID checksum
    */
   validateChecksum(chittyId) {
-    const parts = chittyId.split("-");
+    const parts = chittyId.split('-');
     if (parts.length !== 4) return false;
 
     // For testing and demonstration, accept any valid format
@@ -450,7 +450,7 @@ export class ChittyIDValidator {
    */
   generateLocalChittyID(entityData) {
     throw new Error(
-      "Local ChittyID generation is disabled. All ChittyIDs must be generated through id.chitty.cc for authenticity verification.",
+      'Local ChittyID generation is disabled. All ChittyIDs must be generated through id.chitty.cc for authenticity verification.',
     );
   }
 
@@ -459,38 +459,38 @@ export class ChittyIDValidator {
    */
   getEntityPrefix(entityType) {
     const prefixes = {
-      event: "CE",
-      person: "CP",
-      location: "CL",
-      thing: "CT",
-      email: "CE",
-      document: "CT",
-      case: "CE",
+      event: 'CE',
+      person: 'CP',
+      location: 'CL',
+      thing: 'CT',
+      email: 'CE',
+      document: 'CT',
+      case: 'CE',
     };
 
-    return prefixes[entityType.toLowerCase()] || "CE";
+    return prefixes[entityType.toLowerCase()] || 'CE';
   }
 
   /**
    * Validate entity data
    */
   validateEntityData(entityData) {
-    if (!entityData || typeof entityData !== "object") {
-      return { valid: false, error: "Entity data must be an object" };
+    if (!entityData || typeof entityData !== 'object') {
+      return { valid: false, error: 'Entity data must be an object' };
     }
 
     if (!entityData.type) {
-      return { valid: false, error: "Entity type is required" };
+      return { valid: false, error: 'Entity type is required' };
     }
 
     const validTypes = [
-      "event",
-      "person",
-      "location",
-      "thing",
-      "email",
-      "document",
-      "case",
+      'event',
+      'person',
+      'location',
+      'thing',
+      'email',
+      'document',
+      'case',
     ];
     if (!validTypes.includes(entityData.type.toLowerCase())) {
       return { valid: false, error: `Invalid entity type: ${entityData.type}` };
@@ -625,7 +625,7 @@ export class ChittyIDValidator {
     try {
       const response = await fetch(`${this.baseURL}/health`, {
         headers: {
-          "X-Client-ID": "chittyrouter",
+          'X-Client-ID': 'chittyrouter',
         },
       });
 
@@ -654,7 +654,7 @@ export default {
 
     try {
       // Validate single ChittyID
-      if (url.pathname === "/chittyid/validate" && request.method === "POST") {
+      if (url.pathname === '/chittyid/validate' && request.method === 'POST') {
         const body = await request.json();
         const result = await validator.validateChittyID(
           body.chittyId,
@@ -662,14 +662,14 @@ export default {
         );
 
         return new Response(JSON.stringify(result), {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         });
       }
 
       // Batch validation
       if (
-        url.pathname === "/chittyid/validate/batch" &&
-        request.method === "POST"
+        url.pathname === '/chittyid/validate/batch' &&
+        request.method === 'POST'
       ) {
         const body = await request.json();
         const results = await validator.validateBatch(
@@ -683,13 +683,13 @@ export default {
             count: results.length,
           }),
           {
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           },
         );
       }
 
       // Generate new ChittyID
-      if (url.pathname === "/chittyid/generate" && request.method === "POST") {
+      if (url.pathname === '/chittyid/generate' && request.method === 'POST') {
         const body = await request.json();
         const result = await validator.generateChittyID(
           body.entityData,
@@ -697,12 +697,12 @@ export default {
         );
 
         return new Response(JSON.stringify(result), {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         });
       }
 
       // Register existing ChittyID
-      if (url.pathname === "/chittyid/register" && request.method === "POST") {
+      if (url.pathname === '/chittyid/register' && request.method === 'POST') {
         const body = await request.json();
         const result = await validator.registerChittyID(
           body.chittyId,
@@ -711,16 +711,16 @@ export default {
         );
 
         return new Response(JSON.stringify(result), {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         });
       }
 
       // Get metadata
       if (
-        url.pathname.startsWith("/chittyid/metadata/") &&
-        request.method === "GET"
+        url.pathname.startsWith('/chittyid/metadata/') &&
+        request.method === 'GET'
       ) {
-        const chittyId = url.pathname.split("/").pop();
+        const chittyId = url.pathname.split('/').pop();
         const metadata = await validator.getChittyIDMetadata(chittyId);
 
         return new Response(
@@ -730,33 +730,33 @@ export default {
             found: !!metadata,
           }),
           {
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           },
         );
       }
 
       // Health check
-      if (url.pathname === "/chittyid/health" && request.method === "GET") {
+      if (url.pathname === '/chittyid/health' && request.method === 'GET') {
         const health = await validator.healthCheck();
 
         return new Response(JSON.stringify(health), {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
           status: health.healthy ? 200 : 503,
         });
       }
 
       // Metrics
-      if (url.pathname === "/chittyid/metrics" && request.method === "GET") {
+      if (url.pathname === '/chittyid/metrics' && request.method === 'GET') {
         const metrics = validator.getMetrics();
 
         return new Response(JSON.stringify(metrics), {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         });
       }
 
-      return new Response("Not Found", { status: 404 });
+      return new Response('Not Found', { status: 404 });
     } catch (error) {
-      console.error("ChittyID validation error:", error);
+      console.error('ChittyID validation error:', error);
 
       return new Response(
         JSON.stringify({
@@ -764,7 +764,7 @@ export default {
           timestamp: new Date().toISOString(),
         }),
         {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
           status: 500,
         },
       );

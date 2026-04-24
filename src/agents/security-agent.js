@@ -22,10 +22,10 @@
  * @canon chittycanon://gov/governance#core-types
  * @canon chittycanon://docs/gov/policy/security
  */
-import { ChittyRouterBaseAgent } from "./base-agent.js";
+import { ChittyRouterBaseAgent } from './base-agent.js';
 
 // Severity classes per SECURITY.md — adapted CVSS interpretation.
-const SEVERITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+const SEVERITY_LEVELS = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 
 // SLA targets in milliseconds — from chittyentity/SECURITY.md response table.
 const SLA_MS = {
@@ -37,13 +37,13 @@ const SLA_MS = {
 
 // Valid incident states, in order.
 const INCIDENT_STATES = [
-  "received",
-  "acknowledged",
-  "triaged",
-  "fix_in_progress",
-  "fix_shipped",
-  "disclosed",
-  "closed",
+  'received',
+  'acknowledged',
+  'triaged',
+  'fix_in_progress',
+  'fix_shipped',
+  'disclosed',
+  'closed',
 ];
 
 export class SecurityAgent extends ChittyRouterBaseAgent {
@@ -89,45 +89,45 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    if (request.method === "POST" && path.endsWith("/ingest")) {
+    if (request.method === 'POST' && path.endsWith('/ingest')) {
       return this.handleIngest(request);
     }
-    if (request.method === "POST" && path.endsWith("/acknowledge")) {
+    if (request.method === 'POST' && path.endsWith('/acknowledge')) {
       return this.handleAcknowledge(request);
     }
-    if (request.method === "POST" && path.endsWith("/triage")) {
+    if (request.method === 'POST' && path.endsWith('/triage')) {
       return this.handleTriage(request);
     }
-    if (request.method === "POST" && path.endsWith("/transition")) {
+    if (request.method === 'POST' && path.endsWith('/transition')) {
       return this.handleTransition(request);
     }
-    if (request.method === "GET" && path.endsWith("/open")) {
+    if (request.method === 'GET' && path.endsWith('/open')) {
       return this.handleListOpen();
     }
-    if (request.method === "GET" && path.endsWith("/sla-breaches")) {
+    if (request.method === 'GET' && path.endsWith('/sla-breaches')) {
       return this.handleSlaBreaches();
     }
-    if (request.method === "GET" && /\/incident\/[^/]+$/.test(path)) {
-      const id = path.split("/").pop();
+    if (request.method === 'GET' && /\/incident\/[^/]+$/.test(path)) {
+      const id = path.split('/').pop();
       return this.handleGetIncident(id);
     }
-    if (request.method === "GET" && path.endsWith("/status")) {
+    if (request.method === 'GET' && path.endsWith('/status')) {
       return this.handleStatus();
     }
 
     return this.jsonResponse({
-      agent: "SecurityAgent",
-      status: "active",
-      canon: "chittycanon://docs/gov/policy/security",
+      agent: 'SecurityAgent',
+      status: 'active',
+      canon: 'chittycanon://docs/gov/policy/security',
       endpoints: [
-        "/ingest",
-        "/acknowledge",
-        "/triage",
-        "/transition",
-        "/open",
-        "/sla-breaches",
-        "/incident/:id",
-        "/status",
+        '/ingest',
+        '/acknowledge',
+        '/triage',
+        '/transition',
+        '/open',
+        '/sla-breaches',
+        '/incident/:id',
+        '/status',
       ],
     });
   }
@@ -146,8 +146,8 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
       return this.jsonResponse(
         {
           error: {
-            code: "BAD_INPUT",
-            message: "reporter and subject required",
+            code: 'BAD_INPUT',
+            message: 'reporter and subject required',
             retryable: false,
           },
         },
@@ -165,13 +165,13 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
       id,
       String(body.reporter),
       String(body.subject),
-      String(body.content || "").slice(0, 500),
+      String(body.content || '').slice(0, 500),
       ackDeadline,
     );
 
-    this.info("security-incident-received", {
+    this.info('security-incident-received', {
       id,
-      reporter: body.reporter,
+      reporterProvided: Boolean(body.reporter),
       ackDeadline,
     });
 
@@ -180,37 +180,53 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
     const ctxPromises = [
       this.createSecurityTask(id, body).then(
         (task_id) => this.attachTaskId(id, task_id),
-        (err) => this.error("security-task-create-failed", { id, error: err.message }),
+        (err) => this.error('security-task-create-failed', { id, error: err.message }),
       ),
       this.createNotionIncident(id, body).then(
         (page_id) => this.attachNotionPageId(id, page_id),
-        (err) => this.error("security-notion-create-failed", { id, error: err.message }),
+        (err) => this.error('security-notion-create-failed', { id, error: err.message }),
       ),
       this.broadcastSlack(id, body).catch((err) =>
-        this.error("security-slack-broadcast-failed", { id, error: err.message }),
+        this.error('security-slack-broadcast-failed', { id, error: err.message }),
       ),
     ];
     // Hold open with waitUntil if available; else just fire and forget.
-    if (this.env && this.ctx && typeof this.ctx.waitUntil === "function") {
+    if (this.env && this.ctx && typeof this.ctx.waitUntil === 'function') {
       this.ctx.waitUntil(Promise.allSettled(ctxPromises));
     }
 
     return this.jsonResponse({
       incident_id: id,
-      state: "received",
+      state: 'received',
       ack_sla_deadline: ackDeadline,
-      canon: "chittycanon://docs/gov/policy/security",
+      canon: 'chittycanon://docs/gov/policy/security',
     });
   }
 
   async handleAcknowledge(request) {
     const { id, acknowledger } = await request.json().catch(() => ({}));
-    if (!id) return this.badInput("incident id required");
+    if (!id) return this.badInput('incident id required');
     const rows = this.rawSql.exec(
-      `SELECT id FROM security_incidents WHERE id = ?`,
+      'SELECT id, state FROM security_incidents WHERE id = ?',
       id,
     ).toArray();
     if (rows.length === 0) return this.notFound(`incident ${id}`);
+
+    // Enforce forward-only state machine: acknowledge is only valid from "received"
+    const currentState = rows[0].state;
+    const disallowedStates = ['acknowledged', 'triaged', 'fix_in_progress', 'fix_shipped', 'disclosed', 'closed'];
+    if (disallowedStates.includes(currentState)) {
+      return this.jsonResponse(
+        {
+          error: {
+            code: 'CONFLICT',
+            message: `cannot acknowledge incident in state '${currentState}'; acknowledge only allowed from 'received'`,
+            retryable: false,
+          },
+        },
+        409,
+      );
+    }
 
     const now = new Date().toISOString();
     this.rawSql.exec(
@@ -222,25 +238,41 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
       acknowledger || null,
       id,
     );
-    this.info("security-incident-acknowledged", { id, acknowledger });
-    return this.jsonResponse({ incident_id: id, state: "acknowledged", acknowledged_at: now });
+    this.info('security-incident-acknowledged', { id, acknowledgerProvided: Boolean(acknowledger) });
+    return this.jsonResponse({ incident_id: id, state: 'acknowledged', acknowledged_at: now });
   }
 
   async handleTriage(request) {
     const { id, severity, assignee } = await request.json().catch(() => ({}));
-    if (!id) return this.badInput("incident id required");
+    if (!id) return this.badInput('incident id required');
     if (!SEVERITY_LEVELS.includes(severity)) {
-      return this.badInput(`severity must be one of ${SEVERITY_LEVELS.join(", ")}`);
+      return this.badInput(`severity must be one of ${SEVERITY_LEVELS.join(', ')}`);
     }
     const rows = this.rawSql.exec(
-      `SELECT id FROM security_incidents WHERE id = ?`,
+      'SELECT id, state FROM security_incidents WHERE id = ?',
       id,
     ).toArray();
     if (rows.length === 0) return this.notFound(`incident ${id}`);
 
+    // Enforce forward-only state machine: triage is only valid from "received" or "acknowledged"
+    const currentState = rows[0].state;
+    const disallowedStates = ['triaged', 'fix_in_progress', 'fix_shipped', 'disclosed', 'closed'];
+    if (disallowedStates.includes(currentState)) {
+      return this.jsonResponse(
+        {
+          error: {
+            code: 'CONFLICT',
+            message: `cannot triage incident in state '${currentState}'; triage only allowed from 'received' or 'acknowledged'`,
+            retryable: false,
+          },
+        },
+        409,
+      );
+    }
+
     const now = Date.now();
-    const fixMs = severity === "CRITICAL" ? SLA_MS.fix_critical : SLA_MS.fix_high;
-    const fixDeadline = severity === "LOW" || severity === "MEDIUM"
+    const fixMs = severity === 'CRITICAL' ? SLA_MS.fix_critical : SLA_MS.fix_high;
+    const fixDeadline = severity === 'LOW' || severity === 'MEDIUM'
       ? null
       : new Date(now + fixMs).toISOString();
     const nowIso = new Date(now).toISOString();
@@ -257,8 +289,8 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
       nowIso,
       id,
     );
-    this.info("security-incident-triaged", { id, severity, fixDeadline });
-    return this.jsonResponse({ incident_id: id, state: "triaged", severity, fix_sla_deadline: fixDeadline });
+    this.info('security-incident-triaged', { id, severity, fixDeadline: fixDeadline || null });
+    return this.jsonResponse({ incident_id: id, state: 'triaged', severity, fix_sla_deadline: fixDeadline });
   }
 
   /**
@@ -267,12 +299,12 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
    */
   async handleTransition(request) {
     const { id, to, note } = await request.json().catch(() => ({}));
-    if (!id) return this.badInput("incident id required");
+    if (!id) return this.badInput('incident id required');
     if (!INCIDENT_STATES.includes(to)) {
       return this.badInput(`invalid target state '${to}'`);
     }
     const rows = this.rawSql.exec(
-      `SELECT state FROM security_incidents WHERE id = ?`,
+      'SELECT state FROM security_incidents WHERE id = ?',
       id,
     ).toArray();
     if (rows.length === 0) return this.notFound(`incident ${id}`);
@@ -283,7 +315,7 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
       return this.jsonResponse(
         {
           error: {
-            code: "CONFLICT",
+            code: 'CONFLICT',
             message: `cannot transition from '${current}' to '${to}'`,
             retryable: false,
           },
@@ -292,8 +324,8 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
       );
     }
     const now = new Date().toISOString();
-    const column = to === "fix_shipped" ? "fixed_at"
-      : to === "disclosed" ? "disclosed_at" : null;
+    const column = to === 'fix_shipped' ? 'fixed_at'
+      : to === 'disclosed' ? 'disclosed_at' : null;
     if (column) {
       this.rawSql.exec(
         `UPDATE security_incidents SET state = ?, ${column} = ?, updated_at = ? WHERE id = ?`,
@@ -304,13 +336,13 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
       );
     } else {
       this.rawSql.exec(
-        `UPDATE security_incidents SET state = ?, updated_at = ? WHERE id = ?`,
+        'UPDATE security_incidents SET state = ?, updated_at = ? WHERE id = ?',
         to,
         now,
         id,
       );
     }
-    this.info("security-incident-transitioned", { id, from: current, to, note });
+    this.info('security-incident-transitioned', { id, from: current, to, noteProvided: Boolean(note) });
     return this.jsonResponse({ incident_id: id, from: current, to });
   }
 
@@ -355,7 +387,7 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
 
   handleGetIncident(id) {
     const rows = this.rawSql.exec(
-      `SELECT * FROM security_incidents WHERE id = ?`,
+      'SELECT * FROM security_incidents WHERE id = ?',
       id,
     ).toArray();
     if (rows.length === 0) return this.notFound(`incident ${id}`);
@@ -364,11 +396,11 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
 
   handleStatus() {
     const counts = this.rawSql.exec(
-      `SELECT state, COUNT(*) as count FROM security_incidents GROUP BY state`,
+      'SELECT state, COUNT(*) as count FROM security_incidents GROUP BY state',
     ).toArray();
     return this.jsonResponse({
-      agent: "SecurityAgent",
-      canon: "chittycanon://docs/gov/policy/security",
+      agent: 'SecurityAgent',
+      canon: 'chittycanon://docs/gov/policy/security',
       by_state: counts,
     });
   }
@@ -380,23 +412,23 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
     // If not bound, this logs and returns — the incident is still recorded
     // in our own DO SQLite, so it is not lost.
     if (!this.env || !this.env.AGENT_TASKS) {
-      this.warn("AGENT_TASKS binding absent; skipping task creation", { id });
+      this.warn('AGENT_TASKS binding absent; skipping task creation', { id });
       return null;
     }
     const res = await this.env.AGENT_TASKS.fetch(
-      new Request("https://internal/api/v1/tasks", {
-        method: "POST",
+      new Request('https://internal/api/v1/tasks', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "X-Agent-From": "chittyrouter-security-agent",
-          Authorization: `Bearer ${this.env.CHITTY_AUTH_SERVICE_TOKEN || ""}`,
+          'Content-Type': 'application/json',
+          'X-Agent-From': 'chittyrouter-security-agent',
+          Authorization: `Bearer ${this.env.CHITTY_AUTH_SERVICE_TOKEN || ''}`,
         },
         body: JSON.stringify({
           title: `[SECURITY] ${body.subject}`,
           description: `Security disclosure from ${body.reporter}. Incident ${id}. See Notion for details.`,
           priority: 10,
-          agent: "chittyagent-security-responder",
-          source_agent: "chittyrouter-security-agent",
+          agent: 'chittyagent-security-responder',
+          source_agent: 'chittyrouter-security-agent',
           payload: { incident_id: id, reporter: body.reporter, message_id: body.message_id },
         }),
       }),
@@ -410,22 +442,22 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
 
   async createNotionIncident(id, body) {
     if (!this.env || !this.env.AGENT_NOTION) {
-      this.warn("AGENT_NOTION binding absent; skipping Notion page", { id });
+      this.warn('AGENT_NOTION binding absent; skipping Notion page', { id });
       return null;
     }
     const res = await this.env.AGENT_NOTION.fetch(
-      new Request("https://internal/api/v1/security-incidents", {
-        method: "POST",
+      new Request('https://internal/api/v1/security-incidents', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "X-Agent-From": "chittyrouter-security-agent",
+          'Content-Type': 'application/json',
+          'X-Agent-From': 'chittyrouter-security-agent',
         },
         body: JSON.stringify({
           incident_id: id,
           reporter: body.reporter,
           subject: body.subject,
-          content_snippet: String(body.content || "").slice(0, 2000),
-          state: "received",
+          content_snippet: String(body.content || '').slice(0, 2000),
+          state: 'received',
         }),
       }),
     );
@@ -439,19 +471,19 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
   async broadcastSlack(id, body) {
     // NotificationAgent is a sibling DO in this same worker; use its HTTP API.
     const stub = this.env && this.env.NOTIFICATION_AGENT
-      ? this.env.NOTIFICATION_AGENT.get(this.env.NOTIFICATION_AGENT.idFromName("default"))
+      ? this.env.NOTIFICATION_AGENT.get(this.env.NOTIFICATION_AGENT.idFromName('default'))
       : null;
     if (!stub) {
-      this.warn("NOTIFICATION_AGENT binding absent; skipping Slack broadcast", { id });
+      this.warn('NOTIFICATION_AGENT binding absent; skipping Slack broadcast', { id });
       return;
     }
     const res = await stub.fetch(
-      new Request("https://internal/agents/notification/broadcast", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      new Request('https://internal/agents/notification/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          channel: "slack:#security-incidents",
-          priority: "critical",
+          channel: 'slack:#security-incidents',
+          priority: 'critical',
           title: `[SECURITY] ${body.subject}`,
           body: `Incident ${id} — reporter ${body.reporter}. 48h ACK SLA running.`,
         }),
@@ -465,7 +497,7 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
   attachTaskId(id, taskId) {
     if (!taskId) return;
     this.rawSql.exec(
-      `UPDATE security_incidents SET task_id = ? WHERE id = ?`,
+      'UPDATE security_incidents SET task_id = ? WHERE id = ?',
       String(taskId),
       id,
     );
@@ -474,7 +506,7 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
   attachNotionPageId(id, pageId) {
     if (!pageId) return;
     this.rawSql.exec(
-      `UPDATE security_incidents SET notion_page_id = ? WHERE id = ?`,
+      'UPDATE security_incidents SET notion_page_id = ? WHERE id = ?',
       String(pageId),
       id,
     );
@@ -486,7 +518,7 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
     return this.jsonResponse(
       {
         error: {
-          code: "BAD_INPUT",
+          code: 'BAD_INPUT',
           message,
           retryable: false,
         },
@@ -499,7 +531,7 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
     return this.jsonResponse(
       {
         error: {
-          code: "NOT_FOUND",
+          code: 'NOT_FOUND',
           message: `${what} not found`,
           retryable: false,
         },

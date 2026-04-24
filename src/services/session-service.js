@@ -47,37 +47,37 @@ export class SessionService {
     const pathname = url.pathname;
 
     // Session CRUD operations
-    if (pathname === "/session/create" && request.method === "POST") {
+    if (pathname === '/session/create' && request.method === 'POST') {
       return await this.createSession(request);
     }
 
-    if (pathname.startsWith("/session/") && request.method === "GET") {
-      const sessionId = pathname.split("/")[2];
+    if (pathname.startsWith('/session/') && request.method === 'GET') {
+      const sessionId = pathname.split('/')[2];
       return await this.getSession(sessionId);
     }
 
-    if (pathname.startsWith("/session/") && request.method === "PUT") {
-      const sessionId = pathname.split("/")[2];
+    if (pathname.startsWith('/session/') && request.method === 'PUT') {
+      const sessionId = pathname.split('/')[2];
       return await this.updateSession(sessionId, request);
     }
 
-    if (pathname === "/session/sync" && request.method === "POST") {
+    if (pathname === '/session/sync' && request.method === 'POST') {
       return await this.syncSession(request);
     }
 
-    if (pathname === "/session/handoff" && request.method === "POST") {
+    if (pathname === '/session/handoff' && request.method === 'POST') {
       return await this.createHandoff(request);
     }
 
-    if (pathname === "/session/list" && request.method === "GET") {
+    if (pathname === '/session/list' && request.method === 'GET') {
       return await this.listSessions(request);
     }
 
-    if (pathname === "/session/status" && request.method === "GET") {
+    if (pathname === '/session/status' && request.method === 'GET') {
       return await this.getStatus();
     }
 
-    return new Response("Session endpoint not found", { status: 404 });
+    return new Response('Session endpoint not found', { status: 404 });
   }
 
   /**
@@ -92,9 +92,9 @@ export class SessionService {
         id: sessionId,
         startTime: new Date().toISOString(),
         lastActivity: new Date().toISOString(),
-        context: sessionData.context || "",
-        intent: sessionData.intent || "",
-        platform: sessionData.platform || "unknown",
+        context: sessionData.context || '',
+        intent: sessionData.intent || '',
+        platform: sessionData.platform || 'unknown',
         files: {},
         todos: [],
         nextSteps: [],
@@ -115,7 +115,7 @@ export class SessionService {
           session,
         }),
         {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     } catch (error) {
@@ -126,7 +126,7 @@ export class SessionService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -143,11 +143,11 @@ export class SessionService {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Session not found",
+            error: 'Session not found',
           }),
           {
             status: 404,
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           },
         );
       }
@@ -160,7 +160,7 @@ export class SessionService {
           session,
         }),
         {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     } catch (error) {
@@ -171,7 +171,7 @@ export class SessionService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -189,11 +189,11 @@ export class SessionService {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Session not found",
+            error: 'Session not found',
           }),
           {
             status: 404,
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           },
         );
       }
@@ -229,7 +229,7 @@ export class SessionService {
           session,
         }),
         {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     } catch (error) {
@@ -240,7 +240,7 @@ export class SessionService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -258,11 +258,11 @@ export class SessionService {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Session not found",
+            error: 'Session not found',
           }),
           {
             status: 404,
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           },
         );
       }
@@ -271,12 +271,12 @@ export class SessionService {
       const syncResults = {};
 
       // Sync to GitHub
-      if (platforms?.includes("github") && this.env.GITHUB_TOKEN) {
+      if (platforms?.includes('github') && this.env.GITHUB_TOKEN) {
         syncResults.github = await this.syncToGitHub(session);
       }
 
       // Sync to Notion
-      if (platforms?.includes("notion") && this.env.NOTION_TOKEN) {
+      if (platforms?.includes('notion') && this.env.NOTION_TOKEN) {
         syncResults.notion = await this.syncToNotion(session);
       }
 
@@ -289,7 +289,7 @@ export class SessionService {
           syncResults,
         }),
         {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     } catch (error) {
@@ -300,7 +300,7 @@ export class SessionService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -318,11 +318,11 @@ export class SessionService {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Session not found",
+            error: 'Session not found',
           }),
           {
             status: 404,
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           },
         );
       }
@@ -335,7 +335,7 @@ export class SessionService {
         handoffId,
         sessionId,
         targetPlatform,
-        reason: reason || "Cross-platform handoff",
+        reason: reason || 'Cross-platform handoff',
         context: session.context,
         intent: session.intent,
         recentFiles: Object.values(session.files).slice(-5),
@@ -359,7 +359,7 @@ export class SessionService {
           handoffContext,
         }),
         {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     } catch (error) {
@@ -370,7 +370,7 @@ export class SessionService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -382,10 +382,10 @@ export class SessionService {
   async listSessions(request) {
     try {
       const url = new URL(request.url);
-      const limit = parseInt(url.searchParams.get("limit") || "10");
-      const platform = url.searchParams.get("platform");
+      const limit = parseInt(url.searchParams.get('limit') || '10');
+      const platform = url.searchParams.get('platform');
 
-      const indexData = await this.get("session:index");
+      const indexData = await this.get('session:index');
       const sessionIndex = indexData ? JSON.parse(indexData) : [];
 
       let sessions = sessionIndex
@@ -404,7 +404,7 @@ export class SessionService {
           total: sessionIndex.length,
         }),
         {
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     } catch (error) {
@@ -415,7 +415,7 @@ export class SessionService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -426,7 +426,7 @@ export class SessionService {
    */
   async getStatus() {
     try {
-      const indexData = await this.get("session:index");
+      const indexData = await this.get('session:index');
       const sessionIndex = indexData ? JSON.parse(indexData) : [];
 
       const now = new Date();
@@ -437,8 +437,8 @@ export class SessionService {
       );
 
       const status = {
-        service: "ChittyRouter Session Service",
-        version: "1.0.0",
+        service: 'ChittyRouter Session Service',
+        version: '1.0.0',
         timestamp: new Date().toISOString(),
         sessions: {
           total: sessionIndex.length,
@@ -453,7 +453,7 @@ export class SessionService {
       };
 
       return new Response(JSON.stringify(status), {
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     } catch (error) {
       return new Response(
@@ -463,7 +463,7 @@ export class SessionService {
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     }
@@ -474,14 +474,14 @@ export class SessionService {
    */
   async syncToGitHub(session) {
     try {
-      const owner = "chittyos";
-      const repo = "chittychat-sessions";
+      const owner = 'chittyos';
+      const repo = 'chittychat-sessions';
       const path = `sessions/${session.id}.json`;
 
       const syncData = {
         session,
         lastSync: new Date().toISOString(),
-        syncSource: "chittyrouter",
+        syncSource: 'chittyrouter',
       };
 
       const content = btoa(JSON.stringify(syncData, null, 2));
@@ -489,31 +489,31 @@ export class SessionService {
       const response = await fetch(
         `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
         {
-          method: "PUT",
+          method: 'PUT',
           headers: {
             Authorization: `Bearer ${this.env.GITHUB_TOKEN}`,
-            Accept: "application/vnd.github.v3+json",
-            "Content-Type": "application/json",
+            Accept: 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             message: `Sync session ${session.id} from ChittyRouter`,
             content,
             committer: {
-              name: "ChittyRouter",
-              email: "router@chitty.cc",
+              name: 'ChittyRouter',
+              email: 'router@chitty.cc',
             },
           }),
         },
       );
 
       if (response.ok) {
-        return { success: true, platform: "github" };
+        return { success: true, platform: 'github' };
       } else {
         const error = await response.text();
-        return { success: false, platform: "github", error };
+        return { success: false, platform: 'github', error };
       }
     } catch (error) {
-      return { success: false, platform: "github", error: error.message };
+      return { success: false, platform: 'github', error: error.message };
     }
   }
 
@@ -525,9 +525,9 @@ export class SessionService {
       const backupKey = `backup:${session.id}:${Date.now()}`;
       await this.put(backupKey, JSON.stringify(session));
 
-      return { success: true, platform: "kv" };
+      return { success: true, platform: 'kv' };
     } catch (error) {
-      return { success: false, platform: "kv", error: error.message };
+      return { success: false, platform: 'kv', error: error.message };
     }
   }
 
@@ -536,7 +536,7 @@ export class SessionService {
    */
   async addToSessionIndex(sessionId, session) {
     try {
-      const indexData = await this.get("session:index");
+      const indexData = await this.get('session:index');
       const sessionIndex = indexData ? JSON.parse(indexData) : [];
 
       const sessionSummary = {
@@ -554,9 +554,9 @@ export class SessionService {
         sessionIndex.splice(0, sessionIndex.length - 1000);
       }
 
-      await this.put("session:index", JSON.stringify(sessionIndex));
+      await this.put('session:index', JSON.stringify(sessionIndex));
     } catch (error) {
-      console.error("Failed to update session index:", error);
+      console.error('Failed to update session index:', error);
     }
   }
 }

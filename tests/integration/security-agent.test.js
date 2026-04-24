@@ -26,11 +26,34 @@
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
+import { generateIntegrationProbeEmail } from "../data/test-emails-security.js";
 
 const URL_BASE = process.env.CHITTYROUTER_URL;
 const TOKEN = process.env.CHITTYROUTER_AUTH_TOKEN;
+const LIVE_INTEGRATION = process.env.LIVE_INTEGRATION === "true";
 
-const describeOrSkip = URL_BASE && TOKEN ? describe : describe.skip;
+// Production URL denylist - never run integration tests against these
+const PRODUCTION_URLS = [
+  "https://router.chitty.cc",
+  "https://chittyrouter.chitty.cc",
+  "router.chitty.cc",
+  "chittyrouter.chitty.cc",
+];
+
+function isProductionURL(url) {
+  if (!url) return false;
+  const normalized = url.toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
+  return PRODUCTION_URLS.some(prod => normalized === prod || normalized.includes(prod));
+}
+
+// Only enable tests if:
+// 1. URL_BASE and TOKEN are set
+// 2. LIVE_INTEGRATION=true is explicitly set
+// 3. URL_BASE is not a known production URL
+const describeOrSkip =
+  URL_BASE && TOKEN && LIVE_INTEGRATION && !isProductionURL(URL_BASE)
+    ? describe
+    : describe.skip;
 
 function headers() {
   return {
@@ -79,15 +102,8 @@ describeOrSkip("SecurityAgent → /agents/security/* (live)", () => {
 
   it("POST /ingest creates an incident with a 48h ack deadline", async () => {
     const before = Date.now();
-    const result = await post("/agents/security/ingest", {
-      reporter: `security-integration+${runId}@chittyrouter.test`,
-      subject: `[integration] ${runId} disclosure`,
-      content:
-        "Integration test probe for SecurityAgent. Safe to archive. " +
-        "Not a real vulnerability report.",
-      message_id: `<${runId}@chittyrouter.test>`,
-      recipient: "security@chitty.cc",
-    });
+    const probeEmail = generateIntegrationProbeEmail(runId);
+    const result = await post("/agents/security/ingest", probeEmail);
     const after = Date.now();
 
     expect(result.status).toBe(200);

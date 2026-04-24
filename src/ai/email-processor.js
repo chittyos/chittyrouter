@@ -33,11 +33,11 @@ export class EmailProcessor {
     const { subject, from, content, to, channel, metadata } = body;
 
     // Step 1: Triage — classify via TriageAgent
-    const triageResult = await this.callAgent("TRIAGE_AGENT", "/classify", {
+    const triageResult = await this.callAgent('TRIAGE_AGENT', '/classify', {
       sender: from,
       subject,
       content,
-      channel: channel || "email",
+      channel: channel || 'email',
       metadata,
     });
 
@@ -58,7 +58,7 @@ export class EmailProcessor {
       triageResult,
       emailDataForForward,
     );
-    if (ctx && typeof ctx.waitUntil === "function") {
+    if (ctx && typeof ctx.waitUntil === 'function') {
       ctx.waitUntil(forwardPromise);
     } else {
       // No execution context available — attach a no-op catch so the
@@ -67,7 +67,7 @@ export class EmailProcessor {
     }
 
     // Step 2: Priority — score via PriorityAgent
-    const priorityResult = await this.callAgent("PRIORITY_AGENT", "/score", {
+    const priorityResult = await this.callAgent('PRIORITY_AGENT', '/score', {
       sender: from,
       subject,
       content,
@@ -77,7 +77,7 @@ export class EmailProcessor {
     });
 
     // Step 3: Response — draft via ResponseAgent
-    const responseResult = await this.callAgent("RESPONSE_AGENT", "/draft", {
+    const responseResult = await this.callAgent('RESPONSE_AGENT', '/draft', {
       emailData: { subject, from, content, to },
       triageResult: { category: triageResult.category },
       priorityResult: { level: priorityResult.level },
@@ -86,7 +86,7 @@ export class EmailProcessor {
 
     return {
       success: true,
-      pipeline: "agents-sdk",
+      pipeline: 'agents-sdk',
       triage: {
         org: triageResult.org,
         category: triageResult.category,
@@ -124,13 +124,13 @@ export class EmailProcessor {
     const stub = binding.get(id);
 
     // Initialize agent name via partyserver protocol
-    const setupReq = new Request("http://dummy-example.cloudflare.com/cdn-cgi/partyserver/set-name/");
-    setupReq.headers.set("x-partykit-room", bindingName);
+    const setupReq = new Request('http://dummy-example.cloudflare.com/cdn-cgi/partyserver/set-name/');
+    setupReq.headers.set('x-partykit-room', bindingName);
     await stub.fetch(setupReq).then((r) => r.text());
 
     const resp = await stub.fetch(new Request(`https://agent${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }));
 
@@ -213,36 +213,29 @@ export class EmailProcessor {
       // Convert email message to structured data
       const emailData = await this.extractEmailData(message);
 
-      // Triage via TriageAgent so the dispute forwarder sees the same
-      // classification contract as the /ai/process-email path. The failure
-      // mode here is "skip the forward" — a triage error must not break
-      // the legacy routing pipeline below.
-      let triageForForward = null;
-      try {
-        triageForForward = await this.callAgent("TRIAGE_AGENT", "/classify", {
-          sender: emailData.from,
-          subject: emailData.subject,
-          content: emailData.content,
-          channel: "email",
-          metadata: { messageId: emailData.messageId },
-        });
-      } catch (triageErr) {
-        console.warn(
-          `[dispute-forwarder] triage call failed, skipping forward: ${triageErr?.message || triageErr}`,
-        );
-      }
-
-      if (triageForForward) {
-        const forwardPromise = forwardToDisputeIntake(
-          this.env,
-          triageForForward,
-          emailData,
-        );
-        if (ctx && typeof ctx.waitUntil === "function") {
-          ctx.waitUntil(forwardPromise);
-        } else {
-          forwardPromise.catch(() => {});
+      // Triage + forward as a fire-and-forget background task so the legacy
+      // routing path is not blocked by the synchronous Durable Object round-trip.
+      const triageAndForwardTask = (async () => {
+        try {
+          const triageForForward = await this.callAgent('TRIAGE_AGENT', '/classify', {
+            sender: emailData.from,
+            subject: emailData.subject,
+            content: emailData.content,
+            channel: 'email',
+            metadata: { messageId: emailData.messageId },
+          });
+          await forwardToDisputeIntake(this.env, triageForForward, emailData);
+        } catch (triageErr) {
+          console.warn(
+            `[dispute-forwarder] triage call failed, skipping forward: ${triageErr?.message || triageErr}`,
+          );
         }
+      })();
+
+      if (ctx && typeof ctx.waitUntil === 'function') {
+        ctx.waitUntil(triageAndForwardTask);
+      } else {
+        triageAndForwardTask.catch(() => {});
       }
 
       // AI-powered processing pipeline

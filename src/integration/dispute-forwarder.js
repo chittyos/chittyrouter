@@ -18,8 +18,8 @@
  * @canon   chittycanon://gov/governance#core-types
  */
 
-const DEFAULT_DISPUTE_URL = "https://dispute.chitty.cc";
-const INTAKE_PATH = "/api/intake";
+const DEFAULT_DISPUTE_URL = 'https://dispute.chitty.cc';
+const INTAKE_PATH = '/api/intake';
 
 /**
  * Parse the DISPUTE_WORTHY_CATEGORIES env var into a lowercased Set.
@@ -27,10 +27,10 @@ const INTAKE_PATH = "/api/intake";
  * explicitly.
  */
 function parseWorthyCategories(raw) {
-  if (!raw || typeof raw !== "string") return null;
+  if (!raw || typeof raw !== 'string') return null;
   const set = new Set(
     raw
-      .split(",")
+      .split(',')
       .map((s) => s.trim().toLowerCase())
       .filter(Boolean),
   );
@@ -42,8 +42,8 @@ function parseWorthyCategories(raw) {
  * Exported for unit testing.
  */
 export function isDisputeWorthy(triageResult, env) {
-  if (!triageResult || typeof triageResult !== "object") return false;
-  const category = String(triageResult.category || "").toLowerCase();
+  if (!triageResult || typeof triageResult !== 'object') return false;
+  const category = String(triageResult.category || '').toLowerCase();
   if (!category) return false;
 
   const worthy = parseWorthyCategories(env?.DISPUTE_WORTHY_CATEGORIES);
@@ -62,7 +62,7 @@ export function buildIntakePayload(triageResult, emailData) {
     `chittyrouter-${Date.now()}`;
 
   return {
-    source: "chittyrouter",
+    source: 'chittyrouter',
     source_ref: messageId,
     received_at: emailData?.timestamp || new Date().toISOString(),
     email: {
@@ -70,7 +70,7 @@ export function buildIntakePayload(triageResult, emailData) {
       to: emailData?.to || null,
       subject: emailData?.subject || null,
       content_preview:
-        typeof emailData?.content === "string"
+        typeof emailData?.content === 'string'
           ? emailData.content.slice(0, 2000)
           : null,
     },
@@ -106,50 +106,49 @@ export function buildIntakePayload(triageResult, emailData) {
  */
 export async function forwardToDisputeIntake(env, triageResult, emailData) {
   try {
-    if (!env) return { forwarded: false, reason: "no-env" };
+    if (!env) return { forwarded: false, reason: 'no-env' };
 
     const token = env.CHITTYDISPUTE_AUTH_TOKEN;
     if (!token) {
-      return { forwarded: false, reason: "missing-auth-token" };
+      return { forwarded: false, reason: 'missing-auth-token' };
     }
 
     if (!isDisputeWorthy(triageResult, env)) {
-      return { forwarded: false, reason: "category-not-worthy" };
+      return { forwarded: false, reason: 'category-not-worthy' };
     }
 
     const base = (env.CHITTYDISPUTE_URL || DEFAULT_DISPUTE_URL).replace(
       /\/+$/,
-      "",
+      '',
     );
     const url = `${base}${INTAKE_PATH}`;
     const payload = buildIntakePayload(triageResult, emailData);
 
     const resp = await fetch(url, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        "X-Chitty-Source": "chittyrouter",
+        'X-Chitty-Source': 'chittyrouter',
       },
       body: JSON.stringify(payload),
     });
 
     if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
       console.warn(
-        `[dispute-forwarder] intake rejected status=${resp.status} body=${body.slice(0, 200)}`,
+        `[dispute-forwarder] intake rejected status=${resp.status}`,
       );
-      return { forwarded: false, reason: "intake-non-2xx", status: resp.status };
+      return { forwarded: false, reason: 'intake-non-2xx', status: resp.status };
     }
 
     console.log(
-      `[dispute-forwarder] forwarded source_ref=${payload.source_ref} category=${payload.triage.category}`,
+      `[dispute-forwarder] forwarded category=${payload.triage.category}`,
     );
     return { forwarded: true, status: resp.status };
   } catch (error) {
     console.warn(
       `[dispute-forwarder] forward failed: ${error?.message || String(error)}`,
     );
-    return { forwarded: false, reason: "exception" };
+    return { forwarded: false, reason: 'exception' };
   }
 }

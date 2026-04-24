@@ -1,5 +1,5 @@
 // Neon + Hyperdrive Database Module for ChittyOS
-import { Client } from "@neondatabase/serverless";
+import { Client } from '@neondatabase/serverless';
 
 export class DatabaseService {
   constructor(env) {
@@ -10,7 +10,7 @@ export class DatabaseService {
   // Get database client through Hyperdrive
   getClient() {
     if (!this.hyperdrive) {
-      throw new Error("Hyperdrive not configured");
+      throw new Error('Hyperdrive not configured');
     }
 
     // Hyperdrive provides the connection string with pooling
@@ -36,17 +36,17 @@ export class DatabaseService {
 
     try {
       await client.connect();
-      await client.query("BEGIN");
+      await client.query('BEGIN');
 
       const results = [];
       for (const { sql, params } of queries) {
         results.push(await client.query(sql, params));
       }
 
-      await client.query("COMMIT");
+      await client.query('COMMIT');
       return results;
     } catch (error) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       throw error;
     } finally {
       await client.end();
@@ -54,7 +54,7 @@ export class DatabaseService {
   }
 
   // Vector similarity search using pgvector
-  async vectorSearch(embedding, tableName = "embeddings", limit = 10) {
+  async vectorSearch(embedding, tableName = 'embeddings', limit = 10) {
     const sql = `
       SELECT *, embedding <-> $1 as distance
       FROM ${tableName}
@@ -125,55 +125,55 @@ export async function handleDatabase(request, env) {
 
   try {
     // Health check
-    if (pathname === "/api/db/health") {
-      await db.query("SELECT 1");
-      return new Response(JSON.stringify({ status: "healthy" }), {
-        headers: { "content-type": "application/json" },
+    if (pathname === '/api/db/health') {
+      await db.query('SELECT 1');
+      return new Response(JSON.stringify({ status: 'healthy' }), {
+        headers: { 'content-type': 'application/json' },
       });
     }
 
     // Vector search endpoint
-    if (pathname === "/api/db/search") {
+    if (pathname === '/api/db/search') {
       const { embedding, limit } = await request.json();
-      const results = await db.vectorSearch(embedding, "embeddings", limit);
+      const results = await db.vectorSearch(embedding, 'embeddings', limit);
       return new Response(JSON.stringify(results), {
-        headers: { "content-type": "application/json" },
+        headers: { 'content-type': 'application/json' },
       });
     }
 
     // Store embedding
-    if (pathname === "/api/db/embed") {
+    if (pathname === '/api/db/embed') {
       const { id, embedding, metadata } = await request.json();
       await db.storeEmbedding(id, embedding, metadata);
       return new Response(JSON.stringify({ success: true }), {
-        headers: { "content-type": "application/json" },
+        headers: { 'content-type': 'application/json' },
       });
     }
 
     // Agent memory endpoints
-    if (pathname === "/api/db/agent/memory") {
-      if (request.method === "POST") {
+    if (pathname === '/api/db/agent/memory') {
+      if (request.method === 'POST') {
         const { sessionId, messages } = await request.json();
         await db.storeAgentMemory(sessionId, messages);
         return new Response(JSON.stringify({ success: true }), {
-          headers: { "content-type": "application/json" },
+          headers: { 'content-type': 'application/json' },
         });
       }
 
-      if (request.method === "GET") {
-        const sessionId = url.searchParams.get("sessionId");
+      if (request.method === 'GET') {
+        const sessionId = url.searchParams.get('sessionId');
         const memory = await db.getAgentMemory(sessionId);
         return new Response(JSON.stringify({ memory }), {
-          headers: { "content-type": "application/json" },
+          headers: { 'content-type': 'application/json' },
         });
       }
     }
 
-    return new Response("Database endpoint not found", { status: 404 });
+    return new Response('Database endpoint not found', { status: 404 });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { "content-type": "application/json" },
+      headers: { 'content-type': 'application/json' },
     });
   }
 }

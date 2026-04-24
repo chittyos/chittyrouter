@@ -261,12 +261,15 @@ export class CloudflareEmailHandler {
    * Either signal is sufficient; both are common.
    */
   isSecurityIncident(emailData, triage) {
-    const to = String(emailData?.to || "").toLowerCase();
-    if (to === "security@chitty.cc" || to.startsWith("security@chitty.cc")) {
+    const to = String(emailData?.to || '').toLowerCase();
+    // Parse recipient to handle "Security <security@chitty.cc>", comma-separated, etc.
+    const securityAddress = 'security@chitty.cc';
+    // Match the address token directly, handling angle brackets and commas
+    if (to.includes(securityAddress)) {
       return true;
     }
-    if (triage?.category === "security_incident") return true;
-    if (triage?.class === "security-incident") return true;
+    if (triage?.category === 'security_incident') return true;
+    if (triage?.class === 'security-incident') return true;
     return false;
   }
 
@@ -278,32 +281,49 @@ export class CloudflareEmailHandler {
    */
   async dispatchToSecurityAgent(emailData, triage, env, ctx) {
     if (!env || !env.SECURITY_AGENT) {
-      console.warn("SECURITY_AGENT binding absent — cannot dispatch security incident", emailData.id);
+      console.warn('SECURITY_AGENT binding absent — cannot dispatch security incident', emailData.id);
       return;
     }
-    try {
-      const stub = env.SECURITY_AGENT.get(env.SECURITY_AGENT.idFromName("default"));
-      const res = await stub.fetch("https://internal/agents/security/ingest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reporter: emailData.from,
-          subject: emailData.subject,
-          content: emailData.content,
-          message_id: emailData.id,
-          recipient: emailData.to,
-          triage_category: triage?.category,
-          triage_urgency: triage?.urgencyLevel,
-        }),
-      });
-      if (!res.ok) {
-        console.error(`SecurityAgent /ingest returned ${res.status} for ${emailData.id}`);
-        return;
+
+    const dispatchTask = (async () => {
+      try {
+        const stub = env.SECURITY_AGENT.get(env.SECURITY_AGENT.idFromName('default'));
+
+        // Initialize agent name via partyserver protocol (same as email-processor.js callAgent)
+        const setupReq = new Request('http://dummy-example.cloudflare.com/cdn-cgi/partyserver/set-name/');
+        setupReq.headers.set('x-partykit-room', 'SECURITY_AGENT');
+        await stub.fetch(setupReq).then((r) => r.text());
+
+        // Now send the ingest request
+        const res = await stub.fetch('https://internal/agents/security/ingest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reporter: emailData.from,
+            subject: emailData.subject,
+            content: emailData.content,
+            message_id: emailData.id,
+            recipient: emailData.to,
+            triage_category: triage?.category,
+            triage_urgency: triage?.urgencyLevel,
+          }),
+        });
+        if (!res.ok) {
+          console.error(`SecurityAgent /ingest returned ${res.status} for ${emailData.id}`);
+          return;
+        }
+        const body = await res.json();
+        console.log(`🔒 Dispatched to SecurityAgent: incident ${body.incident_id}, ACK due ${body.ack_sla_deadline}`);
+      } catch (err) {
+        console.error('SecurityAgent dispatch failed:', err?.message || err);
       }
-      const body = await res.json();
-      console.log(`🔒 Dispatched to SecurityAgent: incident ${body.incident_id}, ACK due ${body.ack_sla_deadline}`);
-    } catch (err) {
-      console.error("SecurityAgent dispatch failed:", err?.message || err);
+    })();
+
+    // Execute asynchronously via waitUntil if available
+    if (ctx && typeof ctx.waitUntil === 'function') {
+      ctx.waitUntil(dispatchTask);
+    } else {
+      dispatchTask.catch(() => {});
     }
   }
 
