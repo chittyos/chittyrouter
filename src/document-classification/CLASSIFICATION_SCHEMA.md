@@ -99,9 +99,9 @@ legal_status:
     "/NAVIGATION/BY_TYPE/CORPORATE/ARIBIA_LLC_Operating.pdf"
   ],
   "extracted_metadata": {
-    "parties": ["Nicholas Bianchi", "Sharon Jones"],
-    "effective_date": "2024-03-01",
-    "key_terms": ["membership", "capital contributions", "distributions"]
+    "parties": ["<Party A — extracted from doc>", "<Party B — extracted from doc>"],
+    "effective_date": "<YYYY-MM-DD extracted from doc>",
+    "key_terms": ["<term>", "<term>"]
   }
 }
 ```
