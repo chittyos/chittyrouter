@@ -3,6 +3,8 @@
  * Uses Cloudflare AI for intelligent categorization
  */
 
+import { CLASSIFIER_PATTERNS } from '../config/case-registry.js';
+
 /**
  * FACT TYPES - Aligned with ChittySchema (chittyledger.fact_type enum)
  * Used for extracting atomic facts from documents
@@ -80,12 +82,10 @@ const ENTITY_PATTERNS = {
   'CHITTYCORP_LLC': ['chittycorp', 'chitty corp', 'chittycorp llc']
 };
 
-// Case patterns
-const CASE_PATTERNS = {
-  'ARIAS_V_BIANCHI_2024D007847': ['2024d007847', 'arias v bianchi', 'arias vs bianchi', 'arias v. bianchi'],
-  'BIANCHI_V_SCHATZ': ['bianchi v schatz', 'bianchi vs schatz', 'schatz'],
-  'COLOMBIA_EVICTION': ['morada mami', 'medellin property', 'colombia eviction']
-};
+// Case patterns — derived from the canonical case registry. Do NOT hardcode
+// new cases here; add them to src/config/case-registry.js so every part of
+// the router (routing, classifier, routing, email alias map) agrees.
+const CASE_PATTERNS = CLASSIFIER_PATTERNS;
 
 export class DocumentClassifier {
   constructor(env) {
