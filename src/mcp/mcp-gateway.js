@@ -6,14 +6,14 @@
  * @service chittycanon://core/services/chittyrouter
  * @canon chittycanon://gov/governance#core-types
  */
-import { McpAgent } from "agents/mcp";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ALL_TOOL_SCHEMAS } from "./tool-schemas.js";
+import { McpAgent } from 'agents/mcp';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { ALL_TOOL_SCHEMAS } from './tool-schemas.js';
 
 export class ChittyRouterMcpGateway extends McpAgent {
   server = new McpServer({
-    name: "ChittyRouter",
-    version: "2.1.0",
+    name: 'ChittyRouter',
+    version: '2.1.0',
   });
 
   async init() {
@@ -38,8 +38,8 @@ export class ChittyRouterMcpGateway extends McpAgent {
         toolDef.binding,
         toolDef.method,
         toolDef.path,
-        toolDef.method === "GET" ? null : args,
-        toolDef.method === "GET" ? args : null,
+        toolDef.method === 'GET' ? null : args,
+        toolDef.method === 'GET' ? args : null,
       );
 
       const status = response.status;
@@ -47,17 +47,17 @@ export class ChittyRouterMcpGateway extends McpAgent {
 
       if (status >= 400) {
         return {
-          content: [{ type: "text", text: body }],
+          content: [{ type: 'text', text: body }],
           isError: true,
         };
       }
 
       return {
-        content: [{ type: "text", text: body }],
+        content: [{ type: 'text', text: body }],
       };
     } catch (err) {
       return {
-        content: [{ type: "text", text: JSON.stringify({ error: err.message, tool: toolName }) }],
+        content: [{ type: 'text', text: JSON.stringify({ error: err.message, tool: toolName }) }],
         isError: true,
       };
     }
@@ -85,12 +85,12 @@ export class ChittyRouterMcpGateway extends McpAgent {
     const stub = binding.get(id);
 
     // Initialize the agent via partyserver protocol (required before first use)
-    await stub.fetch(new Request("http://agent.internal/cdn-cgi/partyserver/set-name/", {
-      headers: { "x-partykit-room": bindingName },
+    await stub.fetch(new Request('http://agent.internal/cdn-cgi/partyserver/set-name/', {
+      headers: { 'x-partykit-room': bindingName },
     })).then((r) => r.text());
 
     // Build request URL
-    const url = new URL(path, "https://agent.internal");
+    const url = new URL(path, 'https://agent.internal');
     if (queryParams) {
       for (const [key, value] of Object.entries(queryParams)) {
         if (value !== undefined && value !== null) {
@@ -101,8 +101,8 @@ export class ChittyRouterMcpGateway extends McpAgent {
 
     const request = new Request(url.toString(), {
       method,
-      headers: { "Content-Type": "application/json" },
-      body: method !== "GET" && method !== "HEAD" && body
+      headers: { 'Content-Type': 'application/json' },
+      body: method !== 'GET' && method !== 'HEAD' && body
         ? JSON.stringify(body)
         : undefined,
     });

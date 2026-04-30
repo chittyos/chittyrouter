@@ -479,3 +479,29 @@ export function getEmailsByPriority(priority) {
   const priorityKeys = priorityLevels[priority] || [];
   return priorityKeys.map(key => ({ key, email: testEmails[key] }));
 }
+
+/**
+ * Generate a security incident probe email for integration testing.
+ * Used by tests/integration/security-agent.test.js
+ */
+export function generateIntegrationProbeEmail(runId) {
+  return {
+    reporter: `security-researcher+${runId}@example.com`,
+    subject: `[SECURITY] Integration Test Vulnerability Report ${runId}`,
+    content: `This is an automated integration test probe for the SecurityAgent.
+
+Run ID: ${runId}
+Timestamp: ${new Date().toISOString()}
+
+This test verifies:
+- Incident ingestion and ID generation
+- 48-hour acknowledgement SLA deadline calculation
+- State machine transitions (received → acknowledged → triaged → etc.)
+- SLA breach detection
+- Response endpoint validation
+
+This is NOT a real security vulnerability report.`,
+    message_id: `integration-probe-${runId}@chittyrouter.test`,
+    recipient: 'security@chitty.cc',
+  };
+}

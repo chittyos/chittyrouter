@@ -6,12 +6,12 @@
  * @service chittycanon://core/services/chittyrouter
  * @canon chittycanon://gov/governance#core-types
  */
-import { ChittyRouterBaseAgent } from "./base-agent.js";
+import { ChittyRouterBaseAgent } from './base-agent.js';
 
 const EVENT_TYPES = [
-  "court_date", "filing_deadline", "lease_renewal", "lease_expiry",
-  "payment_due", "inspection", "meeting", "review",
-  "permit_deadline", "grant_deadline", "other",
+  'court_date', 'filing_deadline', 'lease_renewal', 'lease_expiry',
+  'payment_due', 'inspection', 'meeting', 'review',
+  'permit_deadline', 'grant_deadline', 'other',
 ];
 
 const URGENCY_THRESHOLDS = {
@@ -67,16 +67,16 @@ export class CalendarAgent extends ChittyRouterBaseAgent {
   async onRequest(request) {
     const url = new URL(request.url);
 
-    if (request.method === "POST" && url.pathname.endsWith("/create")) return this.handleCreate(request);
-    if (request.method === "POST" && url.pathname.endsWith("/update")) return this.handleUpdate(request);
-    if (request.method === "GET" && url.pathname.endsWith("/upcoming")) return this.handleUpcoming(url);
-    if (request.method === "GET" && url.pathname.endsWith("/urgent")) return this.handleUrgent(url);
-    if (request.method === "GET" && url.pathname.endsWith("/stats")) return this.handleStats();
-    if (request.method === "GET" && url.pathname.endsWith("/status")) return this.handleStatus();
+    if (request.method === 'POST' && url.pathname.endsWith('/create')) return this.handleCreate(request);
+    if (request.method === 'POST' && url.pathname.endsWith('/update')) return this.handleUpdate(request);
+    if (request.method === 'GET' && url.pathname.endsWith('/upcoming')) return this.handleUpcoming(url);
+    if (request.method === 'GET' && url.pathname.endsWith('/urgent')) return this.handleUrgent(url);
+    if (request.method === 'GET' && url.pathname.endsWith('/stats')) return this.handleStats();
+    if (request.method === 'GET' && url.pathname.endsWith('/status')) return this.handleStatus();
 
     return this.jsonResponse({
-      agent: "CalendarAgent", status: "active",
-      endpoints: ["/create", "/update", "/upcoming", "/urgent", "/stats", "/status"],
+      agent: 'CalendarAgent', status: 'active',
+      endpoints: ['/create', '/update', '/upcoming', '/urgent', '/stats', '/status'],
     });
   }
 
@@ -85,73 +85,73 @@ export class CalendarAgent extends ChittyRouterBaseAgent {
     const { title, event_type, event_date, event_end_date, org, case_id, entity_id,
             description, location, is_recurring, recurrence_rule, reminders, metadata } = body;
 
-    if (!title || !event_date) return this.jsonResponse({ error: "title and event_date are required" }, 400);
+    if (!title || !event_date) return this.jsonResponse({ error: 'title and event_date are required' }, 400);
     if (event_type && !EVENT_TYPES.includes(event_type)) {
-      return this.jsonResponse({ error: `event_type must be one of: ${EVENT_TYPES.join(", ")}` }, 400);
+      return this.jsonResponse({ error: `event_type must be one of: ${EVENT_TYPES.join(', ')}` }, 400);
     }
 
     this.rawSql.exec(
       `INSERT INTO calendar_events (title, event_type, event_date, event_end_date, org, case_id,
        entity_id, description, location, is_recurring, recurrence_rule, metadata)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      title, event_type || "other", event_date, event_end_date || null,
+      title, event_type || 'other', event_date, event_end_date || null,
       org || null, case_id || null, entity_id || null,
       description || null, location || null,
       is_recurring ? 1 : 0, recurrence_rule || null,
       metadata ? JSON.stringify(metadata) : null,
     );
 
-    const created = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray();
+    const created = this.rawSql.exec('SELECT last_insert_rowid() as id').toArray();
     const eventId = created[0]?.id;
 
     if (reminders && Array.isArray(reminders)) {
       for (const r of reminders) {
-        this.rawSql.exec("INSERT INTO calendar_reminders (event_id, remind_at, channel) VALUES (?, ?, ?)", eventId, r.remind_at, r.channel || "email");
+        this.rawSql.exec('INSERT INTO calendar_reminders (event_id, remind_at, channel) VALUES (?, ?, ?)', eventId, r.remind_at, r.channel || 'email');
       }
     }
 
     const daysUntil = this.daysUntilEvent(event_date);
-    const urgencyThreshold = URGENCY_THRESHOLDS[event_type || "default"] || URGENCY_THRESHOLDS.default;
-    this.info("Calendar event created", { eventId, event_type, daysUntil });
+    const urgencyThreshold = URGENCY_THRESHOLDS[event_type || 'default'] || URGENCY_THRESHOLDS.default;
+    this.info('Calendar event created', { eventId, event_type, daysUntil });
 
-    return this.jsonResponse({ id: eventId, title, event_type: event_type || "other", event_date, daysUntil, isUrgent: daysUntil >= 0 && daysUntil <= urgencyThreshold, org: org || null });
+    return this.jsonResponse({ id: eventId, title, event_type: event_type || 'other', event_date, daysUntil, isUrgent: daysUntil >= 0 && daysUntil <= urgencyThreshold, org: org || null });
   }
 
   async handleUpdate(request) {
     const { id, title, event_date, status, description } = await request.json();
-    if (!id) return this.jsonResponse({ error: "id is required" }, 400);
+    if (!id) return this.jsonResponse({ error: 'id is required' }, 400);
 
-    const rows = this.rawSql.exec("SELECT * FROM calendar_events WHERE id = ?", id).toArray();
-    if (rows.length === 0) return this.jsonResponse({ error: "Event not found" }, 404);
+    const rows = this.rawSql.exec('SELECT * FROM calendar_events WHERE id = ?', id).toArray();
+    if (rows.length === 0) return this.jsonResponse({ error: 'Event not found' }, 404);
 
-    if (title) this.rawSql.exec("UPDATE calendar_events SET title = ?, updated_at = datetime('now') WHERE id = ?", title, id);
-    if (event_date) this.rawSql.exec("UPDATE calendar_events SET event_date = ?, updated_at = datetime('now') WHERE id = ?", event_date, id);
-    if (status) this.rawSql.exec("UPDATE calendar_events SET status = ?, updated_at = datetime('now') WHERE id = ?", status, id);
-    if (description) this.rawSql.exec("UPDATE calendar_events SET description = ?, updated_at = datetime('now') WHERE id = ?", description, id);
+    if (title) this.rawSql.exec('UPDATE calendar_events SET title = ?, updated_at = datetime(\'now\') WHERE id = ?', title, id);
+    if (event_date) this.rawSql.exec('UPDATE calendar_events SET event_date = ?, updated_at = datetime(\'now\') WHERE id = ?', event_date, id);
+    if (status) this.rawSql.exec('UPDATE calendar_events SET status = ?, updated_at = datetime(\'now\') WHERE id = ?', status, id);
+    if (description) this.rawSql.exec('UPDATE calendar_events SET description = ?, updated_at = datetime(\'now\') WHERE id = ?', description, id);
 
-    const updated = this.rawSql.exec("SELECT * FROM calendar_events WHERE id = ?", id).toArray();
+    const updated = this.rawSql.exec('SELECT * FROM calendar_events WHERE id = ?', id).toArray();
     return this.jsonResponse(updated[0]);
   }
 
   handleUpcoming(url) {
-    const days = Math.max(1, Math.min(parseInt(url.searchParams.get("days") || "30"), 365));
+    const days = Math.max(1, Math.min(parseInt(url.searchParams.get('days') || '30'), 365));
     const offset = `+${days} days`;
-    let query = "SELECT * FROM calendar_events WHERE status = 'active' AND event_date >= datetime('now') AND event_date <= datetime('now', ?)";
+    let query = 'SELECT * FROM calendar_events WHERE status = \'active\' AND event_date >= datetime(\'now\') AND event_date <= datetime(\'now\', ?)';
     const params = [offset];
 
-    const org = url.searchParams.get("org");
-    if (org) { query += " AND org = ?"; params.push(org); }
-    const eventType = url.searchParams.get("event_type");
-    if (eventType) { query += " AND event_type = ?"; params.push(eventType); }
+    const org = url.searchParams.get('org');
+    if (org) { query += ' AND org = ?'; params.push(org); }
+    const eventType = url.searchParams.get('event_type');
+    if (eventType) { query += ' AND event_type = ?'; params.push(eventType); }
 
-    query += " ORDER BY event_date ASC LIMIT 100";
+    query += ' ORDER BY event_date ASC LIMIT 100';
     const rows = this.rawSql.exec(query, ...params).toArray();
     return this.jsonResponse({ count: rows.length, events: rows.map((r) => ({ ...r, daysUntil: this.daysUntilEvent(r.event_date), isUrgent: this.isUrgent(r) })) });
   }
 
   handleUrgent(url) {
-    const rows = this.rawSql.exec("SELECT * FROM calendar_events WHERE status = 'active' AND event_date >= datetime('now') ORDER BY event_date ASC").toArray();
-    const org = url.searchParams.get("org");
+    const rows = this.rawSql.exec('SELECT * FROM calendar_events WHERE status = \'active\' AND event_date >= datetime(\'now\') ORDER BY event_date ASC').toArray();
+    const org = url.searchParams.get('org');
     const urgent = rows
       .filter((r) => (!org || r.org === org) && this.isUrgent(r))
       .map((r) => ({ ...r, daysUntil: this.daysUntilEvent(r.event_date), urgencyThreshold: URGENCY_THRESHOLDS[r.event_type] || URGENCY_THRESHOLDS.default }));
@@ -168,13 +168,13 @@ export class CalendarAgent extends ChittyRouterBaseAgent {
   }
 
   handleStats() {
-    const byType = this.rawSql.exec("SELECT event_type, status, COUNT(*) as count FROM calendar_events GROUP BY event_type, status ORDER BY count DESC").toArray();
-    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM calendar_events").toArray();
+    const byType = this.rawSql.exec('SELECT event_type, status, COUNT(*) as count FROM calendar_events GROUP BY event_type, status ORDER BY count DESC').toArray();
+    const total = this.rawSql.exec('SELECT COUNT(*) as total FROM calendar_events').toArray();
     return this.jsonResponse({ totalEvents: total[0]?.total || 0, breakdown: byType });
   }
 
   handleStatus() {
-    const upcoming = this.rawSql.exec("SELECT COUNT(*) as count FROM calendar_events WHERE status = 'active' AND event_date >= datetime('now') AND event_date <= datetime('now', '+7 days')").toArray();
-    return this.jsonResponse({ agent: "CalendarAgent", status: "active", eventsNext7Days: upcoming[0]?.count || 0, eventTypes: EVENT_TYPES.length });
+    const upcoming = this.rawSql.exec('SELECT COUNT(*) as count FROM calendar_events WHERE status = \'active\' AND event_date >= datetime(\'now\') AND event_date <= datetime(\'now\', \'+7 days\')').toArray();
+    return this.jsonResponse({ agent: 'CalendarAgent', status: 'active', eventsNext7Days: upcoming[0]?.count || 0, eventTypes: EVENT_TYPES.length });
   }
 }

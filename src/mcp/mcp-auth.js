@@ -22,16 +22,16 @@ export async function authenticateMcpRequest(request, env) {
     return null;
   }
 
-  const apiKey = request.headers.get("X-ChittyOS-API-Key")
-    ?? request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  const apiKey = request.headers.get('X-ChittyOS-API-Key')
+    ?? request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
 
   if (!apiKey) {
     return new Response(
       JSON.stringify({
-        error: "Authentication required",
-        message: "Provide X-ChittyOS-API-Key header or Authorization: Bearer <key>",
+        error: 'Authentication required',
+        message: 'Provide X-ChittyOS-API-Key header or Authorization: Bearer <key>',
       }),
-      { status: 401, headers: { "Content-Type": "application/json" } },
+      { status: 401, headers: { 'Content-Type': 'application/json' } },
     );
   }
 
@@ -39,8 +39,8 @@ export async function authenticateMcpRequest(request, env) {
 
   if (!keyJson) {
     return new Response(
-      JSON.stringify({ error: "Invalid or revoked API key" }),
-      { status: 403, headers: { "Content-Type": "application/json" } },
+      JSON.stringify({ error: 'Invalid or revoked API key' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
     );
   }
 
@@ -49,22 +49,22 @@ export async function authenticateMcpRequest(request, env) {
     keyData = JSON.parse(keyJson);
   } catch {
     return new Response(
-      JSON.stringify({ error: "Malformed key data" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      JSON.stringify({ error: 'Malformed key data' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }
 
-  if (keyData.status !== "active") {
+  if (keyData.status !== 'active') {
     return new Response(
       JSON.stringify({ error: `API key is ${keyData.status}` }),
-      { status: 403, headers: { "Content-Type": "application/json" } },
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
     );
   }
 
   if (keyData.expiresAt && new Date(keyData.expiresAt) < new Date()) {
     return new Response(
-      JSON.stringify({ error: "API key expired" }),
-      { status: 403, headers: { "Content-Type": "application/json" } },
+      JSON.stringify({ error: 'API key expired' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
     );
   }
 

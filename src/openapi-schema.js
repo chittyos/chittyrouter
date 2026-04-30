@@ -4,72 +4,72 @@
  */
 
 const openAPISchema = {
-  openapi: "3.1.0",
+  openapi: '3.1.0',
   info: {
-    title: "ChittyChat AI Gateway",
+    title: 'ChittyChat AI Gateway',
     description:
-      "Universal AI Platform Connector for ChatGPT, Claude, and other AI models",
-    version: "1.0.0",
+      'Universal AI Platform Connector for ChatGPT, Claude, and other AI models',
+    version: '1.0.0',
   },
   servers: [
     {
-      url: "https://ai.chitty.cc",
-      description: "Production AI Gateway",
+      url: 'https://ai.chitty.cc',
+      description: 'Production AI Gateway',
     },
   ],
   paths: {
-    "/v1/chat/completions": {
+    '/v1/chat/completions': {
       post: {
-        operationId: "createChatCompletion",
-        summary: "Create a chat completion",
-        description: "Generate AI responses using various models",
+        operationId: 'createChatCompletion',
+        summary: 'Create a chat completion',
+        description: 'Generate AI responses using various models',
         requestBody: {
           required: true,
           content: {
-            "application/json": {
+            'application/json': {
               schema: {
-                type: "object",
-                required: ["messages"],
+                type: 'object',
+                required: ['messages'],
                 properties: {
                   model: {
-                    type: "string",
-                    description: "Model to use",
-                    default: "@cf/meta/llama-3.1-8b-instruct",
+                    type: 'string',
+                    description: 'Model to use',
+                    default: '@cf/meta/llama-3.1-8b-instruct',
                   },
                   messages: {
-                    type: "array",
-                    description: "Messages in the conversation",
+                    type: 'array',
+                    description: 'Messages in the conversation',
                     items: {
-                      type: "object",
-                      required: ["role", "content"],
+                      type: 'object',
+                      required: ['role', 'content'],
                       properties: {
                         role: {
-                          type: "string",
-                          enum: ["system", "user", "assistant"],
-                          description: "Role of the message sender",
+                          type: 'string',
+                          enum: ['system', 'user', 'assistant'],
+                          description: 'Role of the message sender',
                         },
                         content: {
-                          type: "string",
-                          description: "Content of the message",
+                          type: 'string',
+                          description: 'Content of the message',
                         },
                       },
                     },
                   },
                   temperature: {
-                    type: "number",
-                    description: "Sampling temperature",
+                    type: 'number',
+                    description: 'Sampling temperature',
                     default: 0.7,
                     minimum: 0,
                     maximum: 2,
                   },
                   max_tokens: {
-                    type: "number",
-                    description: "Maximum tokens to generate",
+                    type: 'number',
+                    description: 'Maximum tokens to generate',
                     default: 1000,
                   },
                   stream: {
-                    type: "boolean",
-                    description: "Stream the response",
+                    type: 'boolean',
+                    description: 'Stream the response',
                     default: false,
                   },
                 },
@@ -79,45 +79,45 @@ const openAPISchema = {
         },
         responses: {
           200: {
-            description: "Successful response",
+            description: 'Successful response',
             content: {
-              "application/json": {
+              'application/json': {
                 schema: {
-                  type: "object",
+                  type: 'object',
                   properties: {
                     id: {
-                      type: "string",
+                      type: 'string',
                     },
                     object: {
-                      type: "string",
+                      type: 'string',
                     },
                     created: {
-                      type: "number",
+                      type: 'number',
                     },
                     model: {
-                      type: "string",
+                      type: 'string',
                     },
                     choices: {
-                      type: "array",
+                      type: 'array',
                       items: {
-                        type: "object",
+                        type: 'object',
                         properties: {
                           index: {
-                            type: "number",
+                            type: 'number',
                           },
                           message: {
-                            type: "object",
+                            type: 'object',
                             properties: {
                               role: {
-                                type: "string",
+                                type: 'string',
                               },
                               content: {
-                                type: "string",
+                                type: 'string',
                               },
                             },
                           },
                           finish_reason: {
-                            type: "string",
+                            type: 'string',
                           },
                         },
                       },
@@ -130,31 +130,31 @@ const openAPISchema = {
         },
       },
     },
-    "/v1/models": {
+    '/v1/models': {
       get: {
-        operationId: "listModels",
-        summary: "List available models",
+        operationId: 'listModels',
+        summary: 'List available models',
         responses: {
           200: {
-            description: "List of available models",
+            description: 'List of available models',
             content: {
-              "application/json": {
+              'application/json': {
                 schema: {
-                  type: "object",
+                  type: 'object',
                   properties: {
                     data: {
-                      type: "array",
+                      type: 'array',
                       items: {
-                        type: "object",
+                        type: 'object',
                         properties: {
                           id: {
-                            type: "string",
+                            type: 'string',
                           },
                           object: {
-                            type: "string",
+                            type: 'string',
                           },
                           owned_by: {
-                            type: "string",
+                            type: 'string',
                           },
                         },
                       },
@@ -167,23 +167,23 @@ const openAPISchema = {
         },
       },
     },
-    "/health": {
+    '/health': {
       get: {
-        operationId: "healthCheck",
-        summary: "Check service health",
+        operationId: 'healthCheck',
+        summary: 'Check service health',
         responses: {
           200: {
-            description: "Service is healthy",
+            description: 'Service is healthy',
             content: {
-              "application/json": {
+              'application/json': {
                 schema: {
-                  type: "object",
+                  type: 'object',
                   properties: {
                     status: {
-                      type: "string",
+                      type: 'string',
                     },
                     service: {
-                      type: "string",
+                      type: 'string',
                     },
                   },
                 },
@@ -204,34 +204,34 @@ export async function handleOpenAPISchema(request) {
   const pathname = url.pathname;
 
   // Serve as JSON for direct API access
-  if (pathname === "/openapi.json" || pathname === "/api/openapi.json") {
+  if (pathname === '/openapi.json' || pathname === '/api/openapi.json') {
     return new Response(JSON.stringify(openAPISchema, null, 2), {
       headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "public, max-age=3600",
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=3600',
       },
     });
   }
 
   // Serve as YAML for ChatGPT Custom GPT
-  if (pathname === "/openapi.yaml" || pathname === "/api/openapi.yaml") {
+  if (pathname === '/openapi.yaml' || pathname === '/api/openapi.yaml') {
     const yamlContent = convertToYAML(openAPISchema);
     return new Response(yamlContent, {
       headers: {
-        "Content-Type": "text/yaml",
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "public, max-age=3600",
+        'Content-Type': 'text/yaml',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=3600',
       },
     });
   }
 
   // Serve as HTML page with schema display
-  if (pathname === "/openapi" || pathname === "/api/schema") {
+  if (pathname === '/openapi' || pathname === '/api/schema') {
     return new Response(generateSchemaHTML(), {
       headers: {
-        "Content-Type": "text/html",
-        "Access-Control-Allow-Origin": "*",
+        'Content-Type': 'text/html',
+        'Access-Control-Allow-Origin': '*',
       },
     });
   }
@@ -243,48 +243,48 @@ export async function handleOpenAPISchema(request) {
  * Convert JSON to YAML
  */
 function convertToYAML(obj) {
-  const indent = "  ";
+  const indent = '  ';
 
   function stringify(obj, depth = 0) {
     const currentIndent = indent.repeat(depth);
     const nextIndent = indent.repeat(depth + 1);
 
-    if (obj === null) return "null";
-    if (typeof obj === "boolean") return obj.toString();
-    if (typeof obj === "number") return obj.toString();
-    if (typeof obj === "string") {
-      if (obj.includes("\n") || obj.includes(":") || obj.includes("#")) {
-        return `|\n${nextIndent}${obj.split("\n").join("\n" + nextIndent)}`;
+    if (obj === null) return 'null';
+    if (typeof obj === 'boolean') return obj.toString();
+    if (typeof obj === 'number') return obj.toString();
+    if (typeof obj === 'string') {
+      if (obj.includes('\n') || obj.includes(':') || obj.includes('#')) {
+        return `|\n${nextIndent}${obj.split('\n').join('\n' + nextIndent)}`;
       }
-      return obj.includes(" ") || obj === "" ? `"${obj}"` : obj;
+      return obj.includes(' ') || obj === '' ? `"${obj}"` : obj;
     }
 
     if (Array.isArray(obj)) {
       return obj
         .map((item) => {
           const value = stringify(item, depth + 1);
-          if (typeof item === "object" && item !== null) {
+          if (typeof item === 'object' && item !== null) {
             return `\n${currentIndent}- ${value
               .trim()
-              .split("\n")
+              .split('\n')
               .map((line, i) => (i === 0 ? line : `  ${line}`))
-              .join("\n")}`;
+              .join('\n')}`;
           }
           return `\n${currentIndent}- ${value}`;
         })
-        .join("");
+        .join('');
     }
 
-    if (typeof obj === "object") {
+    if (typeof obj === 'object') {
       return Object.entries(obj)
         .map(([key, value]) => {
           const val = stringify(value, depth + 1);
-          if (typeof value === "object" && value !== null) {
+          if (typeof value === 'object' && value !== null) {
             return `\n${currentIndent}${key}:${val}`;
           }
           return `\n${currentIndent}${key}: ${val}`;
         })
-        .join("");
+        .join('');
     }
   }
 

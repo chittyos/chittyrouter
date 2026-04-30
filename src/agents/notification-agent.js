@@ -6,16 +6,16 @@
  * @service chittycanon://core/services/chittyrouter
  * @canon chittycanon://gov/governance#core-types
  */
-import { ChittyRouterBaseAgent } from "./base-agent.js";
+import { ChittyRouterBaseAgent } from './base-agent.js';
 
-const CHANNELS = ["email", "slack", "push", "sms"];
-const PRIORITY_LEVELS = ["critical", "high", "normal", "low"];
+const CHANNELS = ['email', 'slack', 'push', 'sms'];
+const PRIORITY_LEVELS = ['critical', 'high', 'normal', 'low'];
 
 const DEFAULT_CHANNEL_RULES = {
-  critical: ["email", "slack", "sms"],
-  high: ["email", "slack"],
-  normal: ["email"],
-  low: ["email"],
+  critical: ['email', 'slack', 'sms'],
+  high: ['email', 'slack'],
+  normal: ['email'],
+  low: ['email'],
 };
 
 export class NotificationAgent extends ChittyRouterBaseAgent {
@@ -57,29 +57,29 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
   async onRequest(request) {
     const url = new URL(request.url);
 
-    if (request.method === "POST" && url.pathname.endsWith("/send")) {
+    if (request.method === 'POST' && url.pathname.endsWith('/send')) {
       return this.handleSend(request);
     }
-    if (request.method === "POST" && url.pathname.endsWith("/broadcast")) {
+    if (request.method === 'POST' && url.pathname.endsWith('/broadcast')) {
       return this.handleBroadcast(request);
     }
-    if (request.method === "POST" && url.pathname.endsWith("/preferences")) {
+    if (request.method === 'POST' && url.pathname.endsWith('/preferences')) {
       return this.handleSetPreference(request);
     }
-    if (request.method === "GET" && url.pathname.endsWith("/history")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/history')) {
       return this.handleHistory(url);
     }
-    if (request.method === "GET" && url.pathname.endsWith("/stats")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/stats')) {
       return this.handleStats();
     }
-    if (request.method === "GET" && url.pathname.endsWith("/status")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/status')) {
       return this.handleStatus();
     }
 
     return this.jsonResponse({
-      agent: "NotificationAgent",
-      status: "active",
-      endpoints: ["/send", "/broadcast", "/preferences", "/history", "/stats", "/status"],
+      agent: 'NotificationAgent',
+      status: 'active',
+      endpoints: ['/send', '/broadcast', '/preferences', '/history', '/stats', '/status'],
     });
   }
 
@@ -92,12 +92,12 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
     const { recipient, channel, priority, subject, body: notifBody, org, source_agent, reference_id, metadata } = body;
 
     if (!recipient || !notifBody) {
-      return this.jsonResponse({ error: "recipient and body are required" }, 400);
+      return this.jsonResponse({ error: 'recipient and body are required' }, 400);
     }
 
-    const prio = priority || "normal";
+    const prio = priority || 'normal';
     if (!PRIORITY_LEVELS.includes(prio)) {
-      return this.jsonResponse({ error: `priority must be one of: ${PRIORITY_LEVELS.join(", ")}` }, 400);
+      return this.jsonResponse({ error: `priority must be one of: ${PRIORITY_LEVELS.join(', ')}` }, 400);
     }
     const channels = channel ? [channel] : this.resolveChannels(prio);
     const results = [];
@@ -106,7 +106,7 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
       if (!CHANNELS.includes(ch)) continue;
 
       const prefEnabled = this.checkPreference(recipient, ch, org);
-      const status = prefEnabled ? "queued" : "suppressed";
+      const status = prefEnabled ? 'queued' : 'suppressed';
 
       this.rawSql.exec(
         `INSERT INTO notifications (recipient, channel, priority, subject, body, org, source_agent, reference_id, status, metadata)
@@ -116,14 +116,14 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
         metadata ? JSON.stringify(metadata) : null,
       );
 
-      const created = this.rawSql.exec("SELECT last_insert_rowid() as id").toArray();
+      const created = this.rawSql.exec('SELECT last_insert_rowid() as id').toArray();
       const notifId = created[0]?.id;
 
-      if (status === "queued") {
+      if (status === 'queued') {
         const delivered = await this.deliverNotification(notifId, ch, recipient, subject, notifBody);
-        results.push({ id: notifId, channel: ch, status: delivered ? "delivered" : "failed" });
+        results.push({ id: notifId, channel: ch, status: delivered ? 'delivered' : 'failed' });
       } else {
-        results.push({ id: notifId, channel: ch, status: "suppressed" });
+        results.push({ id: notifId, channel: ch, status: 'suppressed' });
       }
     }
 
@@ -142,7 +142,7 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
   async handleBroadcast(request) {
     const { recipients, channel, priority, subject, body: notifBody, org } = await request.json();
     if (!recipients?.length || !notifBody) {
-      return this.jsonResponse({ error: "recipients array and body are required" }, 400);
+      return this.jsonResponse({ error: 'recipients array and body are required' }, 400);
     }
 
     const results = [];
@@ -164,22 +164,22 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
   async handleSetPreference(request) {
     const { recipient, channel, enabled, quiet_start, quiet_end, org } = await request.json();
     if (!recipient || !channel) {
-      return this.jsonResponse({ error: "recipient and channel are required" }, 400);
+      return this.jsonResponse({ error: 'recipient and channel are required' }, 400);
     }
 
     const existing = this.rawSql.exec(
-      "SELECT id FROM notification_preferences WHERE recipient = ? AND channel = ? AND (org = ? OR (org IS NULL AND ? IS NULL))",
+      'SELECT id FROM notification_preferences WHERE recipient = ? AND channel = ? AND (org = ? OR (org IS NULL AND ? IS NULL))',
       recipient, channel, org || null, org || null,
     ).toArray();
 
     if (existing.length > 0) {
       this.rawSql.exec(
-        "UPDATE notification_preferences SET enabled = ?, quiet_start = ?, quiet_end = ? WHERE id = ?",
+        'UPDATE notification_preferences SET enabled = ?, quiet_start = ?, quiet_end = ? WHERE id = ?',
         enabled ? 1 : 0, quiet_start || null, quiet_end || null, existing[0].id,
       );
     } else {
       this.rawSql.exec(
-        "INSERT INTO notification_preferences (recipient, channel, enabled, quiet_start, quiet_end, org) VALUES (?, ?, ?, ?, ?, ?)",
+        'INSERT INTO notification_preferences (recipient, channel, enabled, quiet_start, quiet_end, org) VALUES (?, ?, ?, ?, ?, ?)',
         recipient, channel, enabled ? 1 : 0, quiet_start || null, quiet_end || null, org || null,
       );
     }
@@ -192,20 +192,20 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
    * GET /history?recipient=X&channel=X&status=X&limit=N
    */
   handleHistory(url) {
-    let query = "SELECT * FROM notifications WHERE 1=1";
+    let query = 'SELECT * FROM notifications WHERE 1=1';
     const params = [];
 
-    const recipient = url.searchParams.get("recipient");
-    if (recipient) { query += " AND recipient = ?"; params.push(recipient); }
+    const recipient = url.searchParams.get('recipient');
+    if (recipient) { query += ' AND recipient = ?'; params.push(recipient); }
 
-    const channel = url.searchParams.get("channel");
-    if (channel) { query += " AND channel = ?"; params.push(channel); }
+    const channel = url.searchParams.get('channel');
+    if (channel) { query += ' AND channel = ?'; params.push(channel); }
 
-    const status = url.searchParams.get("status");
-    if (status) { query += " AND status = ?"; params.push(status); }
+    const status = url.searchParams.get('status');
+    if (status) { query += ' AND status = ?'; params.push(status); }
 
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 200);
-    query += " ORDER BY created_at DESC LIMIT ?";
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+    query += ' ORDER BY created_at DESC LIMIT ?';
     params.push(limit);
 
     const rows = this.rawSql.exec(query, ...params).toArray();
@@ -218,7 +218,7 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
 
   checkPreference(recipient, channel, org) {
     const rows = this.rawSql.exec(
-      "SELECT enabled FROM notification_preferences WHERE recipient = ? AND channel = ? AND (org = ? OR org IS NULL) ORDER BY org DESC LIMIT 1",
+      'SELECT enabled FROM notification_preferences WHERE recipient = ? AND channel = ? AND (org = ? OR org IS NULL) ORDER BY org DESC LIMIT 1',
       recipient, channel, org || null,
     ).toArray();
     return rows.length === 0 || rows[0].enabled === 1;
@@ -227,40 +227,40 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
   async deliverNotification(notifId, channel, recipient, subject, body) {
     try {
       this.rawSql.exec(
-        "UPDATE notifications SET status = 'sending' WHERE id = ?",
+        'UPDATE notifications SET status = \'sending\' WHERE id = ?',
         notifId,
       );
       // Delivery is delegated to external services via env bindings.
-      this.info("Delivering notification", { notifId, channel, recipient, subject: subject?.slice(0, 50) });
+      this.info('Delivering notification', { notifId, channel, recipient, subject: subject?.slice(0, 50) });
       this.rawSql.exec(
-        "UPDATE notifications SET status = 'delivered', delivered_at = datetime('now') WHERE id = ?",
+        'UPDATE notifications SET status = \'delivered\', delivered_at = datetime(\'now\') WHERE id = ?',
         notifId,
       );
       return true;
     } catch (err) {
       this.rawSql.exec(
-        "UPDATE notifications SET status = 'failed', error_message = ? WHERE id = ?",
+        'UPDATE notifications SET status = \'failed\', error_message = ? WHERE id = ?',
         err.message, notifId,
       );
-      this.error("Notification delivery failed", { notifId, channel, error: err.message });
+      this.error('Notification delivery failed', { notifId, channel, error: err.message });
       return false;
     }
   }
 
   handleStats() {
     const byChannel = this.rawSql.exec(
-      "SELECT channel, status, COUNT(*) as count FROM notifications GROUP BY channel, status ORDER BY count DESC"
+      'SELECT channel, status, COUNT(*) as count FROM notifications GROUP BY channel, status ORDER BY count DESC'
     ).toArray();
-    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM notifications").toArray();
+    const total = this.rawSql.exec('SELECT COUNT(*) as total FROM notifications').toArray();
     return this.jsonResponse({ totalNotifications: total[0]?.total || 0, breakdown: byChannel });
   }
 
   handleStatus() {
     const recent = this.rawSql.exec(
-      "SELECT COUNT(*) as count FROM notifications WHERE created_at > datetime('now', '-1 hour')"
+      'SELECT COUNT(*) as count FROM notifications WHERE created_at > datetime(\'now\', \'-1 hour\')'
     ).toArray();
     return this.jsonResponse({
-      agent: "NotificationAgent", status: "active",
+      agent: 'NotificationAgent', status: 'active',
       notificationsLastHour: recent[0]?.count || 0,
       channels: CHANNELS.length,
     });

@@ -8,20 +8,20 @@
  */
 
 // Import all sync modules
-import { NotionAtomicFactsSync } from "./sync/notion-atomic-facts-sync.js";
-import { SessionSyncManager } from "./sync/session-sync-manager.js";
-import { UnifiedSyncOrchestrator } from "./sync/unified-sync-orchestrator.js";
-import { ChittyRouterAI } from "./ai/intelligent-router.js";
-import { EmailProcessor } from "./ai/email-processor.js";
-import { AgentOrchestrator } from "./ai/agent-orchestrator.js";
-import { SessionService } from "./services/session-service.js";
-import { MobileBridgeService } from "./services/mobile-bridge.js";
-import { InboxMonitor, handleScheduledMonitoring } from "./email/inbox-monitor.js";
+import { NotionAtomicFactsSync } from './sync/notion-atomic-facts-sync.js';
+import { SessionSyncManager } from './sync/session-sync-manager.js';
+import { UnifiedSyncOrchestrator } from './sync/unified-sync-orchestrator.js';
+import { ChittyRouterAI } from './ai/intelligent-router.js';
+import { EmailProcessor } from './ai/email-processor.js';
+import { AgentOrchestrator } from './ai/agent-orchestrator.js';
+import { SessionService } from './services/session-service.js';
+import { MobileBridgeService } from './services/mobile-bridge.js';
+import { InboxMonitor, handleScheduledMonitoring } from './email/inbox-monitor.js';
 
 // Webhook handlers
-import { handleNotionWebhook } from "./webhooks/notion.js";
-import { handleGithubWebhook } from "./webhooks/github.js";
-import { handleStripeWebhook } from "./webhooks/stripe.js";
+import { handleNotionWebhook } from './webhooks/notion.js';
+import { handleGithubWebhook } from './webhooks/github.js';
+import { handleStripeWebhook } from './webhooks/stripe.js';
 
 /**
  * Route multiplexer - determines which service to invoke based on path
@@ -54,96 +54,97 @@ class RouteMultiplexer {
     // Route patterns mapped to handlers
     this.routes = new Map([
       // AI Routes
-      ["/ai/route", this.handleAIRoute.bind(this)],
-      ["/ai/process-email", this.handleEmailProcessing.bind(this)],
-      ["/ai/orchestrate", this.handleAgentOrchestration.bind(this)],
+      ['/ai/route', this.handleAIRoute.bind(this)],
+      ['/ai/process-email', this.handleEmailProcessing.bind(this)],
+      ['/ai/orchestrate', this.handleAgentOrchestration.bind(this)],
 
       // MCP Routes (Model Context Protocol)
-      ["/mcp", this.handleMCP.bind(this)],
-      ["/mcp/info", this.handleMCP.bind(this)],
-      ["/mcp/tools", this.handleMCPTools.bind(this)],
-      ["/mcp/openapi.json", this.handleMCPOpenAPI.bind(this)],
-      ["/mcp/health", this.handleMCPHealth.bind(this)],
+      ['/mcp', this.handleMCP.bind(this)],
+      ['/mcp/info', this.handleMCP.bind(this)],
+      ['/mcp/tools', this.handleMCPTools.bind(this)],
+      ['/mcp/openapi.json', this.handleMCPOpenAPI.bind(this)],
+      ['/mcp/health', this.handleMCPHealth.bind(this)],
 
       // Sync Routes
-      ["/sync/notion/atomic-facts", this.handleNotionSync.bind(this)],
-      ["/sync/notion/dlq", this.handleNotionDLQ.bind(this)],
-      ["/sync/notion/status", this.handleNotionStatus.bind(this)],
+      ['/sync/notion/atomic-facts', this.handleNotionSync.bind(this)],
+      ['/sync/notion/dlq', this.handleNotionDLQ.bind(this)],
+      ['/sync/notion/status', this.handleNotionStatus.bind(this)],
 
       // Session Routes
-      ["/session/init", this.handleSessionInit.bind(this)],
-      ["/session/state", this.handleSessionState.bind(this)],
-      ["/session/atomic-facts", this.handleSessionAtomicFacts.bind(this)],
-      ["/session/status", this.handleSessionStatus.bind(this)],
+      ['/session/init', this.handleSessionInit.bind(this)],
+      ['/session/state', this.handleSessionState.bind(this)],
+      ['/session/atomic-facts', this.handleSessionAtomicFacts.bind(this)],
+      ['/session/status', this.handleSessionStatus.bind(this)],
 
       // Session Management API
-      ["/session", this.handleSessionManagement.bind(this)],
-      ["/mobile", this.handleMobileBridge.bind(this)],
+      ['/session', this.handleSessionManagement.bind(this)],
+      ['/mobile', this.handleMobileBridge.bind(this)],
 
       // Orchestration Routes
-      ["/sync/unified", this.handleUnifiedSync.bind(this)],
-      ["/sync/status", this.handleSyncStatus.bind(this)],
-      ["/sync/retry", this.handleSyncRetry.bind(this)],
+      ['/sync/unified', this.handleUnifiedSync.bind(this)],
+      ['/sync/status', this.handleSyncStatus.bind(this)],
+      ['/sync/retry', this.handleSyncRetry.bind(this)],
 
       // Health & Metrics
-      ["/health", this.handleHealth.bind(this)],
-      ["/api/v1/status", this.handleApiStatus.bind(this)],
-      ["/status", this.handleApiStatus.bind(this)],
-      ["/metrics", this.handleMetrics.bind(this)],
+      ['/health', this.handleHealth.bind(this)],
+      ['/api/v1/status', this.handleApiStatus.bind(this)],
+      ['/status', this.handleApiStatus.bind(this)],
+      ['/metrics', this.handleMetrics.bind(this)],
 
       // Cron Jobs
-      ["/cron/sync-dlq-process", this.handleCronDLQ.bind(this)],
-      ["/cron/session-reconcile", this.handleCronReconcile.bind(this)],
-      ["/cron/cleanup-ai-cache", this.handleCronCleanup.bind(this)],
-      ["/cron/ai-metrics-report", this.handleCronMetrics.bind(this)],
-      ["/cron/inbox-monitor", this.handleCronInboxMonitor.bind(this)],
+      ['/cron/sync-dlq-process', this.handleCronDLQ.bind(this)],
+      ['/cron/session-reconcile', this.handleCronReconcile.bind(this)],
+      ['/cron/cleanup-ai-cache', this.handleCronCleanup.bind(this)],
+      ['/cron/ai-metrics-report', this.handleCronMetrics.bind(this)],
+      ['/cron/inbox-monitor', this.handleCronInboxMonitor.bind(this)],
 
       // Email Monitoring Routes
-      ["/email/monitor", this.handleInboxMonitor.bind(this)],
-      ["/email/status", this.handleEmailStatus.bind(this)],
-      ["/email/urgent", this.handleUrgentEmails.bind(this)],
+      ['/email/monitor', this.handleInboxMonitor.bind(this)],
+      ['/email/status', this.handleEmailStatus.bind(this)],
+      ['/email/urgent', this.handleUrgentEmails.bind(this)],
 
       // Webhook Ingestion Routes
-      ["/webhook/notion", this.handleWebhookNotion.bind(this)],
-      ["/webhook/github", this.handleWebhookGithub.bind(this)],
-      ["/webhook/stripe", this.handleWebhookStripe.bind(this)],
-      ["/webhook/status", this.handleWebhookStatus.bind(this)],
+      ['/webhook/notion', this.handleWebhookNotion.bind(this)],
+      ['/webhook/github', this.handleWebhookGithub.bind(this)],
+      ['/webhook/stripe', this.handleWebhookStripe.bind(this)],
+      ['/webhook/status', this.handleWebhookStatus.bind(this)],
 
       // Agents SDK Routes — delegate to stateful Durable Object agents
-      ["/agents/triage/*", this.delegateToAgent.bind(this, "TRIAGE_AGENT")],
-      ["/agents/priority/*", this.delegateToAgent.bind(this, "PRIORITY_AGENT")],
-      ["/agents/response/*", this.delegateToAgent.bind(this, "RESPONSE_AGENT")],
-      ["/agents/document/*", this.delegateToAgent.bind(this, "DOCUMENT_AGENT")],
-      ["/agents/entity/*", this.delegateToAgent.bind(this, "ENTITY_AGENT")],
-      ["/agents/evidence/*", this.delegateToAgent.bind(this, "EVIDENCE_AGENT")],
-      ["/agents/calendar/*", this.delegateToAgent.bind(this, "CALENDAR_AGENT")],
-      ["/agents/finance/*", this.delegateToAgent.bind(this, "FINANCE_AGENT")],
-      ["/agents/notification/*", this.delegateToAgent.bind(this, "NOTIFICATION_AGENT")],
-      ["/agents/intelligence/*", this.delegateToAgent.bind(this, "INTELLIGENCE_AGENT")],
-      ["/agents/webhook/*", this.delegateToAgent.bind(this, "WEBHOOK_AGENT")],
-      ["/agents/messaging/*", this.delegateToAgent.bind(this, "MESSAGING_AGENT")],
-      ["/agents/status", this.handleAgentStatus.bind(this)],
+      ['/agents/triage/*', this.delegateToAgent.bind(this, 'TRIAGE_AGENT')],
+      ['/agents/priority/*', this.delegateToAgent.bind(this, 'PRIORITY_AGENT')],
+      ['/agents/response/*', this.delegateToAgent.bind(this, 'RESPONSE_AGENT')],
+      ['/agents/document/*', this.delegateToAgent.bind(this, 'DOCUMENT_AGENT')],
+      ['/agents/entity/*', this.delegateToAgent.bind(this, 'ENTITY_AGENT')],
+      ['/agents/evidence/*', this.delegateToAgent.bind(this, 'EVIDENCE_AGENT')],
+      ['/agents/calendar/*', this.delegateToAgent.bind(this, 'CALENDAR_AGENT')],
+      ['/agents/finance/*', this.delegateToAgent.bind(this, 'FINANCE_AGENT')],
+      ['/agents/notification/*', this.delegateToAgent.bind(this, 'NOTIFICATION_AGENT')],
+      ['/agents/intelligence/*', this.delegateToAgent.bind(this, 'INTELLIGENCE_AGENT')],
+      ['/agents/webhook/*', this.delegateToAgent.bind(this, 'WEBHOOK_AGENT')],
+      ['/agents/messaging/*', this.delegateToAgent.bind(this, 'MESSAGING_AGENT')],
+      ['/agents/security/*', this.delegateToAgent.bind(this, 'SECURITY_AGENT')],
+      ['/agents/status', this.handleAgentStatus.bind(this)],
     ]);
   }
 
   /**
    * Main request router
    */
-  async route(request) {
+  async route(request, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
 
     // Find matching route
     for (const [pattern, handler] of this.routes) {
       if (this.matchPath(path, pattern)) {
-        return handler(request, url);
+        return handler(request, url, ctx);
       }
     }
 
     // Default 404
-    return new Response("Not Found", {
+    return new Response('Not Found', {
       status: 404,
-      headers: { "Content-Type": "text/plain" },
+      headers: { 'Content-Type': 'text/plain' },
     });
   }
 
@@ -155,9 +156,9 @@ class RouteMultiplexer {
     if (path === pattern) return true;
 
     // Wildcard match (e.g., /ai/* matches /ai/anything)
-    if (pattern.endsWith("/*")) {
+    if (pattern.endsWith('/*')) {
       const base = pattern.slice(0, -2);
-      return path.startsWith(base + "/") || path === base;
+      return path.startsWith(base + '/') || path === base;
     }
 
     return false;
@@ -171,9 +172,12 @@ class RouteMultiplexer {
     return this.jsonResponse(result);
   }
 
-  async handleEmailProcessing(request) {
+  async handleEmailProcessing(request, _url, ctx) {
     const body = await request.json();
-    const result = await this.services.ai.emailProcessor.processEmail(body);
+    const result = await this.services.ai.emailProcessor.processEmail(
+      body,
+      ctx,
+    );
     return this.jsonResponse(result);
   }
 
@@ -267,38 +271,38 @@ class RouteMultiplexer {
   async handleMCP(request, url) {
     // MCP info endpoint - returns server metadata
     const headers = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Content-Type": "application/json",
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Content-Type': 'application/json',
     };
 
     return new Response(
       JSON.stringify({
-        name: "ChittyRouter MCP",
-        version: "3.0.0",
-        protocol: "mcp",
-        description: "ChittyRouter AI Gateway with Model Context Protocol",
+        name: 'ChittyRouter MCP',
+        version: '3.0.0',
+        protocol: 'mcp',
+        description: 'ChittyRouter AI Gateway with Model Context Protocol',
         tools: 23,
         categories: 17,
         endpoints: {
-          mcp: "https://mcp.chitty.cc",
-          openapi: "https://ai.chitty.cc/openapi.json",
-          info: "https://mcp.chitty.cc/info",
-          tools: "https://mcp.chitty.cc/tools",
+          mcp: 'https://mcp.chitty.cc',
+          openapi: 'https://ai.chitty.cc/openapi.json',
+          info: 'https://mcp.chitty.cc/info',
+          tools: 'https://mcp.chitty.cc/tools',
         },
         integration: {
           chatgpt: {
-            schema: "https://ai.chitty.cc/openapi.json",
-            protocol: "REST API with OpenAPI 3.0",
+            schema: 'https://ai.chitty.cc/openapi.json',
+            protocol: 'REST API with OpenAPI 3.0',
           },
           claude: {
-            mcp: "https://mcp.chitty.cc",
-            protocol: "Model Context Protocol (MCP)",
+            mcp: 'https://mcp.chitty.cc',
+            protocol: 'Model Context Protocol (MCP)',
           },
         },
-        status: "production-ready",
-        deployment: "chittyrouter-unified-worker",
+        status: 'production-ready',
+        deployment: 'chittyrouter-unified-worker',
       }),
       { headers },
     );
@@ -306,130 +310,130 @@ class RouteMultiplexer {
 
   async handleMCPTools(request, url) {
     const headers = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Content-Type": "application/json",
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Content-Type': 'application/json',
     };
 
     const tools = {
       categories: [
-        "ChittyID",
-        "ChittyLedger",
-        "ChittyBooks",
-        "ChittyFinance",
-        "ChittyTrust",
-        "ChittyCertify",
-        "ChittyVerify",
-        "ChittyScore",
-        "ChittyChain",
-        "ChittyEvidence",
-        "ChittyMint",
-        "ChittyChat",
-        "ChittySchema",
-        "ChittyCanon",
-        "ChittyRegistry",
-        "ChittyGateway",
-        "Integration",
+        'ChittyID',
+        'ChittyLedger',
+        'ChittyBooks',
+        'ChittyFinance',
+        'ChittyTrust',
+        'ChittyCertify',
+        'ChittyVerify',
+        'ChittyScore',
+        'ChittyChain',
+        'ChittyEvidence',
+        'ChittyMint',
+        'ChittyChat',
+        'ChittySchema',
+        'ChittyCanon',
+        'ChittyRegistry',
+        'ChittyGateway',
+        'Integration',
       ],
       tools: [
         {
-          name: "chittycheck",
-          description: "Run ChittyID compliance check",
-          category: "Integration",
+          name: 'chittycheck',
+          description: 'Run ChittyID compliance check',
+          category: 'Integration',
         },
         {
-          name: "chitfix",
-          description: "Fix ChittyID violations",
-          category: "Integration",
+          name: 'chitfix',
+          description: 'Fix ChittyID violations',
+          category: 'Integration',
         },
         {
-          name: "mint_chittyid",
-          description: "Mint new ChittyID",
-          category: "ChittyID",
+          name: 'mint_chittyid',
+          description: 'Mint new ChittyID',
+          category: 'ChittyID',
         },
         {
-          name: "validate_chittyid",
-          description: "Validate ChittyID format",
-          category: "ChittyID",
+          name: 'validate_chittyid',
+          description: 'Validate ChittyID format',
+          category: 'ChittyID',
         },
         {
-          name: "create_ledger_entry",
-          description: "Create ledger entry",
-          category: "ChittyLedger",
+          name: 'create_ledger_entry',
+          description: 'Create ledger entry',
+          category: 'ChittyLedger',
         },
         {
-          name: "sync_project",
-          description: "Sync project data",
-          category: "Integration",
+          name: 'sync_project',
+          description: 'Sync project data',
+          category: 'Integration',
         },
         {
-          name: "sync_session",
-          description: "Sync session state",
-          category: "Integration",
+          name: 'sync_session',
+          description: 'Sync session state',
+          category: 'Integration',
         },
         {
-          name: "ai_route",
-          description: "AI-powered routing",
-          category: "Integration",
+          name: 'ai_route',
+          description: 'AI-powered routing',
+          category: 'Integration',
         },
         {
-          name: "process_email",
-          description: "Process email with AI",
-          category: "Integration",
+          name: 'process_email',
+          description: 'Process email with AI',
+          category: 'Integration',
         },
       ],
       total: 23,
-      deployment: "chittyrouter-unified-worker",
+      deployment: 'chittyrouter-unified-worker',
     };
     return new Response(JSON.stringify(tools), { headers });
   }
 
   async handleMCPOpenAPI(request, url) {
     const headers = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Content-Type": "application/json",
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Content-Type': 'application/json',
     };
 
     const openapi = {
-      openapi: "3.0.0",
+      openapi: '3.0.0',
       info: {
-        title: "ChittyRouter MCP API",
-        version: "3.0.0",
+        title: 'ChittyRouter MCP API',
+        version: '3.0.0',
         description:
-          "ChittyRouter AI Gateway Model Context Protocol Server API",
+          'ChittyRouter AI Gateway Model Context Protocol Server API',
       },
       servers: [
-        { url: "https://mcp.chitty.cc", description: "Production MCP Server" },
-        { url: "https://ai.chitty.cc", description: "AI Gateway" },
+        { url: 'https://mcp.chitty.cc', description: 'Production MCP Server' },
+        { url: 'https://ai.chitty.cc', description: 'AI Gateway' },
       ],
       paths: {
-        "/mcp/info": {
+        '/mcp/info': {
           get: {
-            summary: "Get MCP server information",
+            summary: 'Get MCP server information',
             responses: {
               200: {
-                description: "Server information",
+                description: 'Server information',
                 content: {
-                  "application/json": {
-                    schema: { type: "object" },
+                  'application/json': {
+                    schema: { type: 'object' },
                   },
                 },
               },
             },
           },
         },
-        "/mcp/tools": {
+        '/mcp/tools': {
           get: {
-            summary: "Get available tools",
+            summary: 'Get available tools',
             responses: {
               200: {
-                description: "Available tools",
+                description: 'Available tools',
                 content: {
-                  "application/json": {
-                    schema: { type: "object" },
+                  'application/json': {
+                    schema: { type: 'object' },
                   },
                 },
               },
@@ -443,17 +447,17 @@ class RouteMultiplexer {
 
   async handleMCPHealth(request, url) {
     const headers = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Content-Type": "application/json",
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Content-Type': 'application/json',
     };
 
     return new Response(
       JSON.stringify({
-        status: "healthy",
-        service: "ChittyRouter MCP",
-        deployment: "chittyrouter-unified-worker",
+        status: 'healthy',
+        service: 'ChittyRouter MCP',
+        deployment: 'chittyrouter-unified-worker',
         ai: await this.checkAIHealth(),
         timestamp: new Date().toISOString(),
       }),
@@ -465,21 +469,22 @@ class RouteMultiplexer {
 
   async handleHealth(request) {
     const health = {
-      status: "ok",
-      service: "chittyrouter",
+      status: 'ok',
+      service: 'chittyrouter',
       services: {
         ai: await this.checkAIHealth(),
         sync: await this.checkSyncHealth(),
         storage: await this.checkStorageHealth(),
       },
       agents: {
-        count: 12,
+        count: 13,
         bindings: [
-          "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
-          "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
-          "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+          'TRIAGE_AGENT', 'PRIORITY_AGENT', 'RESPONSE_AGENT', 'DOCUMENT_AGENT',
+          'ENTITY_AGENT', 'EVIDENCE_AGENT', 'CALENDAR_AGENT', 'FINANCE_AGENT',
+          'NOTIFICATION_AGENT', 'INTELLIGENCE_AGENT', 'WEBHOOK_AGENT', 'MESSAGING_AGENT',
+          'SECURITY_AGENT',
         ].filter((n) => !!this.env[n]).length,
-        route: "/agents/status",
+        route: '/agents/status',
       },
       timestamp: new Date().toISOString(),
     };
@@ -489,20 +494,21 @@ class RouteMultiplexer {
 
   async handleApiStatus() {
     const agentBindings = [
-      "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
-      "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
-      "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+      'TRIAGE_AGENT', 'PRIORITY_AGENT', 'RESPONSE_AGENT', 'DOCUMENT_AGENT',
+      'ENTITY_AGENT', 'EVIDENCE_AGENT', 'CALENDAR_AGENT', 'FINANCE_AGENT',
+      'NOTIFICATION_AGENT', 'INTELLIGENCE_AGENT', 'WEBHOOK_AGENT', 'MESSAGING_AGENT',
+      'SECURITY_AGENT',
     ];
     return this.jsonResponse({
-      status: "ok",
-      service: "chittyrouter",
-      version: this.env.VERSION || "2.1.0-ai",
+      status: 'ok',
+      service: 'chittyrouter',
+      version: this.env.VERSION || '2.1.0-ai',
       tier: 2,
-      domain: "router.chitty.cc",
-      organization: "CHITTYOS",
+      domain: 'router.chitty.cc',
+      organization: 'CHITTYOS',
       environment: this.env.ENVIRONMENT,
       agents: {
-        total: 12,
+        total: 13,
         available: agentBindings.filter((n) => !!this.env[n]).length,
       },
       aiModels: {
@@ -642,7 +648,7 @@ class RouteMultiplexer {
       (p) => !!this.env[`${p.toUpperCase()}_WEBHOOK_SECRET`]
     ).length;
     return this.jsonResponse({
-      status: configuredCount === platforms.length ? "healthy" : "degraded",
+      status: configuredCount === platforms.length ? 'healthy' : 'degraded',
       platforms: platforms.length,
       ready: configuredCount,
     });
@@ -661,8 +667,8 @@ class RouteMultiplexer {
     const id = binding.idFromName(bindingName);
     const stub = binding.get(id);
     // Initialize the agent's name via partyserver protocol
-    const setupReq = new Request("http://dummy-example.cloudflare.com/cdn-cgi/partyserver/set-name/");
-    setupReq.headers.set("x-partykit-room", bindingName);
+    const setupReq = new Request('http://dummy-example.cloudflare.com/cdn-cgi/partyserver/set-name/');
+    setupReq.headers.set('x-partykit-room', bindingName);
     await stub.fetch(setupReq).then((r) => r.text());
     return stub;
   }
@@ -678,14 +684,14 @@ class RouteMultiplexer {
     }
 
     // Strip the /agents/<name> prefix so the agent receives clean paths
-    const agentPath = url.pathname.replace(/^\/agents\/[^/]+/, "") || "/";
+    const agentPath = url.pathname.replace(/^\/agents\/[^/]+/, '') || '/';
     const agentUrl = new URL(agentPath, url.origin);
     agentUrl.search = url.search;
 
     const agentRequest = new Request(agentUrl.toString(), {
       method: request.method,
       headers: request.headers,
-      body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
+      body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
     });
 
     try {
@@ -701,24 +707,25 @@ class RouteMultiplexer {
    */
   async handleAgentStatus() {
     const agentNames = [
-      "TRIAGE_AGENT", "PRIORITY_AGENT", "RESPONSE_AGENT", "DOCUMENT_AGENT",
-      "ENTITY_AGENT", "EVIDENCE_AGENT", "CALENDAR_AGENT", "FINANCE_AGENT",
-      "NOTIFICATION_AGENT", "INTELLIGENCE_AGENT", "WEBHOOK_AGENT", "MESSAGING_AGENT",
+      'TRIAGE_AGENT', 'PRIORITY_AGENT', 'RESPONSE_AGENT', 'DOCUMENT_AGENT',
+      'ENTITY_AGENT', 'EVIDENCE_AGENT', 'CALENDAR_AGENT', 'FINANCE_AGENT',
+      'NOTIFICATION_AGENT', 'INTELLIGENCE_AGENT', 'WEBHOOK_AGENT', 'MESSAGING_AGENT',
+      'SECURITY_AGENT',
     ];
 
     const results = await Promise.all(
       agentNames.map(async (name) => {
         try {
           const stub = await this.getAgentStub(name);
-          if (!stub) return [name, { status: "not_bound" }];
-          const resp = await stub.fetch(new Request("https://agent/status"));
+          if (!stub) return [name, { status: 'not_bound' }];
+          const resp = await stub.fetch(new Request('https://agent/status'));
           if (!resp.ok) {
             const text = await resp.text();
-            return [name, { status: "error", error: text.slice(0, 200) }];
+            return [name, { status: 'error', error: text.slice(0, 200) }];
           }
           return [name, await resp.json()];
         } catch (err) {
-          return [name, { status: "error", error: err.message }];
+          return [name, { status: 'error', error: err.message }];
         }
       })
     );
@@ -736,23 +743,23 @@ class RouteMultiplexer {
 
   async checkAIHealth() {
     try {
-      await this.env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
-        messages: [{ role: "user", content: "ping" }],
+      await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+        messages: [{ role: 'user', content: 'ping' }],
         max_tokens: 10,
       });
-      return { status: "healthy", model: "@cf/meta/llama-3.1-8b-instruct" };
+      return { status: 'healthy', model: '@cf/meta/llama-3.1-8b-instruct' };
     } catch (error) {
-      return { status: "unhealthy", error: error.message };
+      return { status: 'unhealthy', error: error.message };
     }
   }
 
   async checkSyncHealth() {
     return {
-      notion: this.services.sync.notion ? "configured" : "not configured",
-      session: this.services.sync.session ? "configured" : "not configured",
+      notion: this.services.sync.notion ? 'configured' : 'not configured',
+      session: this.services.sync.session ? 'configured' : 'not configured',
       orchestrator: this.services.sync.orchestrator
-        ? "configured"
-        : "not configured",
+        ? 'configured'
+        : 'not configured',
     };
   }
 
@@ -760,15 +767,15 @@ class RouteMultiplexer {
     const storage = {};
 
     if (this.env.AI_CACHE) {
-      storage.kv = "available";
+      storage.kv = 'available';
     }
 
     if (this.env.DOCUMENT_STORAGE) {
-      storage.r2 = "available";
+      storage.r2 = 'available';
     }
 
     if (this.env.AI_STATE_DO) {
-      storage.durable_objects = "available";
+      storage.durable_objects = 'available';
     }
 
     return storage;
@@ -779,7 +786,7 @@ class RouteMultiplexer {
   async generateMetricsReport() {
     const report = {
       timestamp: new Date().toISOString(),
-      period: "24h",
+      period: '24h',
       dataPoints: [],
       summary: {},
     };
@@ -795,7 +802,7 @@ class RouteMultiplexer {
           timestamp: Date.now(),
           metric: `notion.${key}`,
           value,
-          labels: { service: "notion" },
+          labels: { service: 'notion' },
         });
       }
     }
@@ -809,17 +816,17 @@ class RouteMultiplexer {
     return new Response(JSON.stringify(data), {
       status,
       headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
     });
   }
 
   async errorResponse(error, status = 500) {
-    console.error("Error response:", error.message || error);
+    console.error('Error response:', error.message || error);
     return this.jsonResponse(
       {
-        error: "Internal Server Error",
+        error: 'Internal Server Error',
         timestamp: new Date().toISOString(),
       },
       status,
@@ -830,8 +837,8 @@ class RouteMultiplexer {
 /**
  * Durable Object exports (consolidated)
  */
-export { SyncStateDurableObject } from "./sync/unified-sync-orchestrator.js";
-export { AIStateDO } from "./ai/ai-state.js";
+export { SyncStateDurableObject } from './sync/unified-sync-orchestrator.js';
+export { AIStateDO } from './ai/ai-state.js';
 // ChittyChainDO export removed - doesn't exist in current setup
 
 /**
@@ -847,12 +854,12 @@ export default {
       ctx.waitUntil(this.logRequest(env, requestId, request));
 
       // Route the request
-      const response = await multiplexer.route(request);
+      const response = await multiplexer.route(request, ctx);
 
       // Clone with additional headers (response.headers may be immutable)
       const headers = new Headers(response.headers);
-      headers.set("X-Request-ID", requestId);
-      headers.set("X-Powered-By", "ChittyRouter-Unified");
+      headers.set('X-Request-ID', requestId);
+      headers.set('X-Powered-By', 'ChittyRouter-Unified');
 
       return new Response(response.body, {
         status: response.status,
@@ -860,7 +867,7 @@ export default {
         headers,
       });
     } catch (error) {
-      console.error("Worker error:", error);
+      console.error('Worker error:', error);
       return multiplexer.errorResponse(error);
     }
   },
@@ -871,7 +878,7 @@ export default {
       await env.AI_ANALYTICS.writeDataPoints([
         {
           timestamp: Date.now(),
-          metric: "request",
+          metric: 'request',
           value: 1,
           labels: {
             path: new URL(request.url).pathname,

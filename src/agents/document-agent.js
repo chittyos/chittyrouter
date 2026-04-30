@@ -6,11 +6,11 @@
  * @service chittycanon://core/services/chittyrouter
  * @canon chittycanon://gov/governance#core-types
  */
-import { ChittyRouterBaseAgent } from "./base-agent.js";
+import { ChittyRouterBaseAgent } from './base-agent.js';
 
 const DOCUMENT_TYPES = [
-  "contract", "evidence", "legal_filing", "correspondence",
-  "financial", "identification", "medical", "other",
+  'contract', 'evidence', 'legal_filing', 'correspondence',
+  'financial', 'identification', 'medical', 'other',
 ];
 
 const FILENAME_PATTERNS = {
@@ -23,8 +23,8 @@ const FILENAME_PATTERNS = {
   medical: /\b(medical|health|doctor|hospital|prescription)\b/i,
 };
 
-const DANGEROUS_EXTENSIONS = [".exe", ".bat", ".cmd", ".scr", ".vbs", ".jar"];
-const SUSPICIOUS_EXTENSIONS = [".zip", ".rar", ".7z"];
+const DANGEROUS_EXTENSIONS = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.jar'];
+const SUSPICIOUS_EXTENSIONS = ['.zip', '.rar', '.7z'];
 
 export class DocumentAgent extends ChittyRouterBaseAgent {
   // Note: all sql.exec calls below use the built-in SQLite API, not child_process
@@ -53,23 +53,23 @@ export class DocumentAgent extends ChittyRouterBaseAgent {
   async onRequest(request) {
     const url = new URL(request.url);
 
-    if (request.method === "POST" && url.pathname.endsWith("/analyze")) {
+    if (request.method === 'POST' && url.pathname.endsWith('/analyze')) {
       return this.handleAnalyze(request);
     }
-    if (request.method === "POST" && url.pathname.endsWith("/batch")) {
+    if (request.method === 'POST' && url.pathname.endsWith('/batch')) {
       return this.handleBatch(request);
     }
-    if (request.method === "GET" && url.pathname.endsWith("/stats")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/stats')) {
       return this.handleStats();
     }
-    if (request.method === "GET" && url.pathname.endsWith("/status")) {
+    if (request.method === 'GET' && url.pathname.endsWith('/status')) {
       return this.handleStatus();
     }
 
     return this.jsonResponse({
-      agent: "DocumentAgent",
-      status: "active",
-      endpoints: ["/analyze", "/batch", "/stats", "/status"],
+      agent: 'DocumentAgent',
+      status: 'active',
+      endpoints: ['/analyze', '/batch', '/stats', '/status'],
     });
   }
 
@@ -81,7 +81,7 @@ export class DocumentAgent extends ChittyRouterBaseAgent {
     const body = await request.json();
     const { attachment, emailContext, org } = body;
     if (!attachment?.name) {
-      return this.jsonResponse({ error: "No valid attachment provided" }, 400);
+      return this.jsonResponse({ error: 'No valid attachment provided' }, 400);
     }
 
     const security = this.analyzeFileSecurity(attachment);
@@ -89,7 +89,7 @@ export class DocumentAgent extends ChittyRouterBaseAgent {
     try {
       analysis = await this.aiAnalyze(attachment, emailContext || {});
     } catch (err) {
-      this.error("Document analysis failed", { error: err.message });
+      this.error('Document analysis failed', { error: err.message });
       analysis = this.fallbackAnalyze(attachment);
     }
 
@@ -148,16 +148,16 @@ export class DocumentAgent extends ChittyRouterBaseAgent {
     const prompt = `Analyze this document attachment:
 
 EMAIL CONTEXT:
-Subject: ${emailContext.subject || "unknown"}
-From: ${emailContext.from || "unknown"}
-Category: ${emailContext.category || "unknown"}
+Subject: ${emailContext.subject || 'unknown'}
+From: ${emailContext.from || 'unknown'}
+Category: ${emailContext.category || 'unknown'}
 
 DOCUMENT:
 Filename: ${attachment.name}
 Size: ${attachment.size || 0} bytes
-Type: ${attachment.type || "unknown"}
+Type: ${attachment.type || 'unknown'}
 
-CLASSIFICATIONS: ${DOCUMENT_TYPES.join(", ")}
+CLASSIFICATIONS: ${DOCUMENT_TYPES.join(', ')}
 IMPORTANCE: critical, high, normal, low
 COMPLIANCE FLAGS: chain_of_custody, confidential, time_sensitive, verification_required, none
 
@@ -173,7 +173,7 @@ Respond with JSON only:
 }`;
 
     const response = await this.runAIWithPrompt(prompt, {
-      promptId: "document.analyze",
+      promptId: 'document.analyze',
     });
 
     if (response === null) return this.fallbackAnalyze(attachment);
@@ -188,15 +188,15 @@ Respond with JSON only:
 
   fallbackAnalyze(attachment) {
     const docType = this.classifyByFilename(attachment.name);
-    const isHighPriority = ["contract", "legal_filing", "evidence"].includes(docType);
+    const isHighPriority = ['contract', 'legal_filing', 'evidence'].includes(docType);
     return {
       document_type: docType,
-      importance: isHighPriority ? "high" : "normal",
-      compliance_flags: docType === "evidence" ? ["chain_of_custody"] : [],
+      importance: isHighPriority ? 'high' : 'normal',
+      compliance_flags: docType === 'evidence' ? ['chain_of_custody'] : [],
       contains_pii: false,
       requires_review: isHighPriority,
       keywords: [],
-      reasoning: "Fallback classification by filename pattern",
+      reasoning: 'Fallback classification by filename pattern',
       fallback: true,
     };
   }
@@ -205,43 +205,43 @@ Respond with JSON only:
     for (const [type, pattern] of Object.entries(FILENAME_PATTERNS)) {
       if (pattern.test(filename)) return type;
     }
-    return "other";
+    return 'other';
   }
 
   analyzeFileSecurity(attachment) {
-    const ext = (attachment.name.toLowerCase().match(/\.[^.]+$/) || [""])[0];
+    const ext = (attachment.name.toLowerCase().match(/\.[^.]+$/) || [''])[0];
     const warnings = [];
-    let riskLevel = "low";
+    let riskLevel = 'low';
 
     if (DANGEROUS_EXTENSIONS.includes(ext)) {
-      riskLevel = "high";
+      riskLevel = 'high';
       warnings.push(`Dangerous file extension: ${ext}`);
     } else if (SUSPICIOUS_EXTENSIONS.includes(ext)) {
-      riskLevel = "medium";
+      riskLevel = 'medium';
       warnings.push(`Compressed file requires scanning: ${ext}`);
     }
     if ((attachment.size || 0) > 50 * 1024 * 1024) {
-      warnings.push("Large file size — may require special handling");
+      warnings.push('Large file size — may require special handling');
     }
 
-    return { is_safe: riskLevel !== "high", risk_level: riskLevel, warnings };
+    return { is_safe: riskLevel !== 'high', risk_level: riskLevel, warnings };
   }
 
   generateRecommendations(analysis) {
     const recs = [];
-    if (analysis.importance === "critical") recs.push("Process immediately — high priority document");
-    if (analysis.compliance_flags?.includes("chain_of_custody")) recs.push("Maintain chain of custody — evidence protocol required");
-    if (analysis.compliance_flags?.includes("confidential")) recs.push("Confidential handling — restrict access");
-    if (analysis.compliance_flags?.includes("time_sensitive")) recs.push("Time-sensitive — check for deadlines");
-    if (analysis.contains_pii) recs.push("Contains PII — apply privacy protection");
-    if (analysis.requires_review) recs.push("Attorney review required before processing");
+    if (analysis.importance === 'critical') recs.push('Process immediately — high priority document');
+    if (analysis.compliance_flags?.includes('chain_of_custody')) recs.push('Maintain chain of custody — evidence protocol required');
+    if (analysis.compliance_flags?.includes('confidential')) recs.push('Confidential handling — restrict access');
+    if (analysis.compliance_flags?.includes('time_sensitive')) recs.push('Time-sensitive — check for deadlines');
+    if (analysis.contains_pii) recs.push('Contains PII — apply privacy protection');
+    if (analysis.requires_review) recs.push('Attorney review required before processing');
     return recs;
   }
 
   async hashDocument(attachment) {
-    const data = `${attachment.name}:${attachment.size || 0}:${attachment.type || ""}`;
-    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(data));
-    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const data = `${attachment.name}:${attachment.size || 0}:${attachment.type || ''}`;
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
   handleStats() {
@@ -249,16 +249,16 @@ Respond with JSON only:
       `SELECT document_type, importance, COUNT(*) as count, SUM(contains_pii) as pii_count
        FROM document_index GROUP BY document_type, importance ORDER BY count DESC LIMIT 50`
     ).toArray();
-    const total = this.rawSql.exec("SELECT COUNT(*) as total FROM document_index").toArray();
+    const total = this.rawSql.exec('SELECT COUNT(*) as total FROM document_index').toArray();
     return this.jsonResponse({ totalDocuments: total[0]?.total || 0, breakdown: rows });
   }
 
   handleStatus() {
     const recent = this.rawSql.exec(
-      "SELECT COUNT(*) as count FROM document_index WHERE created_at > datetime('now', '-1 hour')"
+      'SELECT COUNT(*) as count FROM document_index WHERE created_at > datetime(\'now\', \'-1 hour\')'
     ).toArray();
     return this.jsonResponse({
-      agent: "DocumentAgent", status: "active",
+      agent: 'DocumentAgent', status: 'active',
       documentsLastHour: recent[0]?.count || 0,
       documentTypes: DOCUMENT_TYPES.length,
     });

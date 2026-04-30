@@ -13,7 +13,7 @@ function timingSafeCompare(a, b) {
   const aBuf = enc.encode(a);
   const bBuf = enc.encode(b);
   if (aBuf.byteLength !== bBuf.byteLength) return false;
-  if (typeof crypto.subtle.timingSafeEqual === "function") {
+  if (typeof crypto.subtle.timingSafeEqual === 'function') {
     return crypto.subtle.timingSafeEqual(aBuf, bBuf);
   }
   // Fallback: XOR accumulation (constant-time for equal-length buffers)

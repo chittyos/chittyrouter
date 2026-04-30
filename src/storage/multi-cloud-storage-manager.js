@@ -225,7 +225,7 @@ export class MultiCloudStorageManager {
         return data;
 
       } catch (primaryError) {
-        console.warn(`⚠️ Primary retrieval failed, trying backup:`, primaryError.message);
+        console.warn('⚠️ Primary retrieval failed, trying backup:', primaryError.message);
 
         // Try backup location
         if (storageConfig.backup) {

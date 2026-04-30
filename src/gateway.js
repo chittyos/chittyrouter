@@ -9,47 +9,47 @@ export default {
       // Route to appropriate service worker based on subdomain or path
 
       // Platform service (main)
-      if (hostname.includes("platform") || pathname.startsWith("/platform")) {
+      if (hostname.includes('platform') || pathname.startsWith('/platform')) {
         return await env.PLATFORM.fetch(request);
       }
 
       // Bridge service
-      if (hostname.includes("bridge") || pathname.startsWith("/bridge")) {
+      if (hostname.includes('bridge') || pathname.startsWith('/bridge')) {
         return await env.BRIDGE.fetch(request);
       }
 
       // Consultant service
       if (
-        hostname.includes("consultant") ||
-        pathname.startsWith("/consultant")
+        hostname.includes('consultant') ||
+        pathname.startsWith('/consultant')
       ) {
         return await env.CONSULTANT.fetch(request);
       }
 
       // Chain service
-      if (hostname.includes("chain") || pathname.startsWith("/chain")) {
+      if (hostname.includes('chain') || pathname.startsWith('/chain')) {
         return await env.CHAIN.fetch(request);
       }
 
       // CTO MCP service
-      if (hostname.includes("cto") || pathname.startsWith("/cto")) {
+      if (hostname.includes('cto') || pathname.startsWith('/cto')) {
         return await env.CTO.fetch(request);
       }
 
       // Landing pages
-      if (hostname.includes("landing") || pathname === "/") {
+      if (hostname.includes('landing') || pathname === '/') {
         return await env.LANDING.fetch(request);
       }
 
       // Health check - query all services
-      if (pathname === "/health") {
+      if (pathname === '/health') {
         const services = [
-          "PLATFORM",
-          "BRIDGE",
-          "CONSULTANT",
-          "CHAIN",
-          "CTO",
-          "LANDING",
+          'PLATFORM',
+          'BRIDGE',
+          'CONSULTANT',
+          'CHAIN',
+          'CTO',
+          'LANDING',
         ];
         const health = {};
 
@@ -57,60 +57,60 @@ export default {
           try {
             if (env[service]) {
               const response = await env[service].fetch(
-                new Request("https://internal/health"),
+                new Request('https://internal/health'),
               );
               health[service.toLowerCase()] = response.ok
-                ? "healthy"
-                : "unhealthy";
+                ? 'healthy'
+                : 'unhealthy';
             } else {
-              health[service.toLowerCase()] = "not configured";
+              health[service.toLowerCase()] = 'not configured';
             }
           } catch (error) {
-            health[service.toLowerCase()] = "error";
+            health[service.toLowerCase()] = 'error';
           }
         }
 
         return new Response(
           JSON.stringify({
-            status: "gateway operational",
+            status: 'gateway operational',
             services: health,
             timestamp: new Date().toISOString(),
           }),
           {
-            headers: { "content-type": "application/json" },
+            headers: { 'content-type': 'application/json' },
           },
         );
       }
 
       // Service discovery endpoint
-      if (pathname === "/services") {
+      if (pathname === '/services') {
         return new Response(
           JSON.stringify({
             services: {
-              platform: "/platform",
-              bridge: "/bridge",
-              consultant: "/consultant",
-              chain: "/chain",
-              cto: "/cto",
-              landing: "/",
+              platform: '/platform',
+              bridge: '/bridge',
+              consultant: '/consultant',
+              chain: '/chain',
+              cto: '/cto',
+              landing: '/',
             },
             timestamp: new Date().toISOString(),
           }),
           {
-            headers: { "content-type": "application/json" },
+            headers: { 'content-type': 'application/json' },
           },
         );
       }
 
       // Default response
-      return new Response("ChittyOS Gateway - Service not found", {
+      return new Response('ChittyOS Gateway - Service not found', {
         status: 404,
-        headers: { "content-type": "text/plain" },
+        headers: { 'content-type': 'text/plain' },
       });
     } catch (error) {
       return new Response(`Gateway error: ${error.message}`, {
         status: 500,
-        headers: { "content-type": "text/plain" },
+        headers: { 'content-type': 'text/plain' },
       });
     }
   },

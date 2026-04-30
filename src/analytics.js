@@ -3,7 +3,7 @@ export class Analytics {
   constructor(accountId, apiToken) {
     this.accountId = accountId;
     this.apiToken = apiToken;
-    this.endpoint = "https://api.cloudflare.com/client/v4/graphql";
+    this.endpoint = 'https://api.cloudflare.com/client/v4/graphql';
   }
 
   // Query worker analytics using GraphQL
@@ -88,10 +88,10 @@ export class Analytics {
   // Execute GraphQL query
   async executeQuery(query, variables) {
     const response = await fetch(this.endpoint, {
-      method: "POST",
+      method: 'POST',
       headers: {
         Authorization: `Bearer ${this.apiToken}`,
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({ query, variables }),
     });
@@ -112,11 +112,11 @@ export class Analytics {
 
     return {
       timestamp: new Date().toISOString(),
-      period: "24h",
+      period: '24h',
       metrics:
         metrics.data?.viewer?.accounts?.[0]?.workersInvocationsAdaptive?.sum ||
         {},
-      services: ["platform", "bridge", "consultant", "chain", "cto", "landing"],
+      services: ['platform', 'bridge', 'consultant', 'chain', 'cto', 'landing'],
     };
   }
 }
@@ -126,15 +126,15 @@ export async function handleAnalytics(request, env) {
   const analytics = new Analytics(env.ACCOUNT_ID, env.API_TOKEN);
 
   try {
-    const data = await analytics.getDashboardData("chitty-ultimate-worker");
+    const data = await analytics.getDashboardData('chitty-ultimate-worker');
 
     return new Response(JSON.stringify(data, null, 2), {
-      headers: { "content-type": "application/json" },
+      headers: { 'content-type': 'application/json' },
     });
   } catch (error) {
     return new Response(`Analytics error: ${error.message}`, {
       status: 500,
-      headers: { "content-type": "text/plain" },
+      headers: { 'content-type': 'text/plain' },
     });
   }
 }
