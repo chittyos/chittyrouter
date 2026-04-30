@@ -50,7 +50,7 @@ export class CloudflareEmailHandler {
       // mail to security@chitty.cc (or triaged as a security_incident) is
       // guaranteed to reach the SecurityAgent within the 48h SLA declared in
       // chittyentity/SECURITY.md, even if downstream routing fails.
-      if (this.isSecurityIncident(emailData, triage)) {
+      if (this.isSecurityIncident(emailData)) {
         await this.dispatchToSecurityAgent(emailData, triage, env, ctx);
       }
 
@@ -260,17 +260,19 @@ export class CloudflareEmailHandler {
    *
    * Either signal is sufficient; both are common.
    */
-  isSecurityIncident(emailData, triage) {
+  isSecurityIncident(emailData) {
+    // Recipient-based dispatch only on this legacy path. The local
+    // triageEmail() emits 'general'/'legal'/'financial'/'compliance'/
+    // 'property'/'case' — never 'security_incident' — and has no
+    // `class` field, so any triage.category/triage.class checks here
+    // would be permanently dead. The Agents-SDK pipeline
+    // (src/ai/email-processor.js → TRIAGE_AGENT/classify) does the
+    // content-based 'security_incident' classification, which dispatches
+    // to SecurityAgent through that path instead of this one.
     const to = String(emailData?.to || '').toLowerCase();
-    // Parse recipient to handle "Security <security@chitty.cc>", comma-separated, etc.
-    const securityAddress = 'security@chitty.cc';
-    // Match the address token directly, handling angle brackets and commas
-    if (to.includes(securityAddress)) {
-      return true;
-    }
-    if (triage?.category === 'security_incident') return true;
-    if (triage?.class === 'security-incident') return true;
-    return false;
+    // Match the address token directly so "Security <security@chitty.cc>",
+    // comma-separated lists, etc. all dispatch.
+    return to.includes('security@chitty.cc');
   }
 
   /**

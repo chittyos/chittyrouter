@@ -557,11 +557,12 @@ export class ChittyBeaconClient {
         this.sendMetricsSnapshot();
         break;
       default:
+        // JSON.stringify escapes newlines and control chars, which CodeQL
+        // recognizes as a log-injection sanitizer. Length-cap defends
+        // against pathological input even after escaping.
         console.log(
           'Unknown beacon message:',
-          String(message.type ?? '')
-            .replace(/[\x00-\x1f\x7f]/g, '')
-            .slice(0, 64),
+          JSON.stringify(String(message.type ?? '').slice(0, 64)),
         );
     }
   }
