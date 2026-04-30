@@ -37,18 +37,18 @@
     "@neondatabase/serverless": "^1.0.2",
     "@notionhq/client": "^5.14.0",
     "@octokit/rest": "^22.0.1",
-    "agents": "^0.8.0",
+    "agents": "^0.8.7",
     "mimetext": "^3.0.28",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260316.1",
+    "@cloudflare/workers-types": "^4.20260329.1",
     "@eslint/js": "^10.0.1",
     "esbuild": "^0.27.4",
-    "eslint": "^10.0.3",
+    "eslint": "^10.1.0",
     "prettier": "^3.8.1",
     "vitest": "^4.1.0",
-    "wrangler": "^4.72.0"
+    "wrangler": "^4.78.0"
   },
   "keywords": [
     "ai",
