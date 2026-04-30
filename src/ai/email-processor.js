@@ -221,27 +221,33 @@ export class EmailProcessor {
 
       // Triage + forward as a fire-and-forget background task so the legacy
       // routing path is not blocked by the synchronous Durable Object round-trip.
-      const triageAndForwardTask = (async () => {
-        try {
-          const triageForForward = await this.callAgent('TRIAGE_AGENT', '/classify', {
-            sender: emailData.from,
-            subject: emailData.subject,
-            content: emailData.content,
-            channel: 'email',
-            metadata: { messageId: emailData.messageId },
-          });
-          await forwardToDisputeIntake(this.env, triageForForward, emailData);
-        } catch (triageErr) {
-          console.warn(
-            `[dispute-forwarder] triage call failed, skipping forward: ${triageErr?.message || triageErr}`,
-          );
-        }
-      })();
+      // Skip the TriageAgent call entirely when forwarding is disabled — this
+      // saves a DO round-trip + AI call on every inbound email when the
+      // CHITTYDISPUTE_AUTH_TOKEN secret or DISPUTE_WORTHY_CATEGORIES var
+      // is unset (e.g. in environments where dispute forwarding is off).
+      if (this.env?.CHITTYDISPUTE_AUTH_TOKEN && this.env?.DISPUTE_WORTHY_CATEGORIES) {
+        const triageAndForwardTask = (async () => {
+          try {
+            const triageForForward = await this.callAgent('TRIAGE_AGENT', '/classify', {
+              sender: emailData.from,
+              subject: emailData.subject,
+              content: emailData.content,
+              channel: 'email',
+              metadata: { messageId: emailData.messageId },
+            });
+            await forwardToDisputeIntake(this.env, triageForForward, emailData);
+          } catch (triageErr) {
+            console.warn(
+              `[dispute-forwarder] triage call failed, skipping forward: ${triageErr?.message || triageErr}`,
+            );
+          }
+        })();
 
-      if (ctx && typeof ctx.waitUntil === 'function') {
-        ctx.waitUntil(triageAndForwardTask);
-      } else {
-        triageAndForwardTask.catch(() => {});
+        if (ctx && typeof ctx.waitUntil === 'function') {
+          ctx.waitUntil(triageAndForwardTask);
+        } else {
+          triageAndForwardTask.catch(() => {});
+        }
       }
 
       // AI-powered processing pipeline

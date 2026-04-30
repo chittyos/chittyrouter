@@ -72,7 +72,9 @@
     "CHITTYCONNECT_URL": "https://connect.chitty.cc",
     "CHITTYROUTER_URL": "https://router.chitty.cc",
     "CHITTYDISPUTE_URL": "https://dispute.chitty.cc",
-    "DISPUTE_WORTHY_CATEGORIES": "lawsuit,court_filing,legal_demand,dispute,complaint,summons,subpoena,attorney_correspondence",
+    // Categories must match TriageAgent's CATEGORIES (src/agents/triage-agent.js).
+    // isDisputeWorthy does exact set membership, so only triage-emitted names route.
+    "DISPUTE_WORTHY_CATEGORIES": "lawsuit_communication,court_notice,emergency_legal",
     "ENABLE_ANALYTICS": "true"
   },
   // mcp.chitty.cc/* route removed — owned by chittyconnect (canonical MCP gateway)
