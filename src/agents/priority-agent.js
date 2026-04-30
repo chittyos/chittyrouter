@@ -310,55 +310,26 @@ Respond with JSON only:
   }
 
   /**
-   * Extract the recipient address from the scoring payload. Handles
-   * several shapes the caller may pass (email routing provides `to`,
-   * MCP callers may pass `recipient`, some pipelines nest under
-   * `email.to`). Returns a lowercase normalized address or null.
+   * Extract the policy-trusted recipient from the scoring payload.
+   *
+   * Only `body.verifiedRecipient` is honored — a single string set
+   * exclusively by trusted upstream callers (the Cloudflare Email
+   * Worker, which sources it from the verified SMTP envelope `to:`).
+   * Untrusted fields like `body.to` / `body.recipient` / `body.email.to`
+   * are intentionally ignored: external clients of `/agents/priority/score`
+   * could otherwise spoof a policy-CRITICAL recipient and force a
+   * CRITICAL classification + DB write.
+   *
+   * No regex matching — verifiedRecipient is already an envelope-shaped
+   * address. Length-capped at 254 chars (RFC 5321 max) as defense-in-depth.
    */
   extractRecipient(body) {
     if (!body) return null;
-
-    // Simple email regex to extract valid email tokens
-    const emailRegex = /[\w.+-]+@[\w.-]+\.[a-z]{2,}/i;
-
-    // Helper to extract and normalize email from a string
-    const extractEmail = (str) => {
-      if (!str || typeof str !== 'string') return null;
-      const match = str.match(emailRegex);
-      return match ? match[0].toLowerCase().trim() : null;
-    };
-
-    // Check direct fields
-    const direct = body.recipient || body.to || body.toAddress;
-    if (typeof direct === 'string') {
-      const email = extractEmail(direct);
-      if (email) return email;
-    }
-    if (Array.isArray(direct)) {
-      for (const item of direct) {
-        if (typeof item === 'string') {
-          const email = extractEmail(item);
-          if (email) return email;
-        }
-      }
-    }
-
-    // Check nested email.* fields
-    const nested = body.email && (body.email.to || body.email.recipient);
-    if (typeof nested === 'string') {
-      const email = extractEmail(nested);
-      if (email) return email;
-    }
-    if (Array.isArray(nested)) {
-      for (const item of nested) {
-        if (typeof item === 'string') {
-          const email = extractEmail(item);
-          if (email) return email;
-        }
-      }
-    }
-
-    return null;
+    const v = body.verifiedRecipient;
+    if (typeof v !== 'string') return null;
+    const trimmed = v.trim();
+    if (trimmed.length === 0 || trimmed.length > 254) return null;
+    return trimmed.toLowerCase();
   }
 
   handleStats() {

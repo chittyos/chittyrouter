@@ -67,6 +67,11 @@ export class EmailProcessor {
     }
 
     // Step 2: Priority — score via PriorityAgent
+    // `verifiedRecipient` carries the SMTP envelope `to:` from the email
+    // worker so PriorityAgent's address-based CRITICAL override fires for
+    // policy inboxes (e.g. security@chitty.cc). Only the email-processor
+    // path sets this; external callers of /agents/priority/score cannot
+    // spoof it (PriorityAgent ignores body.to / body.recipient).
     const priorityResult = await this.callAgent('PRIORITY_AGENT', '/score', {
       sender: from,
       subject,
@@ -74,6 +79,7 @@ export class EmailProcessor {
       category: triageResult.category,
       org: triageResult.org,
       triageConfidence: triageResult.confidence,
+      verifiedRecipient: to,
     });
 
     // Step 3: Response — draft via ResponseAgent

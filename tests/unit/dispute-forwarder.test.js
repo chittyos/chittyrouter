@@ -13,6 +13,7 @@ import {
   isDisputeWorthy,
   buildIntakePayload,
   forwardToDisputeIntake,
+  validateTriageShape,
 } from "../../src/integration/dispute-forwarder.js";
 import { testEmails } from "../data/test-emails.js";
 
@@ -124,7 +125,9 @@ describe("buildIntakePayload", () => {
       subject: "s",
       from: "a",
     });
-    expect(withoutAnyId.source_ref).toMatch(/^chittyrouter-\d+$/);
+    expect(withoutAnyId.source_ref).toMatch(
+      /^chittyrouter-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
   });
 
   it("defaults missing array/string triage fields safely", () => {
@@ -184,5 +187,57 @@ describe("forwardToDisputeIntake short-circuits (no network)", () => {
       email,
     );
     expect(result).toEqual({ forwarded: false, reason: "category-not-worthy" });
+  });
+
+  it("skips with invalid-triage-shape when category is missing", async () => {
+    const result = await forwardToDisputeIntake(
+      {
+        CHITTYDISPUTE_AUTH_TOKEN: "test-token",
+        DISPUTE_WORTHY_CATEGORIES: "lawsuit",
+      },
+      // Object passes the worthy check (because the next check on
+      // category presence is in validateTriageShape) only if category
+      // exists; here we craft a worthy-looking shape that fails the
+      // schema check by having a non-string confidence.
+      { category: "lawsuit", confidence: "very-high" },
+      email,
+    );
+    expect(result).toEqual({ forwarded: false, reason: "invalid-triage-shape" });
+  });
+});
+
+describe("validateTriageShape", () => {
+  it("accepts a well-formed triage object", () => {
+    const r = validateTriageShape({
+      category: "lawsuit",
+      confidence: 0.9,
+      keywords: ["summons"],
+      urgencyIndicators: ["court_date"],
+      reasoning: "Recipient is a court clerk address.",
+      org: "ARIBIA",
+    });
+    expect(r).toEqual({ valid: true, errors: [] });
+  });
+
+  it("rejects null/undefined/array inputs", () => {
+    expect(validateTriageShape(null).valid).toBe(false);
+    expect(validateTriageShape(undefined).valid).toBe(false);
+    expect(validateTriageShape([]).valid).toBe(false);
+  });
+
+  it("rejects missing or empty category", () => {
+    expect(validateTriageShape({}).valid).toBe(false);
+    expect(validateTriageShape({ category: "" }).valid).toBe(false);
+    expect(validateTriageShape({ category: "   " }).valid).toBe(false);
+  });
+
+  it("rejects out-of-range confidence", () => {
+    expect(validateTriageShape({ category: "x", confidence: -0.1 }).valid).toBe(false);
+    expect(validateTriageShape({ category: "x", confidence: 1.5 }).valid).toBe(false);
+    expect(validateTriageShape({ category: "x", confidence: "high" }).valid).toBe(false);
+  });
+
+  it("allows optional fields to be omitted", () => {
+    expect(validateTriageShape({ category: "x" }).valid).toBe(true);
   });
 });

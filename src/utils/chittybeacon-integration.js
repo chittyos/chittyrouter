@@ -557,7 +557,12 @@ export class ChittyBeaconClient {
         this.sendMetricsSnapshot();
         break;
       default:
-        console.log('Unknown beacon message:', message.type);
+        console.log(
+          'Unknown beacon message:',
+          String(message.type ?? '')
+            .replace(/[\x00-\x1f\x7f]/g, '')
+            .slice(0, 64),
+        );
     }
   }
 

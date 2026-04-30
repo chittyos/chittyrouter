@@ -46,6 +46,12 @@ const INCIDENT_STATES = [
   'closed',
 ];
 
+// Maximum length stored in `content_snippet` and forwarded in side-channel
+// payloads (Notion, Slack). Unified across the DB write and the Notion
+// payload so previews don't drift between systems and we don't accidentally
+// retain more body content than the policy allows.
+const CONTENT_SNIPPET_MAX = 500;
+
 export class SecurityAgent extends ChittyRouterBaseAgent {
   async onStart() {
     await super.onStart();
@@ -155,7 +161,7 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
       );
     }
 
-    const id = `sec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const id = `sec-${Date.now()}-${crypto.randomUUID()}`;
     const now = Date.now();
     const ackDeadline = new Date(now + SLA_MS.acknowledgement).toISOString();
 
@@ -165,7 +171,7 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
       id,
       String(body.reporter),
       String(body.subject),
-      String(body.content || '').slice(0, 500),
+      String(body.content || '').slice(0, CONTENT_SNIPPET_MAX),
       ackDeadline,
     );
 
@@ -311,12 +317,15 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
     const current = rows[0].state;
     const curIdx = INCIDENT_STATES.indexOf(current);
     const toIdx = INCIDENT_STATES.indexOf(to);
-    if (toIdx <= curIdx) {
+    // Enforce single-step forward only. Skipping states (e.g.
+    // received → closed) is rejected so every state mutation has a
+    // matching audit row and a chance to fire its side-effects.
+    if (toIdx !== curIdx + 1) {
       return this.jsonResponse(
         {
           error: {
             code: 'CONFLICT',
-            message: `cannot transition from '${current}' to '${to}'`,
+            message: `cannot transition from '${current}' to '${to}' (must be single-step forward; expected '${INCIDENT_STATES[curIdx + 1] ?? '<terminal>'}')`,
             retryable: false,
           },
         },
@@ -422,13 +431,18 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
       this.warn('AGENT_TASKS binding absent; skipping task creation', { id });
       return null;
     }
+    const authToken = this.env.CHITTY_AUTH_SERVICE_TOKEN;
+    if (!authToken) {
+      this.warn('CHITTY_AUTH_SERVICE_TOKEN absent; skipping task creation', { id });
+      return null;
+    }
     const res = await this.env.AGENT_TASKS.fetch(
       new Request('https://internal/api/v1/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Agent-From': 'chittyrouter-security-agent',
-          Authorization: `Bearer ${this.env.CHITTY_AUTH_SERVICE_TOKEN || ''}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           title: `[SECURITY] ${body.subject}`,
@@ -463,7 +477,7 @@ export class SecurityAgent extends ChittyRouterBaseAgent {
           incident_id: id,
           reporter: body.reporter,
           subject: body.subject,
-          content_snippet: String(body.content || '').slice(0, 2000),
+          content_snippet: String(body.content || '').slice(0, CONTENT_SNIPPET_MAX),
           state: 'received',
         }),
       }),

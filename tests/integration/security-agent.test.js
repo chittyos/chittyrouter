@@ -108,7 +108,9 @@ describeOrSkip("SecurityAgent → /agents/security/* (live)", () => {
 
     expect(result.status).toBe(200);
     expect(result.json).toBeTruthy();
-    expect(result.json.incident_id).toMatch(/^sec-\d+-[a-z0-9]{6}$/);
+    expect(result.json.incident_id).toMatch(
+      /^sec-\d+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
     expect(result.json.state).toBe("received");
     expect(result.json.ack_sla_deadline).toBeTruthy();
 
@@ -192,6 +194,20 @@ describeOrSkip("SecurityAgent → /agents/security/* (live)", () => {
     });
     expect(result.status).toBe(400);
     expect(result.json?.error?.code).toBe("BAD_INPUT");
+  }, 15000);
+
+  it("POST /transition skipping multiple states returns 409", async () => {
+    expect(createdIncidentId).toBeTruthy();
+    // incident is currently 'triaged'; jumping to 'closed' skips four states.
+    // Single-step forward is required so each state mutation has a matching
+    // audit row and gets its side-effects.
+    const result = await post("/agents/security/transition", {
+      id: createdIncidentId,
+      to: "closed",
+      note: "integration-test multi-step skip probe",
+    });
+    expect(result.status).toBe(409);
+    expect(result.json?.error?.code).toBe("CONFLICT");
   }, 15000);
 
   it("POST /transition forward to 'fix_in_progress' advances state", async () => {

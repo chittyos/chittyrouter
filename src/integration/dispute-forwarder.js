@@ -52,6 +52,60 @@ export function isDisputeWorthy(triageResult, env) {
 }
 
 /**
+ * Validate the structural shape of a TriageAgent classification before
+ * forwarding it. The forwarder runs in the email pipeline hot path and
+ * cannot afford a blocking network call to the schema service, so this
+ * is a local, no-IO check of the fields the intake contract actually
+ * consumes. It rejects null/undefined/array/non-object inputs and any
+ * field whose type is wrong (e.g. confidence sent as a string).
+ *
+ * Returns { valid: boolean, errors: string[] }. Exported for unit testing.
+ */
+export function validateTriageShape(triageResult) {
+  const errors = [];
+  if (!triageResult || typeof triageResult !== 'object' || Array.isArray(triageResult)) {
+    return { valid: false, errors: ['triage result must be a non-array object'] };
+  }
+  if (typeof triageResult.category !== 'string' || triageResult.category.trim() === '') {
+    errors.push('category must be a non-empty string');
+  }
+  if (
+    triageResult.confidence !== undefined &&
+    triageResult.confidence !== null &&
+    (typeof triageResult.confidence !== 'number' ||
+      Number.isNaN(triageResult.confidence) ||
+      triageResult.confidence < 0 ||
+      triageResult.confidence > 1)
+  ) {
+    errors.push('confidence must be a number in [0, 1]');
+  }
+  if (triageResult.keywords !== undefined && !Array.isArray(triageResult.keywords)) {
+    errors.push('keywords must be an array when present');
+  }
+  if (
+    triageResult.urgencyIndicators !== undefined &&
+    !Array.isArray(triageResult.urgencyIndicators)
+  ) {
+    errors.push('urgencyIndicators must be an array when present');
+  }
+  if (
+    triageResult.reasoning !== undefined &&
+    triageResult.reasoning !== null &&
+    typeof triageResult.reasoning !== 'string'
+  ) {
+    errors.push('reasoning must be a string when present');
+  }
+  if (
+    triageResult.org !== undefined &&
+    triageResult.org !== null &&
+    typeof triageResult.org !== 'string'
+  ) {
+    errors.push('org must be a string when present');
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+/**
  * Build the /api/intake payload from the TriageAgent classification and
  * the source email metadata.
  */
@@ -59,7 +113,7 @@ export function buildIntakePayload(triageResult, emailData) {
   const messageId =
     emailData?.messageId ||
     emailData?.metadata?.messageId ||
-    `chittyrouter-${Date.now()}`;
+    `chittyrouter-${crypto.randomUUID()}`;
 
   return {
     source: 'chittyrouter',
@@ -115,6 +169,14 @@ export async function forwardToDisputeIntake(env, triageResult, emailData) {
 
     if (!isDisputeWorthy(triageResult, env)) {
       return { forwarded: false, reason: 'category-not-worthy' };
+    }
+
+    const shape = validateTriageShape(triageResult);
+    if (!shape.valid) {
+      console.warn(
+        `[dispute-forwarder] skipping forward; invalid triage shape: ${shape.errors.join('; ')}`,
+      );
+      return { forwarded: false, reason: 'invalid-triage-shape' };
     }
 
     const base = (env.CHITTYDISPUTE_URL || DEFAULT_DISPUTE_URL).replace(
