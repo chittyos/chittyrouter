@@ -49,6 +49,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
@@ -67,14 +76,26 @@ jobs:
   rollback:
     name: Rollback Production
     runs-on: ubuntu-latest
-    if: failure() && github.ref == 'refs/heads/main'
+    if: failure() && github.ref == 'refs/heads/main' && github.event.before != '0000000000000000000000000000000000000000'
     needs: deploy
 
     steps:
       - name: Checkout previous commit
         uses: actions/checkout@v6
         with:
-          ref: HEAD~1
+          # actions/checkout does not accept relative refs (HEAD~1 fails with
+          # "fatal: invalid refspec"). Use the push event's previous SHA so we
+          # check out the commit that was on main before this push.
+          ref: ${{ github.event.before }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Rollback Deployment
         uses: cloudflare/wrangler-action@v3
