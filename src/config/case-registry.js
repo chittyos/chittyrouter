@@ -8,13 +8,19 @@
  *
  * Adding a new case: append one entry to CASE_REGISTRY. Retiring a case: set
  * status to 'closed' or 'archived' — do not delete, to preserve historical
- * attribution lookups.
+ * attribution lookups (CASE_BY_SLUG / CASE_BY_NUMBER still see retired
+ * entries; active-routing tables EMAIL_ALIAS_TO_CASE, CLASSIFIER_PATTERNS,
+ * and CASE_EMAIL_ROUTES filter to status === 'active').
+ *
+ * PII policy: real forwarding addresses NEVER live in this file. Use
+ * `routing.forwardEnv` to name the env var that holds the destination.
+ * The router resolves env vars at construction time.
  *
  * @typedef {'active' | 'closed' | 'archived'} CaseStatus
  * @typedef {'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'} RoutingPriority
  *
  * @typedef {Object} CaseRoutingConfig
- * @property {string} forward       - Destination email address for inbound routing
+ * @property {string} forwardEnv    - Name of env var holding the destination email
  * @property {RoutingPriority} priority
  *
  * @typedef {Object} CaseRegistryEntry
@@ -29,8 +35,35 @@
  * @property {CaseRoutingConfig} [routing]
  */
 
+/**
+ * Recursively freeze a plain object/array tree. Safe to call on primitives
+ * and already-frozen values.
+ */
+function deepFreeze(value) {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) {
+    return value;
+  }
+  for (const key of Reflect.ownKeys(value)) {
+    deepFreeze(value[key]);
+  }
+  return Object.freeze(value);
+}
+
+/**
+ * Build a null-prototype frozen map from key/value pairs. Used for all
+ * lookup tables to prevent prototype-chain pollution
+ * (`map['__proto__']`, `map['toString']`, etc. return undefined).
+ */
+function nullProtoMap(entries) {
+  const target = Object.create(null);
+  for (const [key, value] of entries) {
+    target[key] = value;
+  }
+  return Object.freeze(target);
+}
+
 /** @type {readonly CaseRegistryEntry[]} */
-export const CASE_REGISTRY = Object.freeze([
+export const CASE_REGISTRY = deepFreeze([
   {
     slug: 'arias-v-bianchi',
     caseNumber: '2024D007847',
@@ -39,7 +72,7 @@ export const CASE_REGISTRY = Object.freeze([
     chittyThread: 'ARIAS_v_BIANCHI_2024',
     emailAliases: ['arias-v-bianchi@chitty.cc'],
     filenamePatterns: ['2024d007847', 'arias v bianchi', 'arias vs bianchi', 'arias v. bianchi'],
-    routing: { forward: 'nick@aribia.cc', priority: 'CRITICAL' },
+    routing: { forwardEnv: 'CASE_FORWARD_ARIAS_V_BIANCHI', priority: 'CRITICAL' },
   },
   {
     slug: 'bianchi-v-schatz',
@@ -85,77 +118,89 @@ export const CASE_REGISTRY = Object.freeze([
 
 // ===== Derived lookup tables (computed once at module load) =====
 
-/** @type {Readonly<Record<string, CaseRegistryEntry>>} */
-export const CASE_BY_SLUG = Object.freeze(
-  Object.fromEntries(CASE_REGISTRY.map(c => [c.slug, c])),
-);
-
-/** @type {Readonly<Record<string, CaseRegistryEntry>>} */
-export const CASE_BY_NUMBER = Object.freeze(
-  Object.fromEntries(
-    CASE_REGISTRY
-      .filter(c => c.caseNumber && c.caseNumber !== 'UNKNOWN')
-      .map(c => [c.caseNumber, c]),
-  ),
-);
-
 /**
- * Email address → case entry. Built from every case's emailAliases.
+ * Slug → entry. Includes ALL entries (active + retired) so historical
+ * attribution lookups still resolve.
  * @type {Readonly<Record<string, CaseRegistryEntry>>}
  */
-export const EMAIL_ALIAS_TO_CASE = Object.freeze(
-  Object.fromEntries(
-    CASE_REGISTRY.flatMap(c => (c.emailAliases ?? []).map(email => [email.toLowerCase(), c])),
-  ),
+export const CASE_BY_SLUG = nullProtoMap(
+  CASE_REGISTRY.map(c => [c.slug, c]),
 );
 
 /**
- * Classifier pattern map: case slug → lowercase substring patterns.
- * Shape kept compatible with the old CASE_PATTERNS in document-classifier.js
- * so the classifier loop doesn't need structural changes.
+ * Case number → entry. Includes ALL entries (active + retired) for the same
+ * historical-lookup reason as CASE_BY_SLUG.
+ * @type {Readonly<Record<string, CaseRegistryEntry>>}
+ */
+export const CASE_BY_NUMBER = nullProtoMap(
+  CASE_REGISTRY
+    .filter(c => c.caseNumber && c.caseNumber !== 'UNKNOWN')
+    .map(c => [c.caseNumber, c]),
+);
+
+/**
+ * Email address → case entry. Built from every ACTIVE case's emailAliases.
+ * Closed/archived cases do not appear here so retired aliases stop routing.
+ * @type {Readonly<Record<string, CaseRegistryEntry>>}
+ */
+export const EMAIL_ALIAS_TO_CASE = nullProtoMap(
+  CASE_REGISTRY
+    .filter(c => c.status === 'active')
+    .flatMap(c => (c.emailAliases ?? []).map(email => [email.toLowerCase(), c])),
+);
+
+/**
+ * Classifier pattern map: case slug → lowercase substring patterns. Active
+ * cases only — retired cases stop matching new documents but still appear in
+ * CASE_BY_SLUG for historical attribution.
  * @type {Readonly<Record<string, readonly string[]>>}
  */
-export const CLASSIFIER_PATTERNS = Object.freeze(
-  Object.fromEntries(
-    CASE_REGISTRY
-      .filter(c => c.filenamePatterns && c.filenamePatterns.length > 0)
-      .map(c => [c.slug, Object.freeze([...c.filenamePatterns])]),
-  ),
+export const CLASSIFIER_PATTERNS = nullProtoMap(
+  CASE_REGISTRY
+    .filter(c => c.status === 'active' && c.filenamePatterns?.length > 0)
+    .map(c => [c.slug, c.filenamePatterns]),
 );
 
 /**
- * Email routes derived from CASE_REGISTRY entries that have emailAliases + routing.
- * Shape matches EMAIL_ROUTES entries in routes.js.
+ * Email routes derived from ACTIVE CASE_REGISTRY entries that have
+ * emailAliases + routing. Carries `forwardEnv` (the name of the env var
+ * holding the destination address) — callers must resolve it against their
+ * env at runtime. `attorneys` is preserved as undefined when absent so
+ * downstream callers can use truthy checks for the fallback path.
  * @type {Readonly<Record<string, Object>>}
  */
-export const CASE_EMAIL_ROUTES = Object.freeze(
-  Object.fromEntries(
-    CASE_REGISTRY.flatMap(c => {
-      if (!c.emailAliases || c.emailAliases.length === 0 || !c.routing) return [];
-      return c.emailAliases.map(addr => [
-        addr,
-        Object.freeze({
-          caseNumber: c.caseNumber,
-          caseSlug: c.slug,
-          chittyThread: c.chittyThread,
-          priority: c.routing.priority,
-          forward: c.routing.forward,
-          attorneys: c.attorneys ?? [],
-        }),
-      ]);
-    }),
-  ),
+export const CASE_EMAIL_ROUTES = nullProtoMap(
+  CASE_REGISTRY.flatMap(c => {
+    if (c.status !== 'active' || !c.emailAliases?.length || !c.routing) return [];
+    return c.emailAliases.map(addr => [
+      addr,
+      {
+        caseNumber: c.caseNumber,
+        caseSlug: c.slug,
+        chittyThread: c.chittyThread,
+        priority: c.routing.priority,
+        forwardEnv: c.routing.forwardEnv,
+        attorneys: c.attorneys,
+      },
+    ]);
+  }),
 );
 
 /**
- * Resolve a case slug OR case number to a registry entry. Returns undefined if
- * not found — callers must handle this explicitly (never default to a specific
- * case).
+ * Resolve a case slug OR case number to a registry entry. Returns undefined
+ * for anything not explicitly registered — callers must handle undefined
+ * (never default to a specific case).
+ *
+ * Hardened against prototype-chain lookups: `resolveCase('toString')`,
+ * `resolveCase('__proto__')`, `resolveCase('constructor')` etc. all return
+ * undefined.
  *
  * @param {string} identifier - Either a case slug or a case number
  * @returns {CaseRegistryEntry | undefined}
  */
 export function resolveCase(identifier) {
-  if (!identifier) return undefined;
-  return CASE_BY_SLUG[identifier] ?? CASE_BY_NUMBER[identifier];
+  if (typeof identifier !== 'string' || !identifier) return undefined;
+  if (Object.hasOwn(CASE_BY_SLUG, identifier)) return CASE_BY_SLUG[identifier];
+  if (Object.hasOwn(CASE_BY_NUMBER, identifier)) return CASE_BY_NUMBER[identifier];
+  return undefined;
 }
