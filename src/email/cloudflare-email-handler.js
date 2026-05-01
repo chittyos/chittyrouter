@@ -4,6 +4,8 @@
  * AI triages and logs immediately - no polling needed
  */
 
+import { CASE_EMAIL_ROUTES } from '../config/case-registry.js';
+
 export class CloudflareEmailHandler {
   constructor(env) {
     this.env = env;
@@ -19,15 +21,58 @@ export class CloudflareEmailHandler {
       financial: /invoice|payment|transfer|wire|bank|balance|overdue|ACH/i
     };
 
-    // Address-based routing rules
-    this.addressRoutes = {
+    // Non-case address routing rules. Case-specific addresses are merged in
+    // below from the canonical case registry so there is a single source of
+    // truth for case → email attribution.
+    const nonCaseRoutes = {
       'intake@chitty.cc': { forward: 'nick@aribia.cc', priority: 'HIGH' },
       'legal@chitty.cc': { forward: 'nick@aribia.cc', priority: 'CRITICAL' },
       'evidence@chitty.cc': { forward: 'nick@aribia.cc', priority: 'HIGH' },
       'calendar@chitty.cc': { forward: 'nick@aribia.cc', priority: 'MEDIUM' },
-      'arias-v-bianchi@chitty.cc': { forward: 'nick@aribia.cc', priority: 'CRITICAL', case: 'ARIAS_v_BIANCHI' },
       'chittyos@chitty.cc': { forward: 'nick@aribia.cc', priority: 'MEDIUM' }
     };
+
+    // Derive case-specific routes from the registry (never hardcode case
+    // aliases here — add them to src/config/case-registry.js). Real
+    // forwarding addresses are resolved from env at construction time via
+    // the `forwardEnv` field on each registry route, keeping live PII out
+    // of the public source tree.
+    const caseRoutes = Object.create(null);
+    for (const [addr, route] of Object.entries(CASE_EMAIL_ROUTES)) {
+      const forward = route.forwardEnv ? env?.[route.forwardEnv] : undefined;
+      if (route.forwardEnv && !forward) {
+        console.warn(
+          `[email-handler] case route ${addr} declares forwardEnv=${route.forwardEnv} ` +
+          `but env is unset — route will fall through to default forward.`,
+        );
+      }
+      caseRoutes[addr] = {
+        forward,
+        priority: route.priority,
+        case: route.chittyThread ?? route.caseSlug,
+        caseSlug: route.caseSlug,
+        caseNumber: route.caseNumber,
+      };
+    }
+
+    // Build addressRoutes as a null-prototype dict so untrusted lookups
+    // (`addressRoutes[emailData.to]`) cannot hit Object.prototype keys, and
+    // throw on collisions between non-case and case routes rather than
+    // silently overwriting.
+    const mergedRoutes = Object.create(null);
+    for (const [addr, route] of Object.entries(nonCaseRoutes)) {
+      mergedRoutes[addr] = route;
+    }
+    for (const [addr, route] of Object.entries(caseRoutes)) {
+      if (Object.prototype.hasOwnProperty.call(mergedRoutes, addr)) {
+        throw new Error(
+          `Email route collision for "${addr}": both non-case routes and ` +
+          `case registry define this address. Resolve in case-registry.js.`,
+        );
+      }
+      mergedRoutes[addr] = route;
+    }
+    this.addressRoutes = mergedRoutes;
   }
 
   /**
@@ -138,8 +183,11 @@ export class CloudflareEmailHandler {
       }
     }
 
-    // Check destination address priority
-    const addressRoute = this.addressRoutes[emailData.to];
+    // Check destination address priority. Use hasOwn to keep prototype-chain
+    // lookups (e.g. `to: '__proto__'`) from hitting Object.prototype methods.
+    const addressRoute = Object.prototype.hasOwnProperty.call(this.addressRoutes, emailData.to)
+      ? this.addressRoutes[emailData.to]
+      : undefined;
     if (addressRoute) {
       if (addressRoute.priority === 'CRITICAL') score += 30;
       else if (addressRoute.priority === 'HIGH') score += 20;
@@ -330,7 +378,9 @@ export class CloudflareEmailHandler {
   }
 
   async routeEmail(message, emailData, triage) {
-    const route = this.addressRoutes[emailData.to];
+    const route = Object.prototype.hasOwnProperty.call(this.addressRoutes, emailData.to)
+      ? this.addressRoutes[emailData.to]
+      : undefined;
 
     if (route?.forward) {
       await message.forward(route.forward);
