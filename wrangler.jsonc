@@ -77,13 +77,21 @@
     "DISPUTE_WORTHY_CATEGORIES": "lawsuit_communication,court_notice,emergency_legal",
     "ENABLE_ANALYTICS": "true"
   },
-  // mcp.chitty.cc/* route removed — owned by chittyconnect (canonical MCP gateway)
-  "routes": [
-    {
-      "pattern": "router.chitty.cc/*",
-      "zone_name": "chitty.cc"
-    }
-  ],
+  // mcp.chitty.cc/* route removed — owned by chittyconnect (canonical MCP gateway).
+  //
+  // router.chitty.cc/* is currently configured directly on the worker via the
+  // Cloudflare dashboard (Workers > chittyrouter > Settings > Triggers). It is
+  // NOT managed here because the Workers Builds build-token used by the
+  // canonical deploy path lacks the `Zone: Workers Routes: Edit` permission
+  // for the chitty.cc zone (7a4f759e0928fb2be4772a2f72ad0df2). With a `routes`
+  // block here, every Workers Build fails post-upload on the route attachment
+  // step (`/zones/.../workers/routes` → 10000 Authentication error) even
+  // though the worker itself uploads cleanly.
+  //
+  // To restore IaC for routes: widen the build token's permissions in the
+  // dashboard (Workers > chittyrouter > Settings > Build), then add the
+  // routes block back here. Until then, treat dashboard route config as
+  // canonical for this worker.
   "email": [
     {
       "name": "chittyrouter-email",
