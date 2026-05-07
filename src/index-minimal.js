@@ -7,7 +7,6 @@ import UnifiedWorker from './unified-worker.js';
 import { ChittyRouterMcpGateway } from './mcp/mcp-gateway.js';
 import { McpAgent } from 'agents/mcp';
 import { authenticateMcpRequest } from './mcp/mcp-auth.js';
-import { email as emailHandler } from "./email/cloudflare-email-handler.js";
 import { email as emailHandler } from './email/cloudflare-email-handler.js';
 
 // Legacy Durable Objects

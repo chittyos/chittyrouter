@@ -236,8 +236,6 @@ Respond with JSON only:
     const response = await this.runAIWithPrompt(prompt, {
       promptId: 'priority.classify',
       variables: { org: data.org || 'unknown' },
-      promptId: "priority.classify",
-      variables: { org: data.org || "unknown" },
     });
 
     if (response === null) return this.fallbackPrioritize(data);

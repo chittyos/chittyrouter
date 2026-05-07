@@ -181,7 +181,6 @@ Generate only the email body text, no subject line.`;
 
     const response = await this.runAIWithPrompt(prompt, {
       promptId: 'response.draft',
-      promptId: "response.draft",
       variables: { category: triageResult.category },
     });
 
