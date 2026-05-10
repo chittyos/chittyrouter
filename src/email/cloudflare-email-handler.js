@@ -21,6 +21,19 @@ export class CloudflareEmailHandler {
       financial: /invoice|payment|transfer|wire|bank|balance|overdue|ACH/i
     };
 
+    // Extractable MIME types allow-list for attachment processing.
+    this.extractableTypes = new Set([
+      'application/pdf',
+      'application/zip',
+      'application/octet-stream',
+      'text/plain',
+      'text/html',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp'
+    ]);
+
     // Non-case address routing rules. Case-specific addresses are merged in
     // below from the canonical case registry so there is a single source of
     // truth for case → email attribution.
@@ -265,7 +278,12 @@ export class CloudflareEmailHandler {
     }
 
     const data = this.decodePartBody(body, encoding, filename);
-    if (!data || data.length < 500) return null;
+    if (!data || data.length < 1) {
+      if (data && data.length > 0) {
+        console.log(`[email-handler] Filtered small attachment: ${filename} (${contentType}, ${data.length} bytes)`);
+      }
+      return null;
+    }
 
     return { filename, contentType, size: data.length, data };
   }
