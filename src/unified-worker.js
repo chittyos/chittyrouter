@@ -112,6 +112,9 @@ class RouteMultiplexer {
       ['/email/queue/approve-all', this.handleEmailQueueApproveAll.bind(this)],
       ['/email/queue/correct', this.handleEmailQueueCorrect.bind(this)],
       ['/email/mode', this.handleEmailMode.bind(this)],
+      ['/email/registered/send', this.handleRegisteredEmailSend.bind(this)],
+      ['/email/registered/status', this.handleRegisteredEmailStatus.bind(this)],
+      ['/email/registered/accounts', this.handleRegisteredEmailAccounts.bind(this)],
 
       // Webhook Ingestion Routes
       ['/webhook/notion', this.handleWebhookNotion.bind(this)],
@@ -753,6 +756,79 @@ class RouteMultiplexer {
       }
       const mode = await handler.getRoutingMode();
       return this.jsonResponse({ mode });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  async callNotificationAgent(method, path, body, queryParams) {
+    const bindingName = 'NOTIFICATION_AGENT';
+    const stub = await this.getAgentStub(bindingName);
+    if (!stub) {
+      throw new Error(`Agent binding ${bindingName} not available`);
+    }
+
+    const url = new URL(path, 'https://agent.internal');
+    if (queryParams) {
+      for (const [k, v] of Object.entries(queryParams)) {
+        if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+      }
+    }
+
+    const req = new Request(url.toString(), {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: method !== 'GET' && method !== 'HEAD' && body ? JSON.stringify(body) : undefined,
+    });
+
+    return stub.fetch(req);
+  }
+
+  async handleRegisteredEmailSend(request) {
+    const guard = this.requirePostWithAuth(request);
+    if (guard) return guard;
+    try {
+      const body = await request.json();
+      const resp = await this.callNotificationAgent('POST', '/registered-email/send', body);
+      const text = await resp.text();
+      return new Response(text, {
+        status: resp.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  async handleRegisteredEmailStatus(request) {
+    const authErr = this.requireAuth(request);
+    if (authErr) return authErr;
+    try {
+      const url = new URL(request.url);
+      const resp = await this.callNotificationAgent('GET', '/registered-email/status', null, {
+        externalId: url.searchParams.get('externalId'),
+        accountId: url.searchParams.get('accountId'),
+      });
+      const text = await resp.text();
+      return new Response(text, {
+        status: resp.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  async handleRegisteredEmailAccounts(request) {
+    const authErr = this.requireAuth(request);
+    if (authErr) return authErr;
+    try {
+      const resp = await this.callNotificationAgent('GET', '/registered-email/accounts');
+      const text = await resp.text();
+      return new Response(text, {
+        status: resp.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
     } catch (error) {
       return this.jsonResponse({ error: error.message }, 500);
     }

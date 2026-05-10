@@ -63,3 +63,6 @@ wrangler deploy --config wrangler.multi.toml
 - [ ] Deploy and test
 - [ ] Update DNS records
 - [ ] Delete workers from client account
+## Registered Delivery
+- See docs/REGISTERED_DELIVERY_RPOST.md for RPost provider setup, multi-account config, HTTP routes, and MCP tools.
+- Run smoke test: ./scripts/smoke-registered-delivery.sh (set BASE_URL and AUTH_TOKEN).

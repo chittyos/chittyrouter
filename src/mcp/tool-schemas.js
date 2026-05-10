@@ -384,7 +384,7 @@ export const financeSchemas = {
   },
 };
 
-// ── Notification Agent (3 tools) ─────────────────────────────────────
+// ── Notification Agent (6 tools) ─────────────────────────────────────
 
 export const notificationSchemas = {
   notification__send: {
@@ -427,6 +427,41 @@ export const notificationSchemas = {
     }),
     method: 'GET',
     path: '/history',
+    binding: 'NOTIFICATION_AGENT',
+  },
+  notification__registered_send: {
+    description: 'Send outbound registered email through configured delivery provider',
+    schema: z.object({
+      to: z.string().describe('Recipient email'),
+      from: z.string().optional().describe('Sender email'),
+      subject: z.string().describe('Email subject'),
+      bodyText: z.string().optional().describe('Plain text body'),
+      bodyHtml: z.string().optional().describe('HTML body'),
+      accountId: z.string().optional().describe('Provider account ID for multi-account routing'),
+      idempotencyKey: z.string().optional().describe('Idempotency key'),
+      reference_id: z.string().optional().describe('Internal reference ID'),
+      org: z.string().optional().describe('Organization context'),
+      metadata: z.record(z.any()).optional().describe('Provider metadata'),
+    }),
+    method: 'POST',
+    path: '/registered-email/send',
+    binding: 'NOTIFICATION_AGENT',
+  },
+  notification__registered_status: {
+    description: 'Get status for outbound registered email',
+    schema: z.object({
+      externalId: z.string().describe('Provider external delivery ID'),
+      accountId: z.string().optional().describe('Provider account ID'),
+    }),
+    method: 'GET',
+    path: '/registered-email/status',
+    binding: 'NOTIFICATION_AGENT',
+  },
+  notification__registered_accounts: {
+    description: 'List configured registered delivery accounts',
+    schema: z.object({}),
+    method: 'GET',
+    path: '/registered-email/accounts',
     binding: 'NOTIFICATION_AGENT',
   },
 };
