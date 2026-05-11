@@ -13,12 +13,12 @@ export class GmailTokenManager {
     // Account configurations - matches rclone remotes
     this.accounts = {
       nick_aribia_main: {
-        email: 'nick@aribia.cc',
+        email: 'nick@aribia.llc',
         clientId: '187458330646-irp331653sb9c4f8mjgumsg75qbb59rm.apps.googleusercontent.com',
         opPath: 'op://Private/gmail-nick-aribia/credentials'
       },
       aribia_llc: {
-        email: 'admin@aribia.cc',
+        email: 'admin@aribia.llc',
         clientId: '187458330646-p0bho083tarmja05p89i0uc7d5lt96rr.apps.googleusercontent.com',
         opPath: 'op://Private/gmail-aribia-llc/credentials'
       },

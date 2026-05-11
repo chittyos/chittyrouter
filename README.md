@@ -1,3 +1,6 @@
+![ChittyOS](https://img.shields.io/badge/ChittyOS-service-6366F1?style=flat-square)
+![Tier](https://img.shields.io/badge/tier-2%20platform-4338CA?style=flat-square)
+
 # ChittyOS Ultimate Worker
 
 ## Overview
@@ -60,3 +63,6 @@ wrangler deploy --config wrangler.multi.toml
 - [ ] Deploy and test
 - [ ] Update DNS records
 - [ ] Delete workers from client account
+## Registered Delivery
+- See docs/REGISTERED_DELIVERY_RPOST.md for RPost provider setup, multi-account config, HTTP routes, and MCP tools.
+- Run smoke test: ./scripts/smoke-registered-delivery.sh (set BASE_URL and AUTH_TOKEN).

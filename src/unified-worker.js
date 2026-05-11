@@ -17,6 +17,7 @@ import { AgentOrchestrator } from './ai/agent-orchestrator.js';
 import { SessionService } from './services/session-service.js';
 import { MobileBridgeService } from './services/mobile-bridge.js';
 import { InboxMonitor, handleScheduledMonitoring } from './email/inbox-monitor.js';
+import { CloudflareEmailHandler } from './email/cloudflare-email-handler.js';
 
 // Webhook handlers
 import { handleNotionWebhook } from './webhooks/notion.js';
@@ -48,6 +49,7 @@ class RouteMultiplexer {
       },
       email: {
         inboxMonitor: new InboxMonitor(env),
+        handler: new CloudflareEmailHandler(env),
       },
     };
 
@@ -102,6 +104,17 @@ class RouteMultiplexer {
       ['/email/monitor', this.handleInboxMonitor.bind(this)],
       ['/email/status', this.handleEmailStatus.bind(this)],
       ['/email/urgent', this.handleUrgentEmails.bind(this)],
+      ['/email/receipts', this.handleEmailReceipts.bind(this)],
+      ['/email/correct', this.handleEmailCorrection.bind(this)],
+      ['/email/training', this.handleEmailTraining.bind(this)],
+      ['/email/queue', this.handleEmailQueue.bind(this)],
+      ['/email/queue/approve', this.handleEmailQueueApprove.bind(this)],
+      ['/email/queue/approve-all', this.handleEmailQueueApproveAll.bind(this)],
+      ['/email/queue/correct', this.handleEmailQueueCorrect.bind(this)],
+      ['/email/mode', this.handleEmailMode.bind(this)],
+      ['/email/registered/send', this.handleRegisteredEmailSend.bind(this)],
+      ['/email/registered/status', this.handleRegisteredEmailStatus.bind(this)],
+      ['/email/registered/accounts', this.handleRegisteredEmailAccounts.bind(this)],
 
       // Webhook Ingestion Routes
       ['/webhook/notion', this.handleWebhookNotion.bind(this)],
@@ -267,16 +280,24 @@ class RouteMultiplexer {
     return this.jsonResponse(results);
   }
 
-  // ============ MCP Handlers (Model Context Protocol) ============
+  // ============ CORS Helper ============
 
-  async handleMCP(request, url) {
-    // MCP info endpoint - returns server metadata
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
+  corsHeaders(request) {
+    const origin = request?.headers?.get?.('Origin') || '';
+    const allowed = /^(https:\/\/[\w-]+\.chitty\.cc|http:\/\/localhost(:\d+)?)$/.test(origin) ? origin : 'https://router.chitty.cc';
+    return {
+      'Access-Control-Allow-Origin': allowed,
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Content-Type': 'application/json',
     };
+  }
+
+  // ============ MCP Handlers (Model Context Protocol) ============
+
+  async handleMCP(request, url) {
+    // MCP info endpoint - returns server metadata
+    const headers = this.corsHeaders(request);
 
     return new Response(
       JSON.stringify({
@@ -310,12 +331,7 @@ class RouteMultiplexer {
   }
 
   async handleMCPTools(request, url) {
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Content-Type': 'application/json',
-    };
+    const headers = this.corsHeaders(request);
 
     const tools = {
       categories: [
@@ -391,12 +407,7 @@ class RouteMultiplexer {
   }
 
   async handleMCPOpenAPI(request, url) {
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Content-Type': 'application/json',
-    };
+    const headers = this.corsHeaders(request);
 
     const openapi = {
       openapi: '3.0.0',
@@ -447,12 +458,7 @@ class RouteMultiplexer {
   }
 
   async handleMCPHealth(request, url) {
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Content-Type': 'application/json',
-    };
+    const headers = this.corsHeaders(request);
 
     return new Response(
       JSON.stringify({
@@ -625,6 +631,206 @@ class RouteMultiplexer {
       return this.jsonResponse({
         count: urgent.length,
         items: urgent.filter(i => i.urgencyScore >= 50)
+      });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  /**
+   * Guard helper: returns an error Response if method is not POST or auth fails,
+   * otherwise returns null (proceed).
+   */
+  requirePostWithAuth(request) {
+    if (request.method !== 'POST') {
+      return this.jsonResponse({ error: 'POST required' }, 405);
+    }
+    return this.requireAuth(request);
+  }
+
+  // GET /email/receipts — recent routing confirmations (auth required)
+  async handleEmailReceipts(request) {
+    const authErr = this.requireAuth(request);
+    if (authErr) return authErr;
+    try {
+      const url = new URL(request.url);
+      const limit = parseInt(url.searchParams.get('limit') || '20');
+      const receipts = await this.services.email.handler.getRecentReceipts(limit);
+      return this.jsonResponse({ count: receipts.length, receipts });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // POST /email/correct — submit a routing correction for AI training
+  async handleEmailCorrection(request) {
+    const guard = this.requirePostWithAuth(request);
+    if (guard) return guard;
+    try {
+      const body = await request.json();
+      const result = await this.services.email.handler.submitCorrection(body);
+      return this.jsonResponse(result);
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // GET /email/training — view current training corrections (auth required)
+  async handleEmailTraining(request) {
+    const authErr = this.requireAuth(request);
+    if (authErr) return authErr;
+    try {
+      const examples = await this.services.email.handler.getTrainingExamples();
+      return this.jsonResponse({ count: examples.length, corrections: examples });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // GET /email/queue?status=pending — view the review queue (auth required)
+  async handleEmailQueue(request) {
+    const authErr = this.requireAuth(request);
+    if (authErr) return authErr;
+    try {
+      const url = new URL(request.url);
+      const status = url.searchParams.get('status') || null;
+      const limit = parseInt(url.searchParams.get('limit') || '50');
+      const handler = this.services.email.handler;
+      const items = await handler.getQueue(status, limit);
+      const mode = await handler.getRoutingMode();
+      return this.jsonResponse({ mode, count: items.length, queue: items });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // POST /email/queue/approve — approve a single queue item (AI was right)
+  async handleEmailQueueApprove(request) {
+    const guard = this.requirePostWithAuth(request);
+    if (guard) return guard;
+    try {
+      const { id } = await request.json();
+      const item = await this.services.email.handler.updateQueueItem(id, 'approved');
+      return this.jsonResponse(item || { error: 'not found' });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // POST /email/queue/approve-all — bulk approve all pending
+  async handleEmailQueueApproveAll(request) {
+    const guard = this.requirePostWithAuth(request);
+    if (guard) return guard;
+    try {
+      const result = await this.services.email.handler.approveAll();
+      return this.jsonResponse(result);
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // POST /email/queue/correct — correct a queue item (AI was wrong)
+  async handleEmailQueueCorrect(request) {
+    const guard = this.requirePostWithAuth(request);
+    if (guard) return guard;
+    try {
+      const body = await request.json();
+      const { id, ...correction } = body;
+      const item = await this.services.email.handler.updateQueueItem(id, 'corrected', correction);
+      return this.jsonResponse(item || { error: 'not found' });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  // GET/POST /email/mode — get or set routing mode (onboarding vs auto)
+  async handleEmailMode(request) {
+    try {
+      const handler = this.services.email.handler;
+      if (request.method === 'POST') {
+        const authErr = this.requireAuth(request);
+        if (authErr) return authErr;
+        const { mode } = await request.json();
+        if (!['onboarding', 'auto'].includes(mode)) {
+          return this.jsonResponse({ error: 'mode must be "onboarding" or "auto"' }, 400);
+        }
+        const result = await handler.setRoutingMode(mode);
+        return this.jsonResponse(result);
+      }
+      const mode = await handler.getRoutingMode();
+      return this.jsonResponse({ mode });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  async callNotificationAgent(method, path, body, queryParams) {
+    const bindingName = 'NOTIFICATION_AGENT';
+    const stub = await this.getAgentStub(bindingName);
+    if (!stub) {
+      throw new Error(`Agent binding ${bindingName} not available`);
+    }
+
+    const url = new URL(path, 'https://agent.internal');
+    if (queryParams) {
+      for (const [k, v] of Object.entries(queryParams)) {
+        if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+      }
+    }
+
+    const req = new Request(url.toString(), {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: method !== 'GET' && method !== 'HEAD' && body ? JSON.stringify(body) : undefined,
+    });
+
+    return stub.fetch(req);
+  }
+
+  async handleRegisteredEmailSend(request) {
+    const guard = this.requirePostWithAuth(request);
+    if (guard) return guard;
+    try {
+      const body = await request.json();
+      const resp = await this.callNotificationAgent('POST', '/registered-email/send', body);
+      const text = await resp.text();
+      return new Response(text, {
+        status: resp.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  async handleRegisteredEmailStatus(request) {
+    const authErr = this.requireAuth(request);
+    if (authErr) return authErr;
+    try {
+      const url = new URL(request.url);
+      const resp = await this.callNotificationAgent('GET', '/registered-email/status', null, {
+        externalId: url.searchParams.get('externalId'),
+        accountId: url.searchParams.get('accountId'),
+      });
+      const text = await resp.text();
+      return new Response(text, {
+        status: resp.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      return this.jsonResponse({ error: error.message }, 500);
+    }
+  }
+
+  async handleRegisteredEmailAccounts(request) {
+    const authErr = this.requireAuth(request);
+    if (authErr) return authErr;
+    try {
+      const resp = await this.callNotificationAgent('GET', '/registered-email/accounts');
+      const text = await resp.text();
+      return new Response(text, {
+        status: resp.status,
+        headers: { 'Content-Type': 'application/json' },
       });
     } catch (error) {
       return this.jsonResponse({ error: error.message }, 500);
@@ -815,6 +1021,19 @@ class RouteMultiplexer {
   }
 
   // ============ Response Helpers ============
+
+  /**
+   * Verify service token for protected endpoints
+   */
+  requireAuth(request) {
+    const auth = request.headers.get('Authorization');
+    if (!auth) return this.jsonResponse({ error: 'Authorization required' }, 401);
+    const token = auth.replace('Bearer ', '');
+    if (token !== this.env.CHITTY_AUTH_SERVICE_TOKEN) {
+      return this.jsonResponse({ error: 'Invalid token' }, 403);
+    }
+    return null; // auth passed
+  }
 
   jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {

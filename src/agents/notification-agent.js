@@ -7,6 +7,7 @@
  * @canon chittycanon://gov/governance#core-types
  */
 import { ChittyRouterBaseAgent } from './base-agent.js';
+import { createRegisteredDeliveryProvider } from '../email/registered-delivery-provider.js';
 
 const CHANNELS = ['email', 'slack', 'push', 'sms'];
 const PRIORITY_LEVELS = ['critical', 'high', 'normal', 'low'];
@@ -69,6 +70,15 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
     if (request.method === 'GET' && url.pathname.endsWith('/history')) {
       return this.handleHistory(url);
     }
+    if (request.method === 'POST' && url.pathname.endsWith('/registered-email/send')) {
+      return this.handleRegisteredSend(request);
+    }
+    if (request.method === 'GET' && url.pathname.endsWith('/registered-email/status')) {
+      return this.handleRegisteredStatus(url);
+    }
+    if (request.method === 'GET' && url.pathname.endsWith('/registered-email/accounts')) {
+      return this.handleRegisteredAccounts();
+    }
     if (request.method === 'GET' && url.pathname.endsWith('/stats')) {
       return this.handleStats();
     }
@@ -79,8 +89,15 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
     return this.jsonResponse({
       agent: 'NotificationAgent',
       status: 'active',
-      endpoints: ['/send', '/broadcast', '/preferences', '/history', '/stats', '/status'],
+      endpoints: ['/send', '/broadcast', '/preferences', '/history', '/registered-email/send', '/registered-email/status', '/registered-email/accounts', '/stats', '/status'],
     });
+  }
+
+  getRegisteredProvider() {
+    if (!this._registeredProvider) {
+      this._registeredProvider = createRegisteredDeliveryProvider(this.env);
+    }
+    return this._registeredProvider;
   }
 
   /**
@@ -210,6 +227,88 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
 
     const rows = this.rawSql.exec(query, ...params).toArray();
     return this.jsonResponse({ count: rows.length, notifications: rows });
+  }
+
+  async handleRegisteredSend(request) {
+    const body = await request.json();
+    const {
+      to,
+      subject,
+      bodyText,
+      bodyHtml,
+      from,
+      accountId,
+      idempotencyKey,
+      metadata,
+      org,
+      reference_id,
+    } = body;
+
+    if (!to || !subject || (!bodyText && !bodyHtml)) {
+      return this.jsonResponse({ error: 'to, subject, and bodyText or bodyHtml are required' }, 400);
+    }
+
+    try {
+      const provider = this.getRegisteredProvider();
+      const result = await provider.sendRegisteredEmail({
+        accountId,
+        to,
+        from,
+        subject,
+        bodyText,
+        bodyHtml,
+        metadata,
+        idempotencyKey,
+      });
+
+      this.rawSql.exec(
+        `INSERT INTO notifications (recipient, channel, priority, subject, body, org, source_agent, reference_id, status, metadata, delivered_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+        to,
+        'email',
+        'high',
+        subject,
+        bodyText || bodyHtml || '',
+        org || null,
+        'registered_delivery',
+        reference_id || result.externalId || null,
+        'delivered',
+        JSON.stringify({
+          provider: result.provider,
+          accountId: result.accountId,
+          externalId: result.externalId,
+          metadata: metadata || {},
+        }),
+      );
+
+      return this.jsonResponse(result);
+    } catch (err) {
+      return this.jsonResponse({ error: err.message }, 502);
+    }
+  }
+
+  async handleRegisteredStatus(url) {
+    const externalId = url.searchParams.get('externalId');
+    const accountId = url.searchParams.get('accountId') || undefined;
+    if (!externalId) {
+      return this.jsonResponse({ error: 'externalId query param is required' }, 400);
+    }
+    try {
+      const provider = this.getRegisteredProvider();
+      const result = await provider.getDeliveryStatus({ accountId, externalId });
+      return this.jsonResponse(result);
+    } catch (err) {
+      return this.jsonResponse({ error: err.message }, 502);
+    }
+  }
+
+  handleRegisteredAccounts() {
+    try {
+      const provider = this.getRegisteredProvider();
+      return this.jsonResponse(provider.listAccounts());
+    } catch (err) {
+      return this.jsonResponse({ error: err.message }, 500);
+    }
   }
 
   resolveChannels(priority) {
