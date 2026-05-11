@@ -43,6 +43,14 @@ export class ScrapeAgent extends ChittyRouterBaseAgent {
     this.rawSql.exec(`
       CREATE INDEX IF NOT EXISTS idx_scrape_jobs_type ON scrape_jobs(job_type)
     `);
+    // Idempotent column additions for fan-out tracking. ALTER TABLE ADD COLUMN
+    // throws on duplicate; swallow per-column so re-init is safe.
+    for (const ddl of [
+      `ALTER TABLE scrape_jobs ADD COLUMN fanned_out_at TEXT`,
+      `ALTER TABLE scrape_jobs ADD COLUMN fan_out_errors TEXT`,
+    ]) {
+      try { this.rawSql.exec(ddl); } catch { /* column exists */ }
+    }
   }
 
   async onRequest(request) {
@@ -166,15 +174,27 @@ export class ScrapeAgent extends ChittyRouterBaseAgent {
         JSON.stringify(result.data), job.id
       );
 
-      // Fan out to sibling agents (fire-and-forget)
-      this.fanOut({
-        jobId: job.id,
-        jobType: job.job_type,
-        target,
-        chittyId: job.chitty_id,
-        result: result.data,
-        recordsSynced: result.recordsSynced,
-      }).catch((err) => console.error("[scrape-agent] fan-out error:", err));
+      // Fan-out idempotency: skip if already fanned out (manual retry of a
+      // previously-completed job must not re-emit calendar / ledger writes).
+      const [existing] = [...this.sql`SELECT fanned_out_at FROM scrape_jobs WHERE id = ${job.id}`];
+      if (!existing?.fanned_out_at) {
+        const fanOutResult = await this.fanOut({
+          jobId: job.id,
+          jobType: job.job_type,
+          target,
+          chittyId: job.chitty_id,
+          result: result.data,
+          recordsSynced: result.recordsSynced,
+        });
+        this.rawSql.exec(
+          `UPDATE scrape_jobs SET fanned_out_at = datetime('now'), fan_out_errors = ? WHERE id = ?`,
+          fanOutResult.errors.length ? JSON.stringify(fanOutResult.errors) : null,
+          job.id
+        );
+        if (fanOutResult.errors.length) {
+          this.warn("fan_out_partial", { jobId: job.id, errors: fanOutResult.errors });
+        }
+      }
 
       return { success: true, recordsSynced: result.recordsSynced };
     } catch (err) {
@@ -208,9 +228,10 @@ export class ScrapeAgent extends ChittyRouterBaseAgent {
 
     const token = this.env.SCRAPE_SERVICE_TOKEN;
     if (!token) {
-      // Try KV fallback
+      // Try KV fallback — log so a missing/rotated env var is operationally visible.
       const kvToken = this.env.AI_CACHE ? await this.env.AI_CACHE.get("scrape:service_token") : null;
       if (!kvToken) throw new Error("No scrape service token available");
+      this.warn("token_source_kv_fallback", { reason: "SCRAPE_SERVICE_TOKEN env not set" });
       return this.callScrapeApi(scrapeUrl, jobType, target, kvToken);
     }
 
@@ -258,18 +279,23 @@ export class ScrapeAgent extends ChittyRouterBaseAgent {
   // ── Fan-out to Sibling Agents ──────────────────────────────
 
   async fanOut(ctx) {
-    const results = await Promise.allSettled([
-      this.fanOutToIntelligence(ctx),
-      this.fanOutToCalendar(ctx),
-      this.fanOutToTriage(ctx),
-      this.fanOutToLedger(ctx),
-    ]);
-
-    for (const r of results) {
+    const targets = [
+      ["intelligence", () => this.fanOutToIntelligence(ctx)],
+      ["calendar",     () => this.fanOutToCalendar(ctx)],
+      ["triage",       () => this.fanOutToTriage(ctx)],
+      ["ledger",       () => this.fanOutToLedger(ctx)],
+    ];
+    const results = await Promise.allSettled(targets.map(([, fn]) => fn()));
+    const errors = [];
+    results.forEach((r, i) => {
       if (r.status === "rejected") {
-        console.error("[scrape-agent:fan-out] downstream error:", r.reason);
+        const target = targets[i][0];
+        const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+        errors.push({ target, error: msg });
+        this.warn("fan_out_failed", { target, jobId: ctx.jobId, error: msg });
       }
-    }
+    });
+    return { errors };
   }
 
   async fanOutToIntelligence(ctx) {
@@ -361,27 +387,27 @@ export class ScrapeAgent extends ChittyRouterBaseAgent {
     const ledgerUrl = this.env.CHITTYLEDGER_URL;
     if (!ledgerUrl) return;
 
-    try {
-      await fetch(`${ledgerUrl}/entries`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Source-Service": "chittyrouter/scrape-agent" },
-        body: JSON.stringify({
-          entityType: "scrape",
-          entityId: String(ctx.jobId),
-          action: "completed",
-          actor: ctx.chittyId || "chittyrouter/scrape-agent",
-          actorType: ctx.chittyId ? "entity" : "service",
-          metadata: {
-            jobType: ctx.jobType,
-            target: ctx.target,
-            recordsSynced: ctx.recordsSynced,
-            completedAt: new Date().toISOString(),
-          },
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-    } catch (err) {
-      console.error("[scrape-agent:fan-out:ledger]", err);
+    const res = await fetch(`${ledgerUrl}/entries`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Source-Service": "chittyrouter/scrape-agent" },
+      body: JSON.stringify({
+        entityType: "scrape",
+        entityId: String(ctx.jobId),
+        action: "completed",
+        actor: ctx.chittyId || "chittyrouter/scrape-agent",
+        actorType: ctx.chittyId ? "entity" : "service",
+        metadata: {
+          jobType: ctx.jobType,
+          target: ctx.target,
+          recordsSynced: ctx.recordsSynced,
+          completedAt: new Date().toISOString(),
+        },
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`ledger ${res.status} ${body.slice(0, 200)}`);
     }
   }
 
@@ -510,6 +536,12 @@ export class ScrapeAgent extends ChittyRouterBaseAgent {
       parentJobId: row.parent_job_id,
       cronSource: row.cron_source,
       createdAt: row.created_at,
+      fannedOutAt: row.fanned_out_at || null,
+      fanOutErrors: row.fan_out_errors ? safeJsonParse(row.fan_out_errors) : null,
     };
   }
+}
+
+function safeJsonParse(s) {
+  try { return JSON.parse(s); } catch { return s; }
 }
