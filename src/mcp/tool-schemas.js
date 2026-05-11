@@ -442,7 +442,10 @@ export const notificationSchemas = {
       reference_id: z.string().optional().describe('Internal reference ID'),
       org: z.string().optional().describe('Organization context'),
       metadata: z.record(z.any()).optional().describe('Provider metadata'),
-    }),
+    }).refine(
+      (data) => data.bodyText || data.bodyHtml,
+      { message: 'Either bodyText or bodyHtml is required' }
+    ),
     method: 'POST',
     path: '/registered-email/send',
     binding: 'NOTIFICATION_AGENT',

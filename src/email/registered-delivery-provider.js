@@ -3,9 +3,29 @@
  * Supports multi-account account selection for outbound registered email.
  */
 
+import { z } from 'zod';
+
 const DEFAULT_BASE_URL = 'https://api.rpost.com';
 const DEFAULT_SEND_PATH = '/api/v1/registered-email/send';
 const DEFAULT_STATUS_PATH = '/api/v1/registered-email/status';
+
+/**
+ * Zod schema for registered email payload validation.
+ * Ensures required fields are present and at least one body type is provided.
+ */
+const RegisteredEmailPayloadSchema = z.object({
+  accountId: z.string().optional(),
+  to: z.string().min(1, 'Recipient email is required'),
+  from: z.string().min(1, 'Sender email is required'),
+  subject: z.string().min(1, 'Subject is required'),
+  bodyText: z.string().optional(),
+  bodyHtml: z.string().optional(),
+  metadata: z.record(z.any()).optional(),
+  idempotencyKey: z.string().optional(),
+}).refine(
+  (data) => data.bodyText || data.bodyHtml,
+  { message: 'Either bodyText or bodyHtml is required' }
+);
 
 function parseAccounts(env) {
   // Multi-account format (preferred):
@@ -74,6 +94,13 @@ export class RPostRegisteredDeliveryProvider {
   }
 
   async sendRegisteredEmail(payload) {
+    // Validate payload before processing
+    try {
+      payload = RegisteredEmailPayloadSchema.parse(payload);
+    } catch (err) {
+      throw new Error(`Invalid registered email payload: ${err.message}`);
+    }
+
     const account = this.resolveAccount(payload.accountId);
     const body = {
       to: payload.to,
