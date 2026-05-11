@@ -543,7 +543,7 @@ Respond with ONLY the JSON object, no other text.`;
     }
 
     // Check for case patterns in address (e.g., plaintiff-v-defendant@chitty.cc)
-    const caseMatch = emailData.to.match(/([a-zA-Z]+)-v-([a-zA-Z]+)@/i);
+    const caseMatch = emailData.to.match(/([a-zA-Z]{1,64})-v-([a-zA-Z]{1,64})@/i);
     if (caseMatch) {
       score += 25;
     }
