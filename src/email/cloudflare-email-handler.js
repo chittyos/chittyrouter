@@ -546,11 +546,8 @@ Respond with ONLY the JSON object, no other text.`;
     const caseMatch = emailData.to.match(/([a-zA-Z]{1,64})-v-([a-zA-Z]{1,64})@/i);
     if (caseMatch) {
       score += 25;
-    }
-    if (addressRoute?.case) {
       category = 'case';
-      reasons.push(`case:${addressRoute.case}`);
-      score += 30;
+      reasons.push(`case_address:${caseMatch[1]}-v-${caseMatch[2]}`);
     }
 
     if (emailData.attachmentCount > 0) {

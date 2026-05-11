@@ -1027,9 +1027,12 @@ class RouteMultiplexer {
    */
   requireAuth(request) {
     const auth = request.headers.get('Authorization');
-    if (!auth) return this.jsonResponse({ error: 'Authorization required' }, 401);
-    const token = auth.replace('Bearer ', '');
-    if (token !== this.env.CHITTY_AUTH_SERVICE_TOKEN) {
+    if (!auth || !auth.startsWith('Bearer ')) {
+      return this.jsonResponse({ error: 'Authorization required' }, 401);
+    }
+    const token = auth.slice('Bearer '.length).trim();
+    const expected = this.env.CHITTY_AUTH_SERVICE_TOKEN;
+    if (!token || !expected || !constantTimeEqual(token, expected)) {
       return this.jsonResponse({ error: 'Invalid token' }, 403);
     }
     return null; // auth passed
@@ -1055,6 +1058,13 @@ class RouteMultiplexer {
       status,
     );
   }
+}
+
+function constantTimeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 /**
