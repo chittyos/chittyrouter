@@ -24,6 +24,7 @@ const CATEGORIES = [
   'service_incident',
   'support_ticket',
   'security_incident',
+  'compliance_notice',
 ];
 
 // Keyword fallback patterns per category
@@ -46,6 +47,19 @@ const FALLBACK_PATTERNS = {
     'cvss',
   ],
   lawsuit_communication: ['case', 'plaintiff', 'defendant', 'litigation', 'legal action'],
+  compliance_notice: [
+    'annual report', 'filing reminder', 'administrative dissolution', 'good standing',
+    'articles of organization', 'certificate of formation', 'franchise tax',
+    'registered agent', 'statutory agent', 'service of process',
+    'assessment notice', 'tax lien', 'lien release', 'exemption', 'appeal deadline',
+    'reassessment', 'property tax', 'tax sale', 'redemption period',
+    'renewal notice', 'declarations page', 'policy expiration', 'premium due',
+    'certificate of insurance', 'lapse notice',
+    'special assessment', 'rule violation', 'board resolution', 'annual meeting',
+    'budget ratification', 'covenant violation',
+    'estimated tax', 'form 1065', 'k-1', 'tax notice', 'irs notice',
+    'underpayment penalty', 'quarterly payment',
+  ],
   document_submission: ['attached', 'document', 'contract', 'evidence', 'filing'],
   appointment_request: ['meeting', 'appointment', 'schedule', 'consultation', 'availability'],
   emergency_legal: ['urgent', 'emergency', 'asap', 'immediate', 'deadline'],
