@@ -24,6 +24,9 @@ import { handleNotionWebhook } from './webhooks/notion.js';
 import { handleGithubWebhook } from './webhooks/github.js';
 import { handleStripeWebhook } from './webhooks/stripe.js';
 
+// Cost-control: ChittyComptroller L2 tier-degrade signal handler
+import { handleTierDegrade } from './admin/tier-degrade.js';
+
 /**
  * Route multiplexer - determines which service to invoke based on path
  */
@@ -121,6 +124,9 @@ class RouteMultiplexer {
       ['/webhook/github', this.handleWebhookGithub.bind(this)],
       ['/webhook/stripe', this.handleWebhookStripe.bind(this)],
       ['/webhook/status', this.handleWebhookStatus.bind(this)],
+
+      // Cost-control: ChittyComptroller L2 tier-degrade signal (HMAC-authenticated)
+      ['/admin/tier-degrade', this.handleAdminTierDegrade.bind(this)],
 
       // Agents SDK Routes — delegate to stateful Durable Object agents
       ['/agents/triage/*', this.delegateToAgent.bind(this, 'TRIAGE_AGENT')],
@@ -849,6 +855,10 @@ class RouteMultiplexer {
 
   async handleWebhookStripe(request) {
     return handleStripeWebhook(request, this.env);
+  }
+
+  async handleAdminTierDegrade(request) {
+    return handleTierDegrade(request, this.env);
   }
 
   async handleWebhookStatus() {
