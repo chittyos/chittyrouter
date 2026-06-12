@@ -5,6 +5,7 @@
  */
 
 import { CASE_EMAIL_ROUTES } from '../config/case-registry.js';
+import { resolveAliasDecision } from '../config/alias-registry.js';
 
 export class CloudflareEmailHandler {
   constructor(env) {
@@ -113,6 +114,14 @@ export class CloudflareEmailHandler {
       // Store attachments to R2 (always — don't lose data even if queue pending)
       const stored = await this.storeAttachments(attachments, emailData, triage);
       emailData.storedAttachments = stored;
+
+      // Registry-backed routing overlay (additive). Resolved ONCE here —
+      // BEFORE logEmail/sendRoutingConfirmation — because the privileged_legal
+      // (F-L10) metadata-only flag must suppress subject/body logging, and in
+      // auto mode logEmail runs before routeEmail. Attaches `aliasDecision` to
+      // emailData for both logging and routing to consume. Fully fail-open:
+      // resolveAliasDecision never throws and returns null on any failure.
+      emailData.aliasDecision = await this.resolveAliasOverlay(emailData);
 
       // Security disclosure path — dispatched BEFORE general routing so that
       // mail to security@chitty.cc (or triaged as a security_incident) is
@@ -574,10 +583,17 @@ Respond with ONLY the JSON object, no other text.`;
    * Log email to KV for dashboard
    */
   async logEmail(emailData, triage) {
+    // F-L10 metadata-only: for privileged_legal recipients, do NOT persist
+    // subject or body. Forward still proceeds normally in routeEmail.
+    const metadataOnly = emailData?.aliasDecision?.metadataOnly === true;
     const logEntry = {
       ...emailData,
       content: undefined, // Don't store full body in KV
-      ...triage
+      subject: metadataOnly ? '[REDACTED — privileged_legal]' : emailData.subject,
+      aliasDecision: undefined, // don't serialize the decision object into the log
+      ...triage,
+      summary: metadataOnly ? '' : triage.summary,
+      metadataOnly,
     };
 
     try {
@@ -690,6 +706,33 @@ Respond with ONLY the JSON object, no other text.`;
     }
   }
 
+  /**
+   * Consult the alias_registry overlay for a recipient — but ONLY when the
+   * address is NOT already governed by a case/non-case route. This enforces
+   * case-registry PRECEDENCE (legal attribution wins) and guarantees the
+   * overlay is a pure no-op for every address the handler already knows.
+   *
+   * Fully fail-open: returns null on disabled overlay, DB failure, absent
+   * address, or any exception. Never throws.
+   *
+   * @param {Object} emailData
+   * @param {(env:any)=>Promise<any[]>} [queryFn] - injectable DB query (tests)
+   * @returns {Promise<import('../config/alias-registry.js').AliasDecision | null>}
+   */
+  async resolveAliasOverlay(emailData, queryFn) {
+    const to = emailData?.to;
+    if (typeof to !== 'string' || !to) return null;
+    // PRECEDENCE: case/non-case routes win — skip the overlay entirely (no DB
+    // consult). Legal attribution from case-registry always wins.
+    if (Object.prototype.hasOwnProperty.call(this.addressRoutes, to)) return null;
+    try {
+      return await resolveAliasDecision(to, this.env, queryFn);
+    } catch (err) {
+      console.error('[email-handler] alias overlay failed, failing open:', err?.message ?? err);
+      return null;
+    }
+  }
+
   async routeEmail(message, emailData, triage) {
     const route = Object.prototype.hasOwnProperty.call(this.addressRoutes, emailData.to)
       ? this.addressRoutes[emailData.to]
@@ -697,10 +740,39 @@ Respond with ONLY the JSON object, no other text.`;
     if (route?.forward) {
       await message.forward(route.forward);
       console.log(`Forwarded to ${route.forward}`);
-    } else {
-      await message.forward('nick@aribia.llc');
-      console.log('Forwarded to default (nick@aribia.llc)');
+      return;
     }
+
+    // No case/non-case route matched. Consult the registry-backed overlay
+    // decision resolved earlier in handleEmail (null unless it applies).
+    // Fail-open at every branch: a missing/unset override env falls through
+    // to today's default forward rather than dropping the message.
+    const decision = emailData.aliasDecision;
+    if (decision) {
+      if (decision.forwardEnv) {
+        const dest = this.env?.[decision.forwardEnv];
+        if (dest) {
+          await message.forward(dest);
+          console.log(
+            `[alias-registry] lane=${decision.lane} disposition=${decision.disposition} ` +
+            `forwarded via ${decision.forwardEnv}`,
+          );
+          return;
+        }
+        // Override env unset → fail open to default forward below.
+        console.warn(
+          `[alias-registry] ${decision.address} wants ${decision.forwardEnv} but env is unset — ` +
+          `falling back to default forward.`,
+        );
+      }
+      if (decision.retired) {
+        // 'retire' disposition: still forward (don't drop), but log it.
+        console.log(`[alias-registry] forwarding RETIRED address ${decision.address} to default.`);
+      }
+    }
+
+    await message.forward('nick@aribia.llc');
+    console.log('Forwarded to default (nick@aribia.llc)');
   }
 
   // pushUrgentToNotion removed — replaced by sendRoutingConfirmation which covers all emails
@@ -709,18 +781,23 @@ Respond with ONLY the JSON object, no other text.`;
    * Send routing confirmation — so user knows what arrived and where it went
    */
   async sendRoutingConfirmation(emailData, triage, storedAttachments) {
+    // F-L10 metadata-only: privileged_legal recipients get a redacted receipt
+    // (no subject/summary persisted or pushed to Notion). Routing is unaffected.
+    const metadataOnly = emailData?.aliasDecision?.metadataOnly === true;
+    const safeSubject = metadataOnly ? '[REDACTED — privileged_legal]' : emailData.subject;
+    const safeSummary = metadataOnly ? '' : triage.summary;
     const receipt = {
       id: `rcpt-${Date.now()}`,
       receivedAt: new Date().toISOString(),
       from: emailData.from,
       to: emailData.to,
-      subject: emailData.subject,
+      subject: safeSubject,
       classification: {
         category: triage.category,
         urgency: triage.urgencyLevel,
         caseRelevant: triage.caseRelevant,
         entity: triage.entity,
-        summary: triage.summary,
+        summary: safeSummary,
         reasons: triage.reasons,
         aiClassified: triage.aiClassified
       },
@@ -768,8 +845,8 @@ Respond with ONLY the JSON object, no other text.`;
             text: {
               content: `${aiTag}${caseTag} ${triage.urgencyLevel} — ${triage.category}\n` +
                 `From: ${emailData.from}\n` +
-                `Subject: ${emailData.subject.substring(0, 120)}\n` +
-                `${triage.summary ? `Summary: ${triage.summary}\n` : ''}` +
+                `Subject: ${safeSubject.substring(0, 120)}\n` +
+                `${safeSummary ? `Summary: ${safeSummary}\n` : ''}` +
                 `Reasons: ${triage.reasons.join(', ')}` +
                 attLine
             }
@@ -884,17 +961,27 @@ Respond with ONLY the JSON object, no other text.`;
   async enqueue(emailData, triage, storedAttachments) {
     const id = `q-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
+    // F-L10 metadata-only: privileged_legal mail must not have subject, body,
+    // or AI summary persisted to the queue store. The queue item still records
+    // routing metadata so the review UI shows the email arrived. enqueue runs
+    // in BOTH auto and onboarding modes, so this is a required redaction sink.
+    const metadataOnly = emailData?.aliasDecision?.metadataOnly === true;
+    const safeSubject = metadataOnly ? '[REDACTED — privileged_legal]' : emailData.subject;
+    const safeBodyPreview = metadataOnly ? '' : (emailData.content?.substring(0, 500) ?? '');
+    const safeSummary = metadataOnly ? '' : triage.summary;
+
     const item = {
       id,
       status: 'pending', // pending | approved | corrected | auto_approved
       receivedAt: new Date().toISOString(),
+      metadataOnly,
       email: {
         from: emailData.from,
         to: emailData.to,
         cc: emailData.cc,
-        subject: emailData.subject,
+        subject: safeSubject,
         date: emailData.date,
-        bodyPreview: emailData.content.substring(0, 500),
+        bodyPreview: safeBodyPreview,
         attachments: emailData.attachmentNames || []
       },
       aiClassification: {
@@ -902,7 +989,7 @@ Respond with ONLY the JSON object, no other text.`;
         urgency: triage.urgencyLevel,
         caseRelevant: triage.caseRelevant,
         entity: triage.entity,
-        summary: triage.summary,
+        summary: safeSummary,
         reasons: triage.reasons,
         aiClassified: triage.aiClassified
       },
@@ -918,7 +1005,7 @@ Respond with ONLY the JSON object, no other text.`;
       // Add to queue index
       const indexKey = 'email_queue_index';
       const index = await this.env.AI_CACHE?.get(indexKey, 'json') || [];
-      index.unshift({ id, status: 'pending', from: emailData.from, subject: emailData.subject, receivedAt: item.receivedAt, urgency: triage.urgencyLevel });
+      index.unshift({ id, status: 'pending', from: emailData.from, subject: safeSubject, receivedAt: item.receivedAt, urgency: triage.urgencyLevel });
       await this.env.AI_CACHE?.put(indexKey, JSON.stringify(index.slice(0, 500)), { expirationTtl: 86400 * 30 });
     } catch (err) {
       console.error('Failed to enqueue:', err);
