@@ -5,6 +5,31 @@
  */
 
 import { CASE_EMAIL_ROUTES } from '../config/case-registry.js';
+import { resolveAliasDecision } from '../config/alias-registry.js';
+import { isPrivileged } from '../config/privilege-gate.js';
+
+/**
+ * Normalize a recipient address for route/registry/privilege LOOKUPS only.
+ *
+ * Lowercases (and trims) so a mixed-case envelope recipient (`Nick@Chitty.cc`,
+ * `Legal@Chitty.cc`) keys into `addressRoutes`/the alias_registry identically to
+ * its lowercase form. This is the read-side half of the both-sides normalization
+ * (route keys are also lowercased at construction time); together they make the
+ * route precedence guard and the direct-forward lookup case-insensitive so
+ * mixed-case mail can never miss a route and get misrouted or have a privileged
+ * lane bypassed.
+ *
+ * Plain `String#toLowerCase` — NO regex — so it adds no ReDoS surface. Returns
+ * '' for non-string/empty input (callers already guard on that). This does NOT
+ * mutate `emailData.to`; raw casing is preserved for logging, receipts, and the
+ * SecurityAgent dispatch payload (display fidelity, not a lookup key).
+ *
+ * @param {unknown} addr
+ * @returns {string}
+ */
+function normalizeAddress(addr) {
+  return typeof addr === 'string' ? addr.trim().toLowerCase() : '';
+}
 
 export class CloudflareEmailHandler {
   constructor(env) {
@@ -69,21 +94,30 @@ export class CloudflareEmailHandler {
     }
 
     // Build addressRoutes as a null-prototype dict so untrusted lookups
-    // (`addressRoutes[emailData.to]`) cannot hit Object.prototype keys, and
-    // throw on collisions between non-case and case routes rather than
-    // silently overwriting.
+    // (`addressRoutes[normalizeAddress(emailData.to)]`) cannot hit
+    // Object.prototype keys, and throw on collisions between non-case and case
+    // routes rather than silently overwriting.
+    //
+    // CASE-NORMALIZATION: keys are lowercased here, and every recipient lookup
+    // lowercases too (normalizeAddress). Email local-parts are case-insensitive
+    // in practice for our routing, and the alias_registry overlay already
+    // lowercases its keys + lookups. Normalizing BOTH sides guarantees a
+    // mixed-case recipient (e.g. `Legal@Chitty.cc`) can never miss its route
+    // (precedence guard OR direct forward) regardless of how upstream registries
+    // cased their entries — no bet on every source key already being lowercase.
     const mergedRoutes = Object.create(null);
     for (const [addr, route] of Object.entries(nonCaseRoutes)) {
-      mergedRoutes[addr] = route;
+      mergedRoutes[normalizeAddress(addr)] = route;
     }
     for (const [addr, route] of Object.entries(caseRoutes)) {
-      if (Object.prototype.hasOwnProperty.call(mergedRoutes, addr)) {
+      const key = normalizeAddress(addr);
+      if (Object.prototype.hasOwnProperty.call(mergedRoutes, key)) {
         throw new Error(
-          `Email route collision for "${addr}": both non-case routes and ` +
+          `Email route collision for "${key}": both non-case routes and ` +
           `case registry define this address. Resolve in case-registry.js.`,
         );
       }
-      mergedRoutes[addr] = route;
+      mergedRoutes[key] = route;
     }
     this.addressRoutes = mergedRoutes;
   }
@@ -107,11 +141,48 @@ export class CloudflareEmailHandler {
       emailData.attachmentCount = attachments.length;
       emailData.attachmentNames = attachments.map(a => a.filename);
 
-      // AI triage
-      const triage = await this.triageEmail(emailData);
+      // Registry-backed routing overlay (additive). Resolved ONCE here —
+      // now BEFORE triage/R2 as well as before logEmail/routeEmail — because
+      // (1) the privileged_legal (F-L10) metadata-only flag must suppress
+      // subject/body logging, and (2) the PRE-TRIAGE PRIVILEGE GATE below uses
+      // the resolved lane-3/privileged_legal signal as one input. Attaches
+      // `aliasDecision` to emailData for the gate, logging, and routing to
+      // consume. Fully fail-OPEN: resolveAliasDecision never throws and returns
+      // null on any failure (a DB blip must never drop/misroute mail).
+      emailData.aliasDecision = await this.resolveAliasOverlay(emailData);
 
-      // Store attachments to R2 (always — don't lose data even if queue pending)
-      const stored = await this.storeAttachments(attachments, emailData, triage);
+      // ===== PRE-TRIAGE PRIVILEGE GATE (F-L10) — FAIL-CLOSED =====
+      // Decide privilege from RELIABLE STATIC signals (sender-domain allowlist +
+      // case-registry aliases) PLUS, additively, the already-resolved
+      // alias_registry posture. This is the deliberate inverse of #99's
+      // fail-OPEN routing: detection fails CLOSED (errors → treat as
+      // privileged) and does NOT depend on Neon being up. If privileged, the
+      // BODY and ATTACHMENTS must never reach the CF AI model or R2.
+      const privileged = isPrivileged(
+        emailData.from,
+        emailData.to,
+        this.env,
+        emailData.aliasDecision,
+      );
+      emailData.privileged = privileged;
+
+      let triage;
+      let stored;
+      if (privileged) {
+        // SKIP the AI model (no body to llama) and SKIP R2 attachment storage.
+        // Classify on subject + sender ONLY. Forward + metadata-only logging
+        // still proceed below exactly as for non-privileged mail.
+        triage = this.privilegedTriage(emailData);
+        stored = []; // privileged attachments are NOT written to R2
+        console.log(
+          `[privilege-gate] F-L10 ENGAGED for ${emailData.id} — AI skipped, ` +
+          `${attachments.length} attachment(s) NOT stored to R2, metadata-only logging.`,
+        );
+      } else {
+        // Non-privileged: unchanged behavior — full AI triage + R2 storage.
+        triage = await this.triageEmail(emailData);
+        stored = await this.storeAttachments(attachments, emailData, triage);
+      }
       emailData.storedAttachments = stored;
 
       // Security disclosure path — dispatched BEFORE general routing so that
@@ -489,6 +560,66 @@ Respond with ONLY the JSON object, no other text.`;
   }
 
   /**
+   * Metadata-only triage for PRIVILEGED-LEGAL mail (F-L10). Classifies using
+   * ONLY the subject + sender/recipient addresses — the body is NEVER read and
+   * is NEVER sent to the Cloudflare AI model. Mirrors how
+   * studio-flows/aribia-daily-inbox-triage.json classifies privileged mail on
+   * subject signals alone.
+   *
+   * Returns the same triage shape the rest of handleEmail consumes (so
+   * enqueue / sendRoutingConfirmation / the return value all keep working), but
+   * with category fixed to 'legal' and caseRelevant true — privileged-legal is
+   * by definition legal/case material. urgencyLevel is derived from subject
+   * urgency keywords + recipient-address priority only.
+   *
+   * @param {Object} emailData
+   * @returns {Object} triage
+   */
+  privilegedTriage(emailData) {
+    // Subject + addresses ONLY — explicitly NOT emailData.content.
+    const subject = String(emailData.subject || '');
+    const reasons = ['privileged_legal', 'metadata-only'];
+    let score = 50; // privileged-legal floors at MEDIUM; legal mail is never INFO
+
+    if (this.urgencyPatterns.court.test(subject)) { score += 30; reasons.push('court'); }
+    if (this.urgencyPatterns.urgent.test(subject)) { score += 20; reasons.push('urgent'); }
+    if (this.urgencyPatterns.legal.test(subject)) { score += 10; reasons.push('legal'); }
+
+    // Recipient-address priority (no body needed). Normalize casing so a
+    // mixed-case recipient keys the (lowercased) route table identically.
+    const toKey = normalizeAddress(emailData.to);
+    const addressRoute = Object.prototype.hasOwnProperty.call(this.addressRoutes, toKey)
+      ? this.addressRoutes[toKey]
+      : undefined;
+    if (addressRoute) {
+      if (addressRoute.priority === 'CRITICAL') score += 30;
+      else if (addressRoute.priority === 'HIGH') score += 20;
+      else if (addressRoute.priority === 'MEDIUM') score += 10;
+      if (addressRoute.case) reasons.push(`case:${addressRoute.case}`);
+    }
+
+    let urgencyLevel;
+    if (score >= 80) urgencyLevel = 'CRITICAL';
+    else if (score >= 60) urgencyLevel = 'HIGH';
+    else urgencyLevel = 'MEDIUM';
+
+    return {
+      urgencyLevel,
+      urgencyScore: score,
+      category: 'legal',
+      caseRelevant: true,
+      entity: null,
+      actionNeeded: score >= 60,
+      // NO summary — summaries would describe body content. Metadata-only.
+      summary: '',
+      reasons,
+      aiClassified: false,
+      privileged: true,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
    * Convert urgency string to numeric score
    */
   urgencyToScore(urgency) {
@@ -528,8 +659,10 @@ Respond with ONLY the JSON object, no other text.`;
 
     // Check destination address priority. Use hasOwn to keep prototype-chain
     // lookups (e.g. `to: '__proto__'`) from hitting Object.prototype methods.
-    const addressRoute = Object.prototype.hasOwnProperty.call(this.addressRoutes, emailData.to)
-      ? this.addressRoutes[emailData.to]
+    // Normalize casing so mixed-case recipients key the (lowercased) table.
+    const toKey = normalizeAddress(emailData.to);
+    const addressRoute = Object.prototype.hasOwnProperty.call(this.addressRoutes, toKey)
+      ? this.addressRoutes[toKey]
       : undefined;
     if (addressRoute) {
       if (addressRoute.priority === 'CRITICAL') score += 30;
@@ -542,8 +675,10 @@ Respond with ONLY the JSON object, no other text.`;
       }
     }
 
-    // Check for case patterns in address (e.g., plaintiff-v-defendant@chitty.cc)
-    const caseMatch = emailData.to.match(/([a-zA-Z]{1,64})-v-([a-zA-Z]{1,64})@/i);
+    // Check for case patterns in address (e.g., plaintiff-v-defendant@chitty.cc).
+    // Match on the normalized recipient so a mixed-case `Arias-v-Bianchi@…`
+    // scores identically (the regex is /i, but the captured tokens feed reasons).
+    const caseMatch = toKey.match(/([a-z]{1,64})-v-([a-z]{1,64})@/);
     if (caseMatch) {
       score += 25;
       category = 'case';
@@ -574,10 +709,23 @@ Respond with ONLY the JSON object, no other text.`;
    * Log email to KV for dashboard
    */
   async logEmail(emailData, triage) {
+    // F-L10 metadata-only: for privileged_legal mail, do NOT persist subject or
+    // body. Forward still proceeds normally in routeEmail. The flag is the UNION
+    // of two signals: the STATIC pre-triage privilege gate (emailData.privileged,
+    // Neon-independent, fail-closed) and #99's registry-derived posture
+    // (aliasDecision.metadataOnly). Either one suppresses logging — otherwise a
+    // statically-privileged email with no alias_registry row would leak its
+    // subject/body into KV here.
+    const metadataOnly = emailData?.privileged === true
+      || emailData?.aliasDecision?.metadataOnly === true;
     const logEntry = {
       ...emailData,
       content: undefined, // Don't store full body in KV
-      ...triage
+      subject: metadataOnly ? '[REDACTED — privileged_legal]' : emailData.subject,
+      aliasDecision: undefined, // don't serialize the decision object into the log
+      ...triage,
+      summary: metadataOnly ? '' : triage.summary,
+      metadataOnly,
     };
 
     try {
@@ -663,8 +811,11 @@ Respond with ONLY the JSON object, no other text.`;
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             reporter: emailData.from,
-            subject: emailData.subject,
-            content: emailData.content,
+            // F-L10: privileged-legal mail must not have subject/body cross even
+            // to the internal SecurityAgent DO. Redact; the incident still fires
+            // (recipient + metadata reach the agent within the 48h SLA).
+            subject: emailData.privileged ? '[REDACTED — privileged_legal]' : emailData.subject,
+            content: emailData.privileged ? '' : emailData.content,
             message_id: emailData.id,
             recipient: emailData.to,
             triage_category: triage?.category,
@@ -690,17 +841,81 @@ Respond with ONLY the JSON object, no other text.`;
     }
   }
 
+  /**
+   * Consult the alias_registry overlay for a recipient — but ONLY when the
+   * address is NOT already governed by a case/non-case route. This enforces
+   * case-registry PRECEDENCE (legal attribution wins) and guarantees the
+   * overlay is a pure no-op for every address the handler already knows.
+   *
+   * Fully fail-open: returns null on disabled overlay, DB failure, absent
+   * address, or any exception. Never throws.
+   *
+   * @param {Object} emailData
+   * @param {(env:any)=>Promise<any[]>} [queryFn] - injectable DB query (tests)
+   * @returns {Promise<import('../config/alias-registry.js').AliasDecision | null>}
+   */
+  async resolveAliasOverlay(emailData, queryFn) {
+    if (typeof emailData?.to !== 'string' || !emailData.to) return null;
+    // Normalize casing for BOTH the precedence guard and the registry consult.
+    // Without this a mixed-case `Legal@Chitty.cc` would bypass the precedence
+    // check (whose key is lowercased) and consult the overlay for an address
+    // the case-registry already governs — then resolveAliasDecision lowercases
+    // internally, so the two halves would see different keys.
+    const to = normalizeAddress(emailData.to);
+    // PRECEDENCE: case/non-case routes win — skip the overlay entirely (no DB
+    // consult). Legal attribution from case-registry always wins.
+    if (Object.prototype.hasOwnProperty.call(this.addressRoutes, to)) return null;
+    try {
+      return await resolveAliasDecision(to, this.env, queryFn);
+    } catch (err) {
+      console.error('[email-handler] alias overlay failed, failing open:', err?.message ?? err);
+      return null;
+    }
+  }
+
   async routeEmail(message, emailData, triage) {
-    const route = Object.prototype.hasOwnProperty.call(this.addressRoutes, emailData.to)
-      ? this.addressRoutes[emailData.to]
+    // Normalize casing so a mixed-case recipient hits its (lowercased) route
+    // and forwards correctly instead of falling through to the default.
+    const toKey = normalizeAddress(emailData.to);
+    const route = Object.prototype.hasOwnProperty.call(this.addressRoutes, toKey)
+      ? this.addressRoutes[toKey]
       : undefined;
     if (route?.forward) {
       await message.forward(route.forward);
       console.log(`Forwarded to ${route.forward}`);
-    } else {
-      await message.forward('nick@aribia.llc');
-      console.log('Forwarded to default (nick@aribia.llc)');
+      return;
     }
+
+    // No case/non-case route matched. Consult the registry-backed overlay
+    // decision resolved earlier in handleEmail (null unless it applies).
+    // Fail-open at every branch: a missing/unset override env falls through
+    // to today's default forward rather than dropping the message.
+    const decision = emailData.aliasDecision;
+    if (decision) {
+      if (decision.forwardEnv) {
+        const dest = this.env?.[decision.forwardEnv];
+        if (dest) {
+          await message.forward(dest);
+          console.log(
+            `[alias-registry] lane=${decision.lane} disposition=${decision.disposition} ` +
+            `forwarded via ${decision.forwardEnv}`,
+          );
+          return;
+        }
+        // Override env unset → fail open to default forward below.
+        console.warn(
+          `[alias-registry] ${decision.address} wants ${decision.forwardEnv} but env is unset — ` +
+          `falling back to default forward.`,
+        );
+      }
+      if (decision.retired) {
+        // 'retire' disposition: still forward (don't drop), but log it.
+        console.log(`[alias-registry] forwarding RETIRED address ${decision.address} to default.`);
+      }
+    }
+
+    await message.forward('nick@aribia.llc');
+    console.log('Forwarded to default (nick@aribia.llc)');
   }
 
   // pushUrgentToNotion removed — replaced by sendRoutingConfirmation which covers all emails
@@ -709,18 +924,25 @@ Respond with ONLY the JSON object, no other text.`;
    * Send routing confirmation — so user knows what arrived and where it went
    */
   async sendRoutingConfirmation(emailData, triage, storedAttachments) {
+    // F-L10 metadata-only: privileged_legal mail gets a redacted receipt
+    // (no subject/summary persisted or pushed to Notion). Routing is unaffected.
+    // Union of the static pre-triage gate and #99's registry posture.
+    const metadataOnly = emailData?.privileged === true
+      || emailData?.aliasDecision?.metadataOnly === true;
+    const safeSubject = metadataOnly ? '[REDACTED — privileged_legal]' : emailData.subject;
+    const safeSummary = metadataOnly ? '' : triage.summary;
     const receipt = {
       id: `rcpt-${Date.now()}`,
       receivedAt: new Date().toISOString(),
       from: emailData.from,
       to: emailData.to,
-      subject: emailData.subject,
+      subject: safeSubject,
       classification: {
         category: triage.category,
         urgency: triage.urgencyLevel,
         caseRelevant: triage.caseRelevant,
         entity: triage.entity,
-        summary: triage.summary,
+        summary: safeSummary,
         reasons: triage.reasons,
         aiClassified: triage.aiClassified
       },
@@ -768,8 +990,8 @@ Respond with ONLY the JSON object, no other text.`;
             text: {
               content: `${aiTag}${caseTag} ${triage.urgencyLevel} — ${triage.category}\n` +
                 `From: ${emailData.from}\n` +
-                `Subject: ${emailData.subject.substring(0, 120)}\n` +
-                `${triage.summary ? `Summary: ${triage.summary}\n` : ''}` +
+                `Subject: ${safeSubject.substring(0, 120)}\n` +
+                `${safeSummary ? `Summary: ${safeSummary}\n` : ''}` +
                 `Reasons: ${triage.reasons.join(', ')}` +
                 attLine
             }
@@ -884,17 +1106,31 @@ Respond with ONLY the JSON object, no other text.`;
   async enqueue(emailData, triage, storedAttachments) {
     const id = `q-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
+    // F-L10 metadata-only: privileged_legal mail must not have subject, body,
+    // or AI summary persisted to the queue store. The queue item still records
+    // routing metadata so the review UI shows the email arrived. enqueue runs
+    // in BOTH auto and onboarding modes, so this is a required redaction sink.
+    // CRITICAL: bodyPreview below is emailData.content.substring(0,500) — the
+    // BODY. Without the static-gate term, a statically-privileged email with no
+    // alias_registry row would write its body straight into KV here.
+    const metadataOnly = emailData?.privileged === true
+      || emailData?.aliasDecision?.metadataOnly === true;
+    const safeSubject = metadataOnly ? '[REDACTED — privileged_legal]' : emailData.subject;
+    const safeBodyPreview = metadataOnly ? '' : (emailData.content?.substring(0, 500) ?? '');
+    const safeSummary = metadataOnly ? '' : triage.summary;
+
     const item = {
       id,
       status: 'pending', // pending | approved | corrected | auto_approved
       receivedAt: new Date().toISOString(),
+      metadataOnly,
       email: {
         from: emailData.from,
         to: emailData.to,
         cc: emailData.cc,
-        subject: emailData.subject,
+        subject: safeSubject,
         date: emailData.date,
-        bodyPreview: emailData.content.substring(0, 500),
+        bodyPreview: safeBodyPreview,
         attachments: emailData.attachmentNames || []
       },
       aiClassification: {
@@ -902,7 +1138,7 @@ Respond with ONLY the JSON object, no other text.`;
         urgency: triage.urgencyLevel,
         caseRelevant: triage.caseRelevant,
         entity: triage.entity,
-        summary: triage.summary,
+        summary: safeSummary,
         reasons: triage.reasons,
         aiClassified: triage.aiClassified
       },
@@ -918,7 +1154,7 @@ Respond with ONLY the JSON object, no other text.`;
       // Add to queue index
       const indexKey = 'email_queue_index';
       const index = await this.env.AI_CACHE?.get(indexKey, 'json') || [];
-      index.unshift({ id, status: 'pending', from: emailData.from, subject: emailData.subject, receivedAt: item.receivedAt, urgency: triage.urgencyLevel });
+      index.unshift({ id, status: 'pending', from: emailData.from, subject: safeSubject, receivedAt: item.receivedAt, urgency: triage.urgencyLevel });
       await this.env.AI_CACHE?.put(indexKey, JSON.stringify(index.slice(0, 500)), { expirationTtl: 86400 * 30 });
     } catch (err) {
       console.error('Failed to enqueue:', err);
