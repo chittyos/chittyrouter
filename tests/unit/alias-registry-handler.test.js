@@ -57,7 +57,7 @@ describe('routeEmail: case-registry precedence (overlay never overrides)', () =>
     // Overlay enabled + a privileged_legal/consolidate fixture row exists for
     // legal@chitty.cc. PRECEDENCE means it must still be skipped (null) — the
     // case/non-case route wins and no DB-derived decision is applied.
-    const handler = new CloudflareEmailHandler(makeEnv({ ALIAS_REGISTRY_ENABLED: 'true', NEON: { connectionString: 'x' } }));
+    const handler = new CloudflareEmailHandler(makeEnv({ ALIAS_REGISTRY_ENABLED: 'true', HYPERDRIVE: { connectionString: 'x' } }));
     const decision = await handler.resolveAliasOverlay({ to: 'legal@chitty.cc' }, PRECEDENCE_FIXTURE);
     expect(decision).toBeNull();
   });
@@ -66,7 +66,7 @@ describe('routeEmail: case-registry precedence (overlay never overrides)', () =>
     // Control for the precedence test: same fixture, but an address NOT in
     // addressRoutes does get a decision — so the null above is precedence, not
     // a dead overlay.
-    const handler = new CloudflareEmailHandler(makeEnv({ ALIAS_REGISTRY_ENABLED: 'true', NEON: { connectionString: 'x' } }));
+    const handler = new CloudflareEmailHandler(makeEnv({ ALIAS_REGISTRY_ENABLED: 'true', HYPERDRIVE: { connectionString: 'x' } }));
     const decision = await handler.resolveAliasOverlay({ to: 'mgmt@aribia.llc' }, PRECEDENCE_FIXTURE);
     expect(decision).not.toBeNull();
     expect(decision.forwardEnv).toBe('FORWARD_LANE2_OPS');

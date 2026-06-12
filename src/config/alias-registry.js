@@ -89,12 +89,13 @@ export function _clearAliasCache() {
 }
 
 /**
- * Default query function: connect to Neon via the worker's NEON Hyperdrive
+ * Default query function: connect to Neon via the worker's HYPERDRIVE
  * binding and pull the alias_registry rows. Mirrors src/database.js's
- * `@neondatabase/serverless` Client(connectionString) pattern.
+ * `@neondatabase/serverless` Client(connectionString) pattern and reuses the
+ * SAME binding name (`env.HYPERDRIVE`) the worker already uses for Neon.
  *
- * NOTE: the worker must bind a Hyperdrive resource named `NEON` pointing at
- * Neon project restless-grass-40598426 / db neondb. That binding is a DEPLOY
+ * NOTE: the worker must bind a Hyperdrive resource named `HYPERDRIVE` pointing
+ * at Neon project restless-grass-40598426 / db neondb. That binding is a DEPLOY
  * PREREQUISITE (not committed to wrangler.jsonc — no Hyperdrive resource id
  * available). Absent the binding, this throws and the caller fails open.
  *
@@ -102,9 +103,9 @@ export function _clearAliasCache() {
  * @returns {Promise<AliasRow[]>}
  */
 async function defaultQueryFn(env) {
-  const connectionString = env?.NEON?.connectionString;
+  const connectionString = env?.HYPERDRIVE?.connectionString;
   if (!connectionString) {
-    throw new Error('NEON Hyperdrive binding is not configured');
+    throw new Error('HYPERDRIVE binding is not configured');
   }
   const client = new Client(connectionString);
   try {

@@ -32,7 +32,7 @@ const FIXTURE_ROWS = [
   { address: 'addison@aribia.llc', posture: 'public_facing', lane: 2, disposition: 'verify', owner_mailbox: 'nick@jeanarlene.com', entity: 'ARIBIA LLC', type: 'alias' },
 ];
 
-const ENABLED_ENV = { ALIAS_REGISTRY_ENABLED: 'true', NEON: { connectionString: 'unused-in-di' } };
+const ENABLED_ENV = { ALIAS_REGISTRY_ENABLED: 'true', HYPERDRIVE: { connectionString: 'unused-in-di' } };
 const fixtureQueryFn = async () => FIXTURE_ROWS;
 const throwingQueryFn = async () => { throw new Error('Neon unreachable (simulated outage)'); };
 
