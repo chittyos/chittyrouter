@@ -56,7 +56,7 @@ export function extractAddress(raw) {
   const angle = raw.match(/<([^<>@\s]+@[^<>@\s]+)>/);
   if (angle) return angle[1].trim().toLowerCase();
   // Otherwise take the first bare addr-spec token anywhere in the value.
-  const bare = raw.match(/[^\s,<>]+@[^\s,<>]+/);
+  const bare = raw.match(/[^\s,<>@]{1,64}@[^\s,<>@]{1,255}/);
   return bare ? bare[0].trim().toLowerCase() : '';
 }
 
@@ -68,7 +68,7 @@ export function extractAddress(raw) {
  */
 export function extractAddresses(raw) {
   if (typeof raw !== 'string' || !raw) return [];
-  const matches = raw.match(/[^\s,<>]+@[^\s,<>]+/g);
+  const matches = raw.match(/[^\s,<>@]{1,64}@[^\s,<>@]{1,255}/g);
   if (!matches) return [];
   return matches.map((m) => m.trim().toLowerCase());
 }
