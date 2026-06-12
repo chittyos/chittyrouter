@@ -8,6 +8,29 @@ import { CASE_EMAIL_ROUTES } from '../config/case-registry.js';
 import { resolveAliasDecision } from '../config/alias-registry.js';
 import { isPrivileged } from '../config/privilege-gate.js';
 
+/**
+ * Normalize a recipient address for route/registry/privilege LOOKUPS only.
+ *
+ * Lowercases (and trims) so a mixed-case envelope recipient (`Nick@Chitty.cc`,
+ * `Legal@Chitty.cc`) keys into `addressRoutes`/the alias_registry identically to
+ * its lowercase form. This is the read-side half of the both-sides normalization
+ * (route keys are also lowercased at construction time); together they make the
+ * route precedence guard and the direct-forward lookup case-insensitive so
+ * mixed-case mail can never miss a route and get misrouted or have a privileged
+ * lane bypassed.
+ *
+ * Plain `String#toLowerCase` — NO regex — so it adds no ReDoS surface. Returns
+ * '' for non-string/empty input (callers already guard on that). This does NOT
+ * mutate `emailData.to`; raw casing is preserved for logging, receipts, and the
+ * SecurityAgent dispatch payload (display fidelity, not a lookup key).
+ *
+ * @param {unknown} addr
+ * @returns {string}
+ */
+function normalizeAddress(addr) {
+  return typeof addr === 'string' ? addr.trim().toLowerCase() : '';
+}
+
 export class CloudflareEmailHandler {
   constructor(env) {
     this.env = env;
@@ -71,21 +94,30 @@ export class CloudflareEmailHandler {
     }
 
     // Build addressRoutes as a null-prototype dict so untrusted lookups
-    // (`addressRoutes[emailData.to]`) cannot hit Object.prototype keys, and
-    // throw on collisions between non-case and case routes rather than
-    // silently overwriting.
+    // (`addressRoutes[normalizeAddress(emailData.to)]`) cannot hit
+    // Object.prototype keys, and throw on collisions between non-case and case
+    // routes rather than silently overwriting.
+    //
+    // CASE-NORMALIZATION: keys are lowercased here, and every recipient lookup
+    // lowercases too (normalizeAddress). Email local-parts are case-insensitive
+    // in practice for our routing, and the alias_registry overlay already
+    // lowercases its keys + lookups. Normalizing BOTH sides guarantees a
+    // mixed-case recipient (e.g. `Legal@Chitty.cc`) can never miss its route
+    // (precedence guard OR direct forward) regardless of how upstream registries
+    // cased their entries — no bet on every source key already being lowercase.
     const mergedRoutes = Object.create(null);
     for (const [addr, route] of Object.entries(nonCaseRoutes)) {
-      mergedRoutes[addr] = route;
+      mergedRoutes[normalizeAddress(addr)] = route;
     }
     for (const [addr, route] of Object.entries(caseRoutes)) {
-      if (Object.prototype.hasOwnProperty.call(mergedRoutes, addr)) {
+      const key = normalizeAddress(addr);
+      if (Object.prototype.hasOwnProperty.call(mergedRoutes, key)) {
         throw new Error(
-          `Email route collision for "${addr}": both non-case routes and ` +
+          `Email route collision for "${key}": both non-case routes and ` +
           `case registry define this address. Resolve in case-registry.js.`,
         );
       }
-      mergedRoutes[addr] = route;
+      mergedRoutes[key] = route;
     }
     this.addressRoutes = mergedRoutes;
   }
@@ -553,9 +585,11 @@ Respond with ONLY the JSON object, no other text.`;
     if (this.urgencyPatterns.urgent.test(subject)) { score += 20; reasons.push('urgent'); }
     if (this.urgencyPatterns.legal.test(subject)) { score += 10; reasons.push('legal'); }
 
-    // Recipient-address priority (no body needed).
-    const addressRoute = Object.prototype.hasOwnProperty.call(this.addressRoutes, emailData.to)
-      ? this.addressRoutes[emailData.to]
+    // Recipient-address priority (no body needed). Normalize casing so a
+    // mixed-case recipient keys the (lowercased) route table identically.
+    const toKey = normalizeAddress(emailData.to);
+    const addressRoute = Object.prototype.hasOwnProperty.call(this.addressRoutes, toKey)
+      ? this.addressRoutes[toKey]
       : undefined;
     if (addressRoute) {
       if (addressRoute.priority === 'CRITICAL') score += 30;
@@ -625,8 +659,10 @@ Respond with ONLY the JSON object, no other text.`;
 
     // Check destination address priority. Use hasOwn to keep prototype-chain
     // lookups (e.g. `to: '__proto__'`) from hitting Object.prototype methods.
-    const addressRoute = Object.prototype.hasOwnProperty.call(this.addressRoutes, emailData.to)
-      ? this.addressRoutes[emailData.to]
+    // Normalize casing so mixed-case recipients key the (lowercased) table.
+    const toKey = normalizeAddress(emailData.to);
+    const addressRoute = Object.prototype.hasOwnProperty.call(this.addressRoutes, toKey)
+      ? this.addressRoutes[toKey]
       : undefined;
     if (addressRoute) {
       if (addressRoute.priority === 'CRITICAL') score += 30;
@@ -639,8 +675,10 @@ Respond with ONLY the JSON object, no other text.`;
       }
     }
 
-    // Check for case patterns in address (e.g., plaintiff-v-defendant@chitty.cc)
-    const caseMatch = emailData.to.match(/([a-zA-Z]{1,64})-v-([a-zA-Z]{1,64})@/i);
+    // Check for case patterns in address (e.g., plaintiff-v-defendant@chitty.cc).
+    // Match on the normalized recipient so a mixed-case `Arias-v-Bianchi@…`
+    // scores identically (the regex is /i, but the captured tokens feed reasons).
+    const caseMatch = toKey.match(/([a-z]{1,64})-v-([a-z]{1,64})@/);
     if (caseMatch) {
       score += 25;
       category = 'case';
@@ -817,8 +855,13 @@ Respond with ONLY the JSON object, no other text.`;
    * @returns {Promise<import('../config/alias-registry.js').AliasDecision | null>}
    */
   async resolveAliasOverlay(emailData, queryFn) {
-    const to = emailData?.to;
-    if (typeof to !== 'string' || !to) return null;
+    if (typeof emailData?.to !== 'string' || !emailData.to) return null;
+    // Normalize casing for BOTH the precedence guard and the registry consult.
+    // Without this a mixed-case `Legal@Chitty.cc` would bypass the precedence
+    // check (whose key is lowercased) and consult the overlay for an address
+    // the case-registry already governs — then resolveAliasDecision lowercases
+    // internally, so the two halves would see different keys.
+    const to = normalizeAddress(emailData.to);
     // PRECEDENCE: case/non-case routes win — skip the overlay entirely (no DB
     // consult). Legal attribution from case-registry always wins.
     if (Object.prototype.hasOwnProperty.call(this.addressRoutes, to)) return null;
@@ -831,8 +874,11 @@ Respond with ONLY the JSON object, no other text.`;
   }
 
   async routeEmail(message, emailData, triage) {
-    const route = Object.prototype.hasOwnProperty.call(this.addressRoutes, emailData.to)
-      ? this.addressRoutes[emailData.to]
+    // Normalize casing so a mixed-case recipient hits its (lowercased) route
+    // and forwards correctly instead of falling through to the default.
+    const toKey = normalizeAddress(emailData.to);
+    const route = Object.prototype.hasOwnProperty.call(this.addressRoutes, toKey)
+      ? this.addressRoutes[toKey]
       : undefined;
     if (route?.forward) {
       await message.forward(route.forward);

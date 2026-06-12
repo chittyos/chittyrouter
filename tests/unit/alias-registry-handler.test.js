@@ -3,14 +3,22 @@
  * CloudflareEmailHandler (src/email/cloudflare-email-handler.js).
  *
  * No DB mock: these drive the handler's routeEmail/logEmail/resolveAliasOverlay
- * directly with pre-resolved alias decisions (the shape resolveAliasDecision
- * produces from real chittyops.alias_registry rows). This validates:
+ * directly with pre-resolved alias decisions (the SHAPE resolveAliasDecision
+ * produces — synthetic *.test addresses, no real mailbox PII). This validates:
  *   - case-registry/non-case PRECEDENCE (overlay skipped when address known)
+ *   - recipient CASE-NORMALIZATION (mixed-case routes identically to lowercase)
  *   - 'consolidate' override forward via lane env
  *   - 'retire' still forwards to default (no drop)
  *   - 'verify'/'keep' / absent → byte-for-byte today's default forward
  *   - privileged_legal metadataOnly redacts subject/summary in log + receipt
  *   - fail-open: unset override env falls back to default forward
+ *
+ * NOTE: DEFAULT_FORWARD below is intentionally a non-.test address — it is
+ * PINNED to the handler's hardcoded source default (src/email/
+ * cloudflare-email-handler.js: `message.forward('nick@aribia.llc')`). It is NOT
+ * fixture PII we control; changing it here would diverge the assertion from the
+ * real routing behavior under test. (Scrubbing that source default is a
+ * separate, repo-wide follow-up — see PR #99 thread replies.)
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -23,8 +31,8 @@ beforeEach(() => { _clearAliasCache(); });
 // place it in the fixture as privileged_legal to prove PRECEDENCE: the overlay
 // is skipped (no redaction/override applied) for addresses already routed.
 const PRECEDENCE_FIXTURE = async () => [
-  { address: 'legal@chitty.cc', posture: 'privileged_legal', lane: 3, disposition: 'consolidate', owner_mailbox: 'legal@aribia.llc', entity: 'Legal', type: 'group' },
-  { address: 'mgmt@aribia.llc', posture: 'public_facing', lane: 2, disposition: 'consolidate', owner_mailbox: 'nick@jeanarlene.com', entity: 'ARIBIA LLC', type: 'alias' },
+  { address: 'legal@chitty.cc', posture: 'privileged_legal', lane: 3, disposition: 'consolidate', owner_mailbox: 'legal@aribia.test', entity: 'Legal', type: 'group' },
+  { address: 'mgmt@aribia.test', posture: 'public_facing', lane: 2, disposition: 'consolidate', owner_mailbox: 'owner@example-jav.test', entity: 'ARIBIA LLC', type: 'alias' },
 ];
 
 function makeEnv(overrides = {}) {
@@ -67,7 +75,7 @@ describe('routeEmail: case-registry precedence (overlay never overrides)', () =>
     // addressRoutes does get a decision — so the null above is precedence, not
     // a dead overlay.
     const handler = new CloudflareEmailHandler(makeEnv({ ALIAS_REGISTRY_ENABLED: 'true', HYPERDRIVE: { connectionString: 'x' } }));
-    const decision = await handler.resolveAliasOverlay({ to: 'mgmt@aribia.llc' }, PRECEDENCE_FIXTURE);
+    const decision = await handler.resolveAliasOverlay({ to: 'mgmt@aribia.test' }, PRECEDENCE_FIXTURE);
     expect(decision).not.toBeNull();
     expect(decision.forwardEnv).toBe('FORWARD_LANE2_OPS');
   });
@@ -79,28 +87,57 @@ describe('routeEmail: case-registry precedence (overlay never overrides)', () =>
   });
 });
 
+describe('routeEmail: recipient case-normalization', () => {
+  // Regression for PR #99 CodeRabbit/codex MAJOR/P2: a mixed-case recipient
+  // (e.g. `Legal@Chitty.cc`) must route IDENTICALLY to its lowercase form.
+  // Route-table keys are lowercased at construction AND every recipient lookup
+  // normalizes — so mixed-case mail can never miss its direct route, bypass the
+  // precedence guard, or get a privileged lane misrouted/consolidated.
+  it('routeEmail forwards a mixed-case recipient via the same direct route as lowercase', async () => {
+    // legal@chitty.cc is a non-case route → forwards to source's nick@aribia.cc.
+    const handler = new CloudflareEmailHandler(makeEnv());
+    const lower = makeMessage();
+    await handler.routeEmail(lower, { to: 'legal@chitty.cc', aliasDecision: null }, {});
+    const mixed = makeMessage();
+    await handler.routeEmail(mixed, { to: 'Legal@Chitty.cc', aliasDecision: null }, {});
+    // Identical forward target, and NOT the catch-all default.
+    expect(mixed.forwards).toEqual(lower.forwards);
+    expect(mixed.forwards).not.toEqual([DEFAULT_FORWARD]);
+  });
+
+  it('resolveAliasOverlay applies precedence to a mixed-case recipient (skips overlay)', async () => {
+    // Legal@Chitty.cc is governed by a non-case route → overlay must be SKIPPED
+    // (null) even though a matching privileged_legal/consolidate fixture row
+    // exists. Without normalization the precedence guard (lowercased key) would
+    // miss and the overlay would wrongly fire.
+    const handler = new CloudflareEmailHandler(makeEnv({ ALIAS_REGISTRY_ENABLED: 'true', HYPERDRIVE: { connectionString: 'x' } }));
+    const decision = await handler.resolveAliasOverlay({ to: 'Legal@Chitty.cc' }, PRECEDENCE_FIXTURE);
+    expect(decision).toBeNull();
+  });
+});
+
 describe('routeEmail: alias overlay consumption', () => {
   let handler;
   beforeEach(() => {
-    handler = new CloudflareEmailHandler(makeEnv({ FORWARD_LANE2_OPS: 'ops@aribia.llc' }));
+    handler = new CloudflareEmailHandler(makeEnv({ FORWARD_LANE2_OPS: 'ops@aribia.test' }));
   });
 
   it("'consolidate' forwards to the lane-2 ops destination via env", async () => {
     const message = makeMessage();
     const emailData = {
-      to: 'mgmt@aribia.llc',
-      aliasDecision: { address: 'mgmt@aribia.llc', lane: 2, posture: 'public_facing', disposition: 'consolidate', entity: 'ARIBIA LLC', metadataOnly: false, retired: false, forwardEnv: 'FORWARD_LANE2_OPS' },
+      to: 'mgmt@aribia.test',
+      aliasDecision: { address: 'mgmt@aribia.test', lane: 2, posture: 'public_facing', disposition: 'consolidate', entity: 'ARIBIA LLC', metadataOnly: false, retired: false, forwardEnv: 'FORWARD_LANE2_OPS' },
     };
     await handler.routeEmail(message, emailData, {});
-    expect(message.forwards).toEqual(['ops@aribia.llc']);
+    expect(message.forwards).toEqual(['ops@aribia.test']);
   });
 
   it("'consolidate' FAILS OPEN to default when the lane env is unset", async () => {
     const h2 = new CloudflareEmailHandler(makeEnv()); // no FORWARD_LANE2_OPS
     const message = makeMessage();
     const emailData = {
-      to: 'mgmt@aribia.llc',
-      aliasDecision: { address: 'mgmt@aribia.llc', lane: 2, posture: 'public_facing', disposition: 'consolidate', entity: 'ARIBIA LLC', metadataOnly: false, retired: false, forwardEnv: 'FORWARD_LANE2_OPS' },
+      to: 'mgmt@aribia.test',
+      aliasDecision: { address: 'mgmt@aribia.test', lane: 2, posture: 'public_facing', disposition: 'consolidate', entity: 'ARIBIA LLC', metadataOnly: false, retired: false, forwardEnv: 'FORWARD_LANE2_OPS' },
     };
     await h2.routeEmail(message, emailData, {});
     expect(message.forwards).toEqual([DEFAULT_FORWARD]);
@@ -109,8 +146,8 @@ describe('routeEmail: alias overlay consumption', () => {
   it("'retire' still forwards (to default — never drops)", async () => {
     const message = makeMessage();
     const emailData = {
-      to: 'aaron@aribia.llc',
-      aliasDecision: { address: 'aaron@aribia.llc', lane: 1, posture: 'personal', disposition: 'retire', entity: 'Furnished-Condos', metadataOnly: false, retired: true, forwardEnv: null },
+      to: 'aaron@aribia.test',
+      aliasDecision: { address: 'aaron@aribia.test', lane: 1, posture: 'personal', disposition: 'retire', entity: 'Furnished-Condos', metadataOnly: false, retired: true, forwardEnv: null },
     };
     await handler.routeEmail(message, emailData, {});
     expect(message.forwards).toEqual([DEFAULT_FORWARD]);
@@ -118,15 +155,15 @@ describe('routeEmail: alias overlay consumption', () => {
 
   it('no alias decision (verify/keep/absent) → today\'s default forward unchanged', async () => {
     const message = makeMessage();
-    await handler.routeEmail(message, { to: 'addison@aribia.llc', aliasDecision: null }, {});
+    await handler.routeEmail(message, { to: 'addison@aribia.test', aliasDecision: null }, {});
     expect(message.forwards).toEqual([DEFAULT_FORWARD]);
   });
 
   it('privileged_legal (keep) forwards normally to default', async () => {
     const message = makeMessage();
     const emailData = {
-      to: 'legal@aribia.llc',
-      aliasDecision: { address: 'legal@aribia.llc', lane: 3, posture: 'privileged_legal', disposition: 'keep', entity: 'Legal', metadataOnly: true, retired: false, forwardEnv: null },
+      to: 'legal@aribia.test',
+      aliasDecision: { address: 'legal@aribia.test', lane: 3, posture: 'privileged_legal', disposition: 'keep', entity: 'Legal', metadataOnly: true, retired: false, forwardEnv: null },
     };
     await handler.routeEmail(message, emailData, {});
     expect(message.forwards).toEqual([DEFAULT_FORWARD]);
@@ -138,7 +175,7 @@ describe('logEmail / sendRoutingConfirmation: F-L10 metadata-only redaction', ()
     const env = makeEnv();
     const handler = new CloudflareEmailHandler(env);
     const emailData = {
-      to: 'legal@aribia.llc',
+      to: 'legal@aribia.test',
       from: 'opposing-counsel@example-firm.com',
       subject: 'Privileged: settlement strategy memo',
       aliasDecision: { metadataOnly: true },
@@ -154,7 +191,7 @@ describe('logEmail / sendRoutingConfirmation: F-L10 metadata-only redaction', ()
   it('logEmail keeps subject for non-privileged mail', async () => {
     const env = makeEnv();
     const handler = new CloudflareEmailHandler(env);
-    const emailData = { to: 'mgmt@aribia.llc', from: 'guest@example.com', subject: 'Booking question', aliasDecision: null };
+    const emailData = { to: 'mgmt@aribia.test', from: 'guest@example.com', subject: 'Booking question', aliasDecision: null };
     const triage = { urgencyLevel: 'LOW', urgencyScore: 10, summary: 'guest asks about checkout', reasons: [] };
     await handler.logEmail(emailData, triage);
     const recent = await env.AI_CACHE.get('email_log_recent', 'json');
@@ -166,7 +203,7 @@ describe('logEmail / sendRoutingConfirmation: F-L10 metadata-only redaction', ()
     const env = makeEnv();
     const handler = new CloudflareEmailHandler(env);
     const emailData = {
-      to: 'legal@aribia.llc', from: 'opposing@firm.com', cc: '',
+      to: 'legal@aribia.test', from: 'opposing@firm.com', cc: '',
       subject: 'Privileged: deposition prep', date: 'now',
       content: 'Confidential body discussing privileged litigation strategy in detail.',
       attachmentNames: [],
@@ -193,7 +230,7 @@ describe('logEmail / sendRoutingConfirmation: F-L10 metadata-only redaction', ()
     const env = makeEnv();
     const handler = new CloudflareEmailHandler(env);
     const emailData = {
-      to: 'mgmt@aribia.llc', from: 'guest@example.com', cc: '',
+      to: 'mgmt@aribia.test', from: 'guest@example.com', cc: '',
       subject: 'Checkout time?', date: 'now', content: 'When is checkout?',
       attachmentNames: [], aliasDecision: null,
     };
@@ -210,7 +247,7 @@ describe('logEmail / sendRoutingConfirmation: F-L10 metadata-only redaction', ()
     // Avoid the live Notion fetch in unit tests.
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, text: async () => '' });
     const emailData = {
-      to: 'legal@aribia.llc', from: 'x@firm.com',
+      to: 'legal@aribia.test', from: 'x@firm.com',
       subject: 'Privileged matter detail', aliasDecision: { metadataOnly: true },
     };
     const triage = { urgencyLevel: 'HIGH', category: 'legal', caseRelevant: true, entity: null, summary: 'secret', reasons: ['legal'], aiClassified: false, actionNeeded: true };

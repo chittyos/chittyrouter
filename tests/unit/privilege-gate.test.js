@@ -10,9 +10,16 @@
  *      R2, but STILL forwards + logs metadata-only; non-privileged mail still
  *      hits AI + R2.
  *
- * No DB mock and no fake PII: fixtures use real ChittyOS-shaped addresses
- * (case alias arias-v-bianchi@chitty.cc; the canonical privileged firm domains
- * are passed via env, exactly as deploy will set PRIVILEGED_SENDER_DOMAINS).
+ * No DB mock and no personal PII. Address conventions:
+ *   - Operator entity mailboxes use synthetic *.test domains (no real mailbox PII).
+ *   - The canonical privileged FIRM domains (ksnlaw.com, bertonring.com,
+ *     vanguardadvocates.com) are retained: they are deploy-set reference values
+ *     already named in src/config/privilege-gate.js's docstring + studio-flows,
+ *     and the allowlist-parsing tests need the real shape. They are passed via
+ *     env exactly as deploy will set PRIVILEGED_SENDER_DOMAINS.
+ *   - The case docket alias arias-v-bianchi@chitty.cc is retained: it is a public
+ *     court identifier wired into src/config/case-registry.js (EMAIL_ALIAS_TO_CASE)
+ *     and is what makes the case-alias privilege signal fire.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -66,7 +73,7 @@ describe('privilege-gate: isPrivileged (fail-closed static detection)', () => {
   const env = { PRIVILEGED_SENDER_DOMAINS: PRIV_DOMAINS };
 
   it('privileged SENDER domain → privileged (display-name form)', () => {
-    expect(isPrivileged('Atty <atty@ksnlaw.com>', 'nick@aribia.llc', env)).toBe(true);
+    expect(isPrivileged('Atty <atty@ksnlaw.com>', 'nick@aribia.test', env)).toBe(true);
   });
 
   it('case-alias RECIPIENT → privileged (legal attribution, no registry needed)', () => {
@@ -74,18 +81,18 @@ describe('privilege-gate: isPrivileged (fail-closed static detection)', () => {
   });
 
   it('lane-3 / privileged_legal alias decision RECIPIENT → privileged (additive signal)', () => {
-    const decision = { address: 'legal@aribia.llc', metadataOnly: true };
-    expect(isPrivileged('someone@example.com', 'Legal <legal@aribia.llc>', env, decision)).toBe(true);
+    const decision = { address: 'legal@aribia.test', metadataOnly: true };
+    expect(isPrivileged('someone@example.com', 'Legal <legal@aribia.test>', env, decision)).toBe(true);
   });
 
   it('non-privileged sender + non-privileged recipient → NOT privileged', () => {
-    expect(isPrivileged('guest@example.com', 'mgmt@aribia.llc', env)).toBe(false);
+    expect(isPrivileged('guest@example.com', 'mgmt@aribia.test', env)).toBe(false);
   });
 
   it('NEON-INDEPENDENT: static sender-domain match fires with NO alias decision (registry down)', () => {
     // aliasDecision === null simulates the registry being unavailable. The
     // static sender-domain signal must still gate.
-    expect(isPrivileged('atty@bertonring.com', 'mgmt@aribia.llc', env, null)).toBe(true);
+    expect(isPrivileged('atty@bertonring.com', 'mgmt@aribia.test', env, null)).toBe(true);
   });
 
   it('FAIL-CLOSED: detection error is treated as privileged', () => {
@@ -98,7 +105,7 @@ describe('privilege-gate: isPrivileged (fail-closed static detection)', () => {
     Object.defineProperty(hostileEnv, 'PRIVILEGED_SENDER_DOMAINS', {
       get() { throw new Error('env access blew up'); },
     });
-    expect(isPrivileged('guest@example.com', 'mgmt@aribia.llc', hostileEnv)).toBe(true);
+    expect(isPrivileged('guest@example.com', 'mgmt@aribia.test', hostileEnv)).toBe(true);
     expect(isPrivileged(boom, 'x', { PRIVILEGED_SENDER_DOMAINS: PRIV_DOMAINS })).toBe(false);
   });
 });
@@ -181,7 +188,7 @@ describe('handleEmail: pre-triage privilege GATE (F-L10 end-to-end)', () => {
     const handler = new CloudflareEmailHandler(env);
     const message = makeRawMessage({
       from: 'Counsel <counsel@ksnlaw.com>',
-      to: 'nick@aribia.llc',
+      to: 'nick@aribia.test',
       subject: 'Re: settlement posture',
       body: 'CONFIDENTIAL attorney-client privileged body content here.',
     });
@@ -227,7 +234,7 @@ describe('handleEmail: pre-triage privilege GATE (F-L10 end-to-end)', () => {
     const handler = new CloudflareEmailHandler(env);
     const message = makeRawMessage({
       from: 'guest@example.com',
-      to: 'nick@aribia.llc',
+      to: 'nick@aribia.test',
       subject: 'Question about my booking',
       body: 'Hi, what time is checkout on Friday?',
     });
@@ -249,7 +256,7 @@ describe('handleEmail: pre-triage privilege GATE (F-L10 end-to-end)', () => {
     const handler = new CloudflareEmailHandler(env);
     const message = makeRawMessage({
       from: 'paralegal@vanguardadvocates.com',
-      to: 'nick@aribia.llc',
+      to: 'nick@aribia.test',
       subject: 'Filed motion copy',
       body: 'Privileged litigation body.',
     });

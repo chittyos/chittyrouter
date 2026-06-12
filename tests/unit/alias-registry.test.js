@@ -4,9 +4,12 @@
  * These lock in the fail-open + precedence + F-L10 invariants of the live,
  * CERTIFIED legal-mail path. Per the global no-mock-DB policy, the DB is NOT
  * mocked: alias-registry exposes a dependency-injection seam (`queryFn`) and
- * these tests feed it REAL-SHAPED fixture rows mirroring chittyops.alias_registry
- * (real ChittyOS addresses already present in the table), plus a throwing
- * queryFn to exercise the fail-open path.
+ * these tests feed it SYNTHETIC fixture rows that mirror the STRUCTURAL SHAPE of
+ * chittyops.alias_registry (lane/posture/disposition coverage, mgmt@ vs nick@
+ * vs legal@ patterns) but use NON-PERSONAL addresses on clearly-test domains
+ * (*.test). No real mailbox/owner PII is committed — the runtime feature keeps
+ * forwarding destinations out of source, and these fixtures honor that. A
+ * throwing queryFn exercises the fail-open path.
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -18,18 +21,20 @@ import {
   _clearAliasCache,
 } from '../../src/config/alias-registry.js';
 
-// Real rows pulled from chittyops.alias_registry (72-row table). No fake PII.
+// Synthetic rows mirroring the SHAPE of chittyops.alias_registry (72-row table):
+// the same lane/posture/disposition mix and mgmt@/legal@/nick@ patterns, but on
+// non-personal *.test domains. No real mailbox/owner PII in source.
 const FIXTURE_ROWS = [
   // lane 2 / consolidate / public_facing — the ONE behavior-changing disposition
-  { address: 'mgmt@aribia.llc', posture: 'public_facing', lane: 2, disposition: 'consolidate', owner_mailbox: 'nick@jeanarlene.com', entity: 'ARIBIA LLC', type: 'alias' },
+  { address: 'mgmt@aribia.test', posture: 'public_facing', lane: 2, disposition: 'consolidate', owner_mailbox: 'owner@example-jav.test', entity: 'ARIBIA LLC', type: 'alias' },
   // lane 3 / privileged_legal / keep — F-L10 metadata-only
-  { address: 'legal@aribia.llc', posture: 'privileged_legal', lane: 3, disposition: 'keep', owner_mailbox: 'legal@aribia.llc', entity: 'Legal', type: 'group' },
+  { address: 'legal@aribia.test', posture: 'privileged_legal', lane: 3, disposition: 'keep', owner_mailbox: 'legal@aribia.test', entity: 'Legal', type: 'group' },
   // lane 1 / retire — forward anyway, log retired
-  { address: 'aaron@aribia.llc', posture: 'personal', lane: 1, disposition: 'retire', owner_mailbox: 'aaron@chicagofurnishedcondos.com', entity: 'Furnished-Condos', type: 'alias' },
+  { address: 'aaron@aribia.test', posture: 'personal', lane: 1, disposition: 'retire', owner_mailbox: 'owner@apt-arlene.test', entity: 'Furnished-Condos', type: 'alias' },
   // lane 1 / keep — genuine no-op
-  { address: 'nick@nevershitty.com', posture: 'personal', lane: 1, disposition: 'keep', owner_mailbox: 'nick@nevershitty.com', entity: 'Personal-Nick', type: 'primary_user' },
+  { address: 'nick@example-jav.test', posture: 'personal', lane: 1, disposition: 'keep', owner_mailbox: 'nick@example-jav.test', entity: 'Personal-Nick', type: 'primary_user' },
   // lane 2 / verify — MUST be a no-op vs today
-  { address: 'addison@aribia.llc', posture: 'public_facing', lane: 2, disposition: 'verify', owner_mailbox: 'nick@jeanarlene.com', entity: 'ARIBIA LLC', type: 'alias' },
+  { address: 'addison@aribia.test', posture: 'public_facing', lane: 2, disposition: 'verify', owner_mailbox: 'owner@example-jav.test', entity: 'ARIBIA LLC', type: 'alias' },
 ];
 
 const ENABLED_ENV = { ALIAS_REGISTRY_ENABLED: 'true', HYPERDRIVE: { connectionString: 'unused-in-di' } };
@@ -53,7 +58,7 @@ describe('alias-registry: kill-switch', () => {
   });
 
   it('returns null decision when disabled, even for a known address', async () => {
-    const d = await resolveAliasDecision('mgmt@aribia.llc', { ALIAS_REGISTRY_ENABLED: 'false' }, fixtureQueryFn);
+    const d = await resolveAliasDecision('mgmt@aribia.test', { ALIAS_REGISTRY_ENABLED: 'false' }, fixtureQueryFn);
     expect(d).toBeNull();
   });
 
@@ -77,7 +82,7 @@ describe('alias-registry: lane → env mapping', () => {
 
 describe('alias-registry: routing semantics', () => {
   it("'consolidate' routes by lane via env NAME (no raw address)", async () => {
-    const d = await resolveAliasDecision('mgmt@aribia.llc', ENABLED_ENV, fixtureQueryFn);
+    const d = await resolveAliasDecision('mgmt@aribia.test', ENABLED_ENV, fixtureQueryFn);
     expect(d).not.toBeNull();
     expect(d.disposition).toBe('consolidate');
     expect(d.lane).toBe(2);
@@ -87,24 +92,24 @@ describe('alias-registry: routing semantics', () => {
   });
 
   it("'keep' is a genuine no-op (null decision)", async () => {
-    const d = await resolveAliasDecision('nick@nevershitty.com', ENABLED_ENV, fixtureQueryFn);
+    const d = await resolveAliasDecision('nick@example-jav.test', ENABLED_ENV, fixtureQueryFn);
     expect(d).toBeNull();
   });
 
   it("'verify' is a no-op vs today (null decision)", async () => {
-    const d = await resolveAliasDecision('addison@aribia.llc', ENABLED_ENV, fixtureQueryFn);
+    const d = await resolveAliasDecision('addison@aribia.test', ENABLED_ENV, fixtureQueryFn);
     expect(d).toBeNull();
   });
 
   it("'retire' still forwards (no override env) but flags retired", async () => {
-    const d = await resolveAliasDecision('aaron@aribia.llc', ENABLED_ENV, fixtureQueryFn);
+    const d = await resolveAliasDecision('aaron@aribia.test', ENABLED_ENV, fixtureQueryFn);
     expect(d).not.toBeNull();
     expect(d.retired).toBe(true);
     expect(d.forwardEnv).toBeNull(); // keep default forward — don't drop
   });
 
   it("posture 'privileged_legal' sets metadataOnly (F-L10) and keeps default forward", async () => {
-    const d = await resolveAliasDecision('legal@aribia.llc', ENABLED_ENV, fixtureQueryFn);
+    const d = await resolveAliasDecision('legal@aribia.test', ENABLED_ENV, fixtureQueryFn);
     expect(d).not.toBeNull();
     expect(d.metadataOnly).toBe(true);
     expect(d.posture).toBe('privileged_legal');
@@ -118,15 +123,15 @@ describe('alias-registry: routing semantics', () => {
   });
 
   it('is case-insensitive on the lookup key', async () => {
-    const d = await resolveAliasDecision('MGMT@Aribia.LLC', ENABLED_ENV, fixtureQueryFn);
+    const d = await resolveAliasDecision('MGMT@Aribia.TEST', ENABLED_ENV, fixtureQueryFn);
     expect(d).not.toBeNull();
-    expect(d.address).toBe('mgmt@aribia.llc');
+    expect(d.address).toBe('mgmt@aribia.test');
   });
 });
 
 describe('alias-registry: FAIL-OPEN', () => {
   it('returns null (never throws) on DB error', async () => {
-    const d = await resolveAliasDecision('mgmt@aribia.llc', ENABLED_ENV, throwingQueryFn);
+    const d = await resolveAliasDecision('mgmt@aribia.test', ENABLED_ENV, throwingQueryFn);
     expect(d).toBeNull();
   });
 
@@ -142,7 +147,7 @@ describe('alias-registry: FAIL-OPEN', () => {
     // ...then a failing fetch within TTL should still return cached data.
     // (TTL is 5min; within the same test the cache is fresh, so the failing
     // queryFn is never invoked — but if it were stale+failing it serves stale.)
-    const d = await resolveAliasDecision('mgmt@aribia.llc', ENABLED_ENV, throwingQueryFn);
+    const d = await resolveAliasDecision('mgmt@aribia.test', ENABLED_ENV, throwingQueryFn);
     expect(d).not.toBeNull();
     expect(d.forwardEnv).toBe('FORWARD_LANE2_OPS');
   });
@@ -151,12 +156,12 @@ describe('alias-registry: FAIL-OPEN', () => {
     const badQuery = async () => [
       { address: 'bad-lane@chitty.cc', posture: 'admin', lane: 9, disposition: 'keep' },
       { address: 'bad-disp@chitty.cc', posture: 'admin', lane: 2, disposition: 'nonsense' },
-      { address: 'ok@aribia.llc', posture: 'public_facing', lane: 2, disposition: 'consolidate', entity: 'X', type: 'alias' },
+      { address: 'ok@aribia.test', posture: 'public_facing', lane: 2, disposition: 'consolidate', entity: 'X', type: 'alias' },
     ];
     expect(await resolveAliasDecision('bad-lane@chitty.cc', ENABLED_ENV, badQuery)).toBeNull();
     _clearAliasCache();
     expect(await resolveAliasDecision('bad-disp@chitty.cc', ENABLED_ENV, badQuery)).toBeNull();
     _clearAliasCache();
-    expect(await resolveAliasDecision('ok@aribia.llc', ENABLED_ENV, badQuery)).not.toBeNull();
+    expect(await resolveAliasDecision('ok@aribia.test', ENABLED_ENV, badQuery)).not.toBeNull();
   });
 });
