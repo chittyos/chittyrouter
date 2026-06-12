@@ -6,6 +6,7 @@
 
 import { CASE_EMAIL_ROUTES } from '../config/case-registry.js';
 import { resolveAliasDecision } from '../config/alias-registry.js';
+import { isPrivileged } from '../config/privilege-gate.js';
 
 export class CloudflareEmailHandler {
   constructor(env) {
@@ -108,20 +109,49 @@ export class CloudflareEmailHandler {
       emailData.attachmentCount = attachments.length;
       emailData.attachmentNames = attachments.map(a => a.filename);
 
-      // AI triage
-      const triage = await this.triageEmail(emailData);
-
-      // Store attachments to R2 (always — don't lose data even if queue pending)
-      const stored = await this.storeAttachments(attachments, emailData, triage);
-      emailData.storedAttachments = stored;
-
       // Registry-backed routing overlay (additive). Resolved ONCE here —
-      // BEFORE logEmail/sendRoutingConfirmation — because the privileged_legal
-      // (F-L10) metadata-only flag must suppress subject/body logging, and in
-      // auto mode logEmail runs before routeEmail. Attaches `aliasDecision` to
-      // emailData for both logging and routing to consume. Fully fail-open:
-      // resolveAliasDecision never throws and returns null on any failure.
+      // now BEFORE triage/R2 as well as before logEmail/routeEmail — because
+      // (1) the privileged_legal (F-L10) metadata-only flag must suppress
+      // subject/body logging, and (2) the PRE-TRIAGE PRIVILEGE GATE below uses
+      // the resolved lane-3/privileged_legal signal as one input. Attaches
+      // `aliasDecision` to emailData for the gate, logging, and routing to
+      // consume. Fully fail-OPEN: resolveAliasDecision never throws and returns
+      // null on any failure (a DB blip must never drop/misroute mail).
       emailData.aliasDecision = await this.resolveAliasOverlay(emailData);
+
+      // ===== PRE-TRIAGE PRIVILEGE GATE (F-L10) — FAIL-CLOSED =====
+      // Decide privilege from RELIABLE STATIC signals (sender-domain allowlist +
+      // case-registry aliases) PLUS, additively, the already-resolved
+      // alias_registry posture. This is the deliberate inverse of #99's
+      // fail-OPEN routing: detection fails CLOSED (errors → treat as
+      // privileged) and does NOT depend on Neon being up. If privileged, the
+      // BODY and ATTACHMENTS must never reach the CF AI model or R2.
+      const privileged = isPrivileged(
+        emailData.from,
+        emailData.to,
+        this.env,
+        emailData.aliasDecision,
+      );
+      emailData.privileged = privileged;
+
+      let triage;
+      let stored;
+      if (privileged) {
+        // SKIP the AI model (no body to llama) and SKIP R2 attachment storage.
+        // Classify on subject + sender ONLY. Forward + metadata-only logging
+        // still proceed below exactly as for non-privileged mail.
+        triage = this.privilegedTriage(emailData);
+        stored = []; // privileged attachments are NOT written to R2
+        console.log(
+          `[privilege-gate] F-L10 ENGAGED for ${emailData.id} — AI skipped, ` +
+          `${attachments.length} attachment(s) NOT stored to R2, metadata-only logging.`,
+        );
+      } else {
+        // Non-privileged: unchanged behavior — full AI triage + R2 storage.
+        triage = await this.triageEmail(emailData);
+        stored = await this.storeAttachments(attachments, emailData, triage);
+      }
+      emailData.storedAttachments = stored;
 
       // Security disclosure path — dispatched BEFORE general routing so that
       // mail to security@chitty.cc (or triaged as a security_incident) is
@@ -498,6 +528,64 @@ Respond with ONLY the JSON object, no other text.`;
   }
 
   /**
+   * Metadata-only triage for PRIVILEGED-LEGAL mail (F-L10). Classifies using
+   * ONLY the subject + sender/recipient addresses — the body is NEVER read and
+   * is NEVER sent to the Cloudflare AI model. Mirrors how
+   * studio-flows/aribia-daily-inbox-triage.json classifies privileged mail on
+   * subject signals alone.
+   *
+   * Returns the same triage shape the rest of handleEmail consumes (so
+   * enqueue / sendRoutingConfirmation / the return value all keep working), but
+   * with category fixed to 'legal' and caseRelevant true — privileged-legal is
+   * by definition legal/case material. urgencyLevel is derived from subject
+   * urgency keywords + recipient-address priority only.
+   *
+   * @param {Object} emailData
+   * @returns {Object} triage
+   */
+  privilegedTriage(emailData) {
+    // Subject + addresses ONLY — explicitly NOT emailData.content.
+    const subject = String(emailData.subject || '');
+    const reasons = ['privileged_legal', 'metadata-only'];
+    let score = 50; // privileged-legal floors at MEDIUM; legal mail is never INFO
+
+    if (this.urgencyPatterns.court.test(subject)) { score += 30; reasons.push('court'); }
+    if (this.urgencyPatterns.urgent.test(subject)) { score += 20; reasons.push('urgent'); }
+    if (this.urgencyPatterns.legal.test(subject)) { score += 10; reasons.push('legal'); }
+
+    // Recipient-address priority (no body needed).
+    const addressRoute = Object.prototype.hasOwnProperty.call(this.addressRoutes, emailData.to)
+      ? this.addressRoutes[emailData.to]
+      : undefined;
+    if (addressRoute) {
+      if (addressRoute.priority === 'CRITICAL') score += 30;
+      else if (addressRoute.priority === 'HIGH') score += 20;
+      else if (addressRoute.priority === 'MEDIUM') score += 10;
+      if (addressRoute.case) reasons.push(`case:${addressRoute.case}`);
+    }
+
+    let urgencyLevel;
+    if (score >= 80) urgencyLevel = 'CRITICAL';
+    else if (score >= 60) urgencyLevel = 'HIGH';
+    else urgencyLevel = 'MEDIUM';
+
+    return {
+      urgencyLevel,
+      urgencyScore: score,
+      category: 'legal',
+      caseRelevant: true,
+      entity: null,
+      actionNeeded: score >= 60,
+      // NO summary — summaries would describe body content. Metadata-only.
+      summary: '',
+      reasons,
+      aiClassified: false,
+      privileged: true,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
    * Convert urgency string to numeric score
    */
   urgencyToScore(urgency) {
@@ -583,9 +671,15 @@ Respond with ONLY the JSON object, no other text.`;
    * Log email to KV for dashboard
    */
   async logEmail(emailData, triage) {
-    // F-L10 metadata-only: for privileged_legal recipients, do NOT persist
-    // subject or body. Forward still proceeds normally in routeEmail.
-    const metadataOnly = emailData?.aliasDecision?.metadataOnly === true;
+    // F-L10 metadata-only: for privileged_legal mail, do NOT persist subject or
+    // body. Forward still proceeds normally in routeEmail. The flag is the UNION
+    // of two signals: the STATIC pre-triage privilege gate (emailData.privileged,
+    // Neon-independent, fail-closed) and #99's registry-derived posture
+    // (aliasDecision.metadataOnly). Either one suppresses logging — otherwise a
+    // statically-privileged email with no alias_registry row would leak its
+    // subject/body into KV here.
+    const metadataOnly = emailData?.privileged === true
+      || emailData?.aliasDecision?.metadataOnly === true;
     const logEntry = {
       ...emailData,
       content: undefined, // Don't store full body in KV
@@ -679,8 +773,11 @@ Respond with ONLY the JSON object, no other text.`;
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             reporter: emailData.from,
-            subject: emailData.subject,
-            content: emailData.content,
+            // F-L10: privileged-legal mail must not have subject/body cross even
+            // to the internal SecurityAgent DO. Redact; the incident still fires
+            // (recipient + metadata reach the agent within the 48h SLA).
+            subject: emailData.privileged ? '[REDACTED — privileged_legal]' : emailData.subject,
+            content: emailData.privileged ? '' : emailData.content,
             message_id: emailData.id,
             recipient: emailData.to,
             triage_category: triage?.category,
@@ -781,9 +878,11 @@ Respond with ONLY the JSON object, no other text.`;
    * Send routing confirmation — so user knows what arrived and where it went
    */
   async sendRoutingConfirmation(emailData, triage, storedAttachments) {
-    // F-L10 metadata-only: privileged_legal recipients get a redacted receipt
+    // F-L10 metadata-only: privileged_legal mail gets a redacted receipt
     // (no subject/summary persisted or pushed to Notion). Routing is unaffected.
-    const metadataOnly = emailData?.aliasDecision?.metadataOnly === true;
+    // Union of the static pre-triage gate and #99's registry posture.
+    const metadataOnly = emailData?.privileged === true
+      || emailData?.aliasDecision?.metadataOnly === true;
     const safeSubject = metadataOnly ? '[REDACTED — privileged_legal]' : emailData.subject;
     const safeSummary = metadataOnly ? '' : triage.summary;
     const receipt = {
@@ -965,7 +1064,11 @@ Respond with ONLY the JSON object, no other text.`;
     // or AI summary persisted to the queue store. The queue item still records
     // routing metadata so the review UI shows the email arrived. enqueue runs
     // in BOTH auto and onboarding modes, so this is a required redaction sink.
-    const metadataOnly = emailData?.aliasDecision?.metadataOnly === true;
+    // CRITICAL: bodyPreview below is emailData.content.substring(0,500) — the
+    // BODY. Without the static-gate term, a statically-privileged email with no
+    // alias_registry row would write its body straight into KV here.
+    const metadataOnly = emailData?.privileged === true
+      || emailData?.aliasDecision?.metadataOnly === true;
     const safeSubject = metadataOnly ? '[REDACTED — privileged_legal]' : emailData.subject;
     const safeBodyPreview = metadataOnly ? '' : (emailData.content?.substring(0, 500) ?? '');
     const safeSummary = metadataOnly ? '' : triage.summary;
