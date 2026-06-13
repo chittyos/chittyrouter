@@ -81,6 +81,12 @@
     // isDisputeWorthy does exact set membership, so only triage-emitted names route.
     "DISPUTE_WORTHY_CATEGORIES": "lawsuit_communication,court_notice,emergency_legal",
     "ENABLE_ANALYTICS": "true"
+    // COMPTROLLER_HMAC_KEY is a SECRET (not a var) — set via:
+    //   wrangler secret put COMPTROLLER_HMAC_KEY
+    // It MUST equal the same secret on the chittycomptroller worker
+    // (chittyops/services/comptroller), which signs L2 DegradeSignals with it.
+    // Used by /admin/tier-degrade to verify X-Comptroller-Signature. Route via
+    // chico (ChittyConnect concierge) — never paste the value here.
   },
   // mcp.chitty.cc/* route removed — owned by chittyconnect (canonical MCP gateway).
   //
