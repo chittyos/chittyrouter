@@ -360,7 +360,7 @@ export const EMAIL_WORKER_CONFIG = {
 
   // AI model preferences
   models: {
-    primary: '@cf/meta/llama-3.1-8b-instruct',
+    primary: '@cf/meta/llama-3.1-8b-instruct-fast',
     fallback: '@cf/openai/gpt-3.5-turbo',
     vision: '@cf/microsoft/resnet-50',
     audio: '@cf/openai/whisper'

@@ -68,7 +68,7 @@ export async function documentAnalyzer(ai, attachment, emailContext) {
   `;
 
   try {
-    const response = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+    const response = await ai.run('@cf/meta/llama-3.1-8b-instruct-fast', {
       messages: [{ role: 'user', content: prompt }]
     });
 

@@ -24,7 +24,7 @@ export class ChittyOSVersionManager {
         secondary: '@cf/openai/gpt-oss-120b',
         vision: '@cf/meta/llama-3.2-11b-vision-instruct',
         audio: '@cf/openai/whisper',
-        reasoning: '@cf/google/gemma-3-12b-it'
+        reasoning: '@cf/google/gemma-4-26b-a4b-it'
       },
       features: {
         pdxSupport: true,
