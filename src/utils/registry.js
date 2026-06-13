@@ -14,8 +14,13 @@ export async function registerService(env, serviceInfo = {}) {
       service: 'chittyrouter',
       version: env.AI_GATEWAY_VERSION || '2.0.0-ai',
       type: 'AI_GATEWAY',
+      // Cost-control: ChittyComptroller's L2 monitor looks up this top-level
+      // field (fetchServiceFromRegistry) to POST a signed DegradeSignal that
+      // throttles ChittyRouter to a cheaper @cf/* model tier.
+      tier_degrade_endpoint: `${env.CHITTYROUTER_URL || 'https://router.chitty.cc'}/admin/tier-degrade`,
       endpoints: {
         main: env.CHITTYROUTER_URL || 'https://router.chitty.cc',
+        tierDegrade: `${env.CHITTYROUTER_URL || 'https://router.chitty.cc'}/admin/tier-degrade`,
         health: `${env.CHITTYROUTER_URL}/health`,
         api: `${env.CHITTYROUTER_URL}/api/v1`,
 
