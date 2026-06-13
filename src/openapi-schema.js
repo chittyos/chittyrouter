@@ -34,7 +34,7 @@ const openAPISchema = {
                   model: {
                     type: 'string',
                     description: 'Model to use',
-                    default: '@cf/meta/llama-3.1-8b-instruct',
+                    default: '@cf/meta/llama-3.1-8b-instruct-fast',
                   },
                   messages: {
                     type: 'array',
@@ -443,7 +443,7 @@ function generateSchemaHTML() {
   "messages": [
     {"role": "user", "content": "Hello!"}
   ],
-  "model": "@cf/meta/llama-3.1-8b-instruct",
+  "model": "@cf/meta/llama-3.1-8b-instruct-fast",
   "temperature": 0.7
 }</code></pre>
             </div>
@@ -472,7 +472,7 @@ curl -X POST https://ai.chitty.cc/v1/chat/completions \\
   -H "Content-Type: application/json" \\
   -d '{
     "messages": [{"role": "user", "content": "Hello from ChatGPT!"}],
-    "model": "@cf/meta/llama-3.1-8b-instruct"
+    "model": "@cf/meta/llama-3.1-8b-instruct-fast"
   }'</code></pre>
         </div>
 

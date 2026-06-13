@@ -457,14 +457,14 @@ export class HealthChecker {
   async checkAIService() {
     try {
       // Cloudflare AI is provided directly through env.AI binding
-      const response = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+      const response = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [{ role: 'user', content: 'Health check' }]
       });
 
       return {
         healthy: true,
         response_time: 'fast',
-        model: '@cf/meta/llama-3.1-8b-instruct'
+        model: '@cf/meta/llama-3.1-8b-instruct-fast'
       };
     } catch (error) {
       return {

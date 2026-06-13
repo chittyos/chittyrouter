@@ -112,7 +112,7 @@ export class ChittyRouterAIGateway {
     `;
 
     try {
-      const response = await this.ai.run('@cf/meta/llama-3.1-8b-instruct', {
+      const response = await this.ai.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [{ role: 'user', content: prompt }]
       });
 
@@ -249,13 +249,13 @@ export class ChittyRouterAIGateway {
    */
   async healthCheck() {
     try {
-      const testResponse = await this.ai.run('@cf/meta/llama-3.1-8b-instruct', {
+      const testResponse = await this.ai.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [{ role: 'user', content: 'Test message' }]
       });
 
       return {
         aiWorker: 'healthy',
-        model: '@cf/meta/llama-3.1-8b-instruct',
+        model: '@cf/meta/llama-3.1-8b-instruct-fast',
         timestamp: new Date().toISOString(),
         testResponse: testResponse.response?.substring(0, 100) || 'No response'
       };

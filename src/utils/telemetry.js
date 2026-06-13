@@ -431,10 +431,10 @@ export class ChittyTelemetry {
 
     // Rough cost estimates (adjust based on actual pricing)
     const costs = {
-      '@cf/meta/llama-3.1-8b-instruct': { input: 0.0001, output: 0.0002 }
+      '@cf/meta/llama-3.1-8b-instruct-fast': { input: 0.0001, output: 0.0002 }
     };
 
-    const modelCost = costs[model] || costs['@cf/meta/llama-3.1-8b-instruct'];
+    const modelCost = costs[model] || costs['@cf/meta/llama-3.1-8b-instruct-fast'];
     return (inputTokens * modelCost.input) + (outputTokens * modelCost.output);
   }
 
