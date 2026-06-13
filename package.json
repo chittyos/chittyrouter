@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@neondatabase/serverless": "^1.0.2",
+    "@neondatabase/serverless": "^1.1.0",
     "@notionhq/client": "^5.20.0",
     "@octokit/rest": "^22.0.1",
     "agents": "^0.8.7",
