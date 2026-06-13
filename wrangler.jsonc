@@ -80,7 +80,14 @@
     // Categories must match TriageAgent's CATEGORIES (src/agents/triage-agent.js).
     // isDisputeWorthy does exact set membership, so only triage-emitted names route.
     "DISPUTE_WORTHY_CATEGORIES": "lawsuit_communication,court_notice,emergency_legal",
-    "ENABLE_ANALYTICS": "true"
+    "ENABLE_ANALYTICS": "true",
+    // Privilege-gate allowlist (src/config/privilege-gate.js → privilegedSenderDomains).
+    // Non-secret. MUST live here in committed vars: `wrangler deploy` reconciles
+    // plain_text vars from this file, so an out-of-band runtime var would be
+    // dropped on the next deploy. Active only as a privilege gate; routing is
+    // unchanged. The alias_registry overlay stays dormant until the
+    // ALIAS_REGISTRY_ENABLED kill-switch is set (intentionally absent here).
+    "PRIVILEGED_SENDER_DOMAINS": "ksnlaw.com,bertonring.com,vanguardadvocates.com"
     // COMPTROLLER_HMAC_KEY is a SECRET (not a var) — set via:
     //   wrangler secret put COMPTROLLER_HMAC_KEY
     // It MUST equal the same secret on the chittycomptroller worker
@@ -116,6 +123,18 @@
         "evidence@chitty.cc",
         "calendar@chitty.cc"
       ]
+    }
+  ],
+  // Hyperdrive → neondb-chittyos-core (Neon project restless-grass-40598426 /
+  // neondb, main pooled host ep-green-water-ael1lksw-pooler...). Read by
+  // src/database.js (env.HYPERDRIVE) and src/config/alias-registry.js. Adding
+  // this binding fixes the pre-existing gap where env.HYPERDRIVE was read but
+  // never declared on the active config. Harmless while the alias_registry
+  // overlay kill-switch (ALIAS_REGISTRY_ENABLED) is unset.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "1d126444cff1416cb415447e6cc6d15a"
     }
   ],
   "kv_namespaces": [
