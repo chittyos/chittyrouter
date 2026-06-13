@@ -206,6 +206,9 @@ describe('handleEmail: pre-triage privilege GATE (F-L10 end-to-end)', () => {
     expect(dump).not.toContain('attorney-client privileged body');
     expect(dump).not.toContain('settlement posture');
     expect(dump).toContain('[REDACTED — privileged_legal]');
+    // attachment FILENAMES are privileged too — must not persist to any KV sink
+    expect(dump).not.toContain('exhibit.pdf');
+    expect(dump).toContain('names redacted');
   });
 
   it('privileged RECIPIENT (case alias) → NO AI call, NO R2 write, STILL forwarded', async () => {

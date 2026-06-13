@@ -174,6 +174,16 @@ export class CloudflareEmailHandler {
         // still proceed below exactly as for non-privileged mail.
         triage = this.privilegedTriage(emailData);
         stored = []; // privileged attachments are NOT written to R2
+        // F-L10: attachment FILENAMES are themselves privileged content
+        // (e.g. "settlement_strategy.pdf"). Scrub them at this single
+        // chokepoint — before logEmail/enqueue/receipt persistence — keeping
+        // only a redacted count placeholder so the review UI still shows that
+        // attachments arrived. (attachmentCount is a separate numeric field.)
+        if (emailData.attachmentNames?.length) {
+          emailData.attachmentNames = [
+            `[${emailData.attachmentNames.length} attachment(s) — names redacted]`,
+          ];
+        }
         console.log(
           `[privilege-gate] F-L10 ENGAGED for ${emailData.id} — AI skipped, ` +
           `${attachments.length} attachment(s) NOT stored to R2, metadata-only logging.`,
