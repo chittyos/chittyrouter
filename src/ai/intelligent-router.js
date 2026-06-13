@@ -474,13 +474,13 @@ export class ChittyRouterAI {
    */
   async healthCheck() {
     try {
-      const testResponse = await this.ai.run('@cf/meta/llama-3.1-8b-instruct', {
+      const testResponse = await this.ai.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [{ role: 'user', content: 'Test AI health' }]
       });
 
       return {
         status: 'healthy',
-        model: '@cf/meta/llama-3.1-8b-instruct',
+        model: '@cf/meta/llama-3.1-8b-instruct-fast',
         response_time: 'fast',
         timestamp: new Date().toISOString()
       };

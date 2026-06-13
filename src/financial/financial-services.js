@@ -485,7 +485,7 @@ export class ChittyFinancialServices {
    */
   calculateAICost(model, inputTokens, outputTokens) {
     const modelRates = {
-      '@cf/meta/llama-3.1-8b-instruct': {
+      '@cf/meta/llama-3.1-8b-instruct-fast': {
         input: 0.000002,
         output: 0.000004
       },

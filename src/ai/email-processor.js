@@ -344,7 +344,7 @@ export class EmailProcessor {
     `;
 
     try {
-      const response = await this.ai.run('@cf/meta/llama-3.1-8b-instruct', {
+      const response = await this.ai.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [{ role: 'user', content: prompt }]
       });
 

@@ -37,7 +37,7 @@ export async function intelligentTriage(ai, emailData) {
   `;
 
   try {
-    const response = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+    const response = await ai.run('@cf/meta/llama-3.1-8b-instruct-fast', {
       messages: [{ role: 'user', content: prompt }]
     });
 
@@ -50,7 +50,7 @@ export async function intelligentTriage(ai, emailData) {
       keywords: parsed.keywords || [],
       urgencyIndicators: parsed.urgency_indicators || [],
       reasoning: parsed.reasoning || 'AI classification',
-      aiModel: '@cf/meta/llama-3.1-8b-instruct',
+      aiModel: '@cf/meta/llama-3.1-8b-instruct-fast',
       timestamp: new Date().toISOString()
     };
 

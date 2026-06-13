@@ -279,7 +279,7 @@ export default {
             'POST /chittychat/* - ChittyChat integration',
           ],
           aiModels: [
-            '@cf/meta/llama-3.1-8b-instruct',
+            '@cf/meta/llama-3.1-8b-instruct-fast',
             '@cf/microsoft/resnet-50',
             '@cf/openai/whisper',
           ],

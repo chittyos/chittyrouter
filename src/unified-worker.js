@@ -963,11 +963,11 @@ class RouteMultiplexer {
 
   async checkAIHealth() {
     try {
-      await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+      await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [{ role: 'user', content: 'ping' }],
         max_tokens: 10,
       });
-      return { status: 'healthy', model: '@cf/meta/llama-3.1-8b-instruct' };
+      return { status: 'healthy', model: '@cf/meta/llama-3.1-8b-instruct-fast' };
     } catch (error) {
       return { status: 'unhealthy', error: error.message };
     }

@@ -218,7 +218,7 @@ export class PDXCore {
 
     if (dnaData.fineTuningData) {
       deltas.push({
-        baseModel: '@cf/meta/llama-3.1-8b-instruct',
+        baseModel: '@cf/meta/llama-3.1-8b-instruct-fast',
         deltaType: 'FINE_TUNE',
         deltaData: this.encryptModelWeights(dnaData.fineTuningData),
         performanceGains: {

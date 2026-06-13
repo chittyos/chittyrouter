@@ -456,7 +456,7 @@ CLASSIFY into exactly one JSON object:
 Respond with ONLY the JSON object, no other text.`;
 
     try {
-      const aiResult = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+      const aiResult = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 300,
         temperature: 0.1

@@ -68,7 +68,7 @@
     "AI_MODEL_SECONDARY": "@cf/openai/gpt-oss-120b",
     "AI_MODEL_VISION": "@cf/meta/llama-3.2-11b-vision-instruct",
     "AI_MODEL_AUDIO": "@cf/openai/whisper",
-    "AI_MODEL_REASONING": "@cf/google/gemma-3-12b-it",
+    "AI_MODEL_REASONING": "@cf/google/gemma-4-26b-a4b-it",
     "PROJECT_ID": "chittyrouter",
     "CHITTY_ORG": "ChittyOS",
     "SESSION_REPO": "chittychat-sessions",

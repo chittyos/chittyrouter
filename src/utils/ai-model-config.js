@@ -11,9 +11,9 @@ export class AIModelConfig {
       secondary: env.AI_MODEL_SECONDARY || '@cf/openai/gpt-oss-120b',
       vision: env.AI_MODEL_VISION || '@cf/meta/llama-3.2-11b-vision-instruct',
       audio: env.AI_MODEL_AUDIO || '@cf/openai/whisper',
-      reasoning: env.AI_MODEL_REASONING || '@cf/google/gemma-3-12b-it',
+      reasoning: env.AI_MODEL_REASONING || '@cf/google/gemma-4-26b-a4b-it',
       // Fallback for legacy code
-      legacy: '@cf/meta/llama-3.1-8b-instruct'
+      legacy: '@cf/meta/llama-3.1-8b-instruct-fast'
     };
   }
 
@@ -101,7 +101,7 @@ export class AIModelConfig {
         languages: 'multilingual',
         features: ['vision', 'document_analysis', 'image_understanding']
       },
-      '@cf/google/gemma-3-12b-it': {
+      '@cf/google/gemma-4-26b-a4b-it': {
         multimodal: true,
         contextWindow: 128000,
         reasoning: 'very_high',
@@ -122,10 +122,10 @@ export class AIModelConfig {
       '@cf/meta/llama-4-scout-17b-16e-instruct': { input: 0.0002, output: 0.0004 },
       '@cf/openai/gpt-oss-120b': { input: 0.0003, output: 0.0006 },
       '@cf/meta/llama-3.2-11b-vision-instruct': { input: 0.0002, output: 0.0004 },
-      '@cf/google/gemma-3-12b-it': { input: 0.0002, output: 0.0004 },
+      '@cf/google/gemma-4-26b-a4b-it': { input: 0.0002, output: 0.0004 },
       '@cf/openai/whisper': { input: 0.0001, output: 0.0001 },
       // Legacy fallback
-      '@cf/meta/llama-3.1-8b-instruct': { input: 0.0001, output: 0.0002 }
+      '@cf/meta/llama-3.1-8b-instruct-fast': { input: 0.0001, output: 0.0002 }
     };
 
     return costs[model] || costs[this.models.primary];
@@ -154,7 +154,7 @@ export class AIModelConfig {
    */
   getCostSortedModels() {
     const candidates = [
-      this.models.legacy,        // @cf/meta/llama-3.1-8b-instruct  (cheapest)
+      this.models.legacy,        // @cf/meta/llama-3.1-8b-instruct-fast  (cheapest)
       this.models.primary,       // scout 17b
       this.models.vision,        // llama-3.2-11b-vision
       this.models.reasoning,     // gemma-3-12b

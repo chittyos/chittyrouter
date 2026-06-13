@@ -196,7 +196,7 @@ export class MigrationTracker {
 
       const truncated = content.substring(0, 10000);
 
-      const response = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+      const response = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [{
           role: 'system',
           content: `You are a legal document analyzer. Extract structured facts from the document.

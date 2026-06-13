@@ -189,7 +189,7 @@ export class DocumentClassifier {
       // Truncate content for AI processing
       const truncated = content.substring(0, 8000);
 
-      const response = await this.ai.run('@cf/meta/llama-3.1-8b-instruct', {
+      const response = await this.ai.run('@cf/meta/llama-3.1-8b-instruct-fast', {
         messages: [{
           role: 'system',
           content: `You are a document classification assistant. Analyze the document and return JSON only.

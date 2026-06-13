@@ -47,7 +47,7 @@ export class AIService {
     this.ai = env.AI;
   }
 
-  async generateText(prompt, model = '@cf/meta/llama-2-7b-chat-int8') {
+  async generateText(prompt, model = '@cf/meta/llama-3.1-8b-instruct-fast') {
     if (!this.ai) return 'AI service not configured';
 
     const response = await this.ai.run(model, {

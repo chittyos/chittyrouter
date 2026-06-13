@@ -41,7 +41,7 @@ export async function autoResponder(ai, emailData, triageResult, priorityResult)
   `;
 
   try {
-    const response = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+    const response = await ai.run('@cf/meta/llama-3.1-8b-instruct-fast', {
       messages: [{ role: 'user', content: prompt }]
     });
 
@@ -54,7 +54,7 @@ export async function autoResponder(ai, emailData, triageResult, priorityResult)
       responseType: 'ai_generated',
       category: triageResult.category,
       priority: priorityResult.level,
-      aiModel: '@cf/meta/llama-3.1-8b-instruct',
+      aiModel: '@cf/meta/llama-3.1-8b-instruct-fast',
       timestamp: new Date().toISOString()
     };
 

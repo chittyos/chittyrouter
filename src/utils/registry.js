@@ -87,7 +87,7 @@ export async function registerService(env, serviceInfo = {}) {
         'real_time_coordination'
       ],
       aiModels: [
-        '@cf/meta/llama-3.1-8b-instruct',
+        '@cf/meta/llama-3.1-8b-instruct-fast',
         '@cf/microsoft/resnet-50',
         '@cf/openai/whisper'
       ],
@@ -136,7 +136,7 @@ export async function registerService(env, serviceInfo = {}) {
         }
       },
       metadata: {
-        aiModel: env.AI_MODEL_ENDPOINT || '@cf/meta/llama-3.1-8b-instruct',
+        aiModel: env.AI_MODEL_ENDPOINT || '@cf/meta/llama-3.1-8b-instruct-fast',
         environment: env.ENVIRONMENT || 'production',
         region: env.REGION || 'us-west',
         ...serviceInfo
@@ -324,7 +324,7 @@ export async function getServiceConfig(env, serviceName = 'chittyrouter') {
 
     // Return local config as fallback
     return {
-      aiModel: env.AI_MODEL_ENDPOINT || '@cf/meta/llama-3.1-8b-instruct',
+      aiModel: env.AI_MODEL_ENDPOINT || '@cf/meta/llama-3.1-8b-instruct-fast',
       environment: env.ENVIRONMENT || 'production',
       endpoints: {
         chittyos: env.CHITTYOS_ENDPOINT || 'https://chittyos.com',
