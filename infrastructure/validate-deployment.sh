@@ -7,8 +7,10 @@
 set -euo pipefail
 
 # 0) Setup
-: "${CF_API_TOKEN:?Error: CF_API_TOKEN not set. Use 'op run --env-file=.env.op -- $0'}"
-: "${CF_ACCOUNT_ID:?Error: CF_ACCOUNT_ID not set. Use 'op run --env-file=.env.op -- $0'}"
+CF_API_TOKEN="${CF_API_TOKEN:-${CLOUDFLARE_API_TOKEN:-}}"
+: "${CF_API_TOKEN:?Error: CF_API_TOKEN / CLOUDFLARE_API_TOKEN not set}"
+CF_ACCOUNT_ID="${CF_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}}"
+: "${CF_ACCOUNT_ID:?Error: CF_ACCOUNT_ID / CLOUDFLARE_ACCOUNT_ID not set}"
 
 API="https://api.cloudflare.com/client/v4"
 auth=(-H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json")

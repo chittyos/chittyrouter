@@ -114,7 +114,7 @@ class_name = "SyncStateDurableObject"
 EOF
 
 # Deploy Durable Objects
-wrangler deploy --config wrangler.do.toml --env "$ENVIRONMENT"
+cf deploy --config wrangler.do.toml -m "$ENVIRONMENT"
 
 # Clean up temporary file
 rm "$ROOT_DIR/wrangler.do.toml"
@@ -123,7 +123,7 @@ echo -e "${GREEN}✅ Durable Objects deployed${NC}"
 
 # Deploy main worker
 echo -e "${YELLOW}☁️  Deploying main worker...${NC}"
-wrangler deploy --env "$ENVIRONMENT"
+cf deploy -m "$ENVIRONMENT"
 
 echo -e "${GREEN}✅ Main worker deployed${NC}"
 
@@ -195,7 +195,7 @@ echo -e "${GREEN}✅ Analytics queries created${NC}"
 echo -e "${YELLOW}🏥 Running health checks...${NC}"
 
 # Get worker URL
-WORKER_URL=$(wrangler deployments list --env "$ENVIRONMENT" --format json | jq -r '.[0].url' 2>/dev/null || echo "")
+WORKER_URL=$(cf deployments list -m "$ENVIRONMENT" --format json | jq -r '.[0].url' 2>/dev/null || echo "")
 
 if [ -z "$WORKER_URL" ]; then
     echo -e "${YELLOW}⚠️  Could not determine worker URL. Skipping health checks.${NC}"

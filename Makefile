@@ -11,12 +11,12 @@ help:
 	@echo "make ci-guards   - Run ChittyID CI guards"
 	@echo "make clean       - Clean up old files"
 	@echo ""
-	@echo "Requires: 1Password CLI (op) installed and configured"
+	@echo "Requires: Cloudflare credentials in environment"
 
-# Validate infrastructure using 1Password
+# Validate infrastructure
 validate:
-	@echo "🔐 Validating infrastructure with 1Password..."
-	@op run --env-file=.env.op -- ./infrastructure/validate-deployment.sh
+	@echo "⚡ Validating infrastructure..."
+	@./infrastructure/validate-deployment.sh
 
 # Run tests
 test:
@@ -38,7 +38,7 @@ clean:
 	done
 	@echo "✅ Cleanup complete"
 
-# Quick validation (without 1Password, requires env vars)
+# Quick validation (requires env vars)
 validate-quick:
 	@if [ -z "$$CF_API_TOKEN" ] || [ -z "$$CF_ACCOUNT_ID" ]; then \
 		echo "❌ ERROR: Set CF_API_TOKEN and CF_ACCOUNT_ID first"; \
@@ -49,9 +49,9 @@ validate-quick:
 # Deploy workers (example)
 deploy-workers:
 	@echo "🚀 Deploying Workers..."
-	@op run --env-file=.env.op -- wrangler deploy --env production
+	@npx cf deploy -m production
 
 # Deploy pages (example)
 deploy-pages:
 	@echo "📄 Deploying Pages..."
-	@op run --env-file=.env.op -- wrangler pages deploy dist/
+	@npx cf deploy -m production

@@ -1,22 +1,18 @@
 #!/usr/bin/env bash
 
 # ChittyOS Infrastructure Runner
-# Wrapper script to run any command with 1Password environment
+# Wrapper script to run any command directly with environment variables
 
 set -euo pipefail
 
-# Check if op is available
-if ! command -v op &> /dev/null; then
-  echo "❌ ERROR: 1Password CLI (op) not installed"
-  echo "Install: brew install --cask 1password-cli"
-  exit 1
-fi
+export CF_API_TOKEN="${CF_API_TOKEN:-${CLOUDFLARE_API_TOKEN:-}}"
+export CF_ACCOUNT_ID="${CF_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}}"
 
 # Default to validate-deployment.sh if no args
 if [ $# -eq 0 ]; then
-  echo "🔐 Running infrastructure validation with 1Password..."
-  op run --env-file=../.env.op -- ./validate-deployment.sh
+  echo "⚡ Running infrastructure validation..."
+  ./validate-deployment.sh
 else
-  echo "🔐 Running command with 1Password environment..."
-  op run --env-file=../.env.op -- "$@"
+  echo "⚡ Running command..."
+  "$@"
 fi

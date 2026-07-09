@@ -90,7 +90,7 @@ echo ""
 echo "🚀 Deploying enhanced ChittyRouter worker..."
 
 echo "📦 Deploying to production..."
-if wrangler deploy --config wrangler.enhanced.toml --env production; then
+if cf deploy --config wrangler.enhanced.toml -m production; then
     print_status "Enhanced ChittyRouter deployed successfully"
 else
     print_error "Deployment failed"
@@ -103,7 +103,7 @@ echo "🔍 Verifying deployment..."
 
 # Check deployment status
 echo "Checking worker deployment..."
-wrangler deployments list --name chittyrouter-enhanced-prod | head -5
+cf deployments list --name chittyrouter-enhanced-prod | head -5
 
 print_status "Deployment verification completed"
 
