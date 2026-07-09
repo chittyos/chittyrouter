@@ -7,9 +7,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "start": "wrangler dev",
-    "deploy": "cf deploy",
-    "deploy:staging": "cf deploy -m staging",
-    "deploy:production": "cf deploy -m production",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy -m staging",
+    "deploy:production": "wrangler deploy -m production",
     "tail": "wrangler tail",
     "test": "vitest run",
     "test:watch": "vitest --watch",

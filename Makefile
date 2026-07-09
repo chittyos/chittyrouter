@@ -49,9 +49,9 @@ validate-quick:
 # Deploy workers (example)
 deploy-workers:
 	@echo "🚀 Deploying Workers..."
-	@npx cf deploy -m production
+	@npx wrangler deploy -m production
 
 # Deploy pages (example)
 deploy-pages:
 	@echo "📄 Deploying Pages..."
-	@npx cf deploy -m production
+	@npx wrangler deploy -m production
