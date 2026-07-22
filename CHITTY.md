@@ -6,7 +6,7 @@ version: 2.1.0
 status: CERTIFIED
 registered_with: chittycanon://core/services/canon
 title: "ChittyRouter Service Badge"
-certifier: chittycanon://core/services/chittycertify
+certifier: chittycanon://core/foundation/mychitty-vault
 visibility: PUBLIC
 ---
 
