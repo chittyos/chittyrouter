@@ -76,6 +76,9 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
     if (request.method === 'GET' && url.pathname.endsWith('/registered-email/status')) {
       return this.handleRegisteredStatus(url);
     }
+    if (request.method === 'GET' && url.pathname.endsWith('/registered-email/receipt')) {
+      return this.handleRegisteredReceipt(url);
+    }
     if (request.method === 'GET' && url.pathname.endsWith('/registered-email/accounts')) {
       return this.handleRegisteredAccounts();
     }
@@ -89,7 +92,7 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
     return this.jsonResponse({
       agent: 'NotificationAgent',
       status: 'active',
-      endpoints: ['/send', '/broadcast', '/preferences', '/history', '/registered-email/send', '/registered-email/status', '/registered-email/accounts', '/stats', '/status'],
+      endpoints: ['/send', '/broadcast', '/preferences', '/history', '/registered-email/send', '/registered-email/status', '/registered-email/receipt', '/registered-email/accounts', '/stats', '/status'],
     });
   }
 
@@ -233,11 +236,16 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
     const body = await request.json();
     const {
       to,
+      cc,
+      bcc,
       subject,
       bodyText,
       bodyHtml,
       from,
       accountId,
+      attachments,
+      features,
+      options,
       idempotencyKey,
       metadata,
       org,
@@ -253,10 +261,15 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
       const result = await provider.sendRegisteredEmail({
         accountId,
         to,
+        cc,
+        bcc,
         from,
         subject,
         bodyText,
         bodyHtml,
+        attachments,
+        features,
+        options,
         metadata,
         idempotencyKey,
       });
@@ -297,6 +310,27 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
       const provider = this.getRegisteredProvider();
       const result = await provider.getDeliveryStatus({ accountId, externalId });
       return this.jsonResponse(result);
+    } catch (err) {
+      return this.jsonResponse({ error: err.message }, 502);
+    }
+  }
+
+  async handleRegisteredReceipt(url) {
+    const externalId = url.searchParams.get('externalId');
+    const accountId = url.searchParams.get('accountId') || undefined;
+    if (!externalId) {
+      return this.jsonResponse({ error: 'externalId query param is required' }, 400);
+    }
+    try {
+      const provider = this.getRegisteredProvider();
+      const result = await provider.getRegisteredReceipt({ accountId, externalId });
+      return new Response(result.body, {
+        status: 200,
+        headers: {
+          'Content-Type': result.contentType,
+          'Content-Disposition': `attachment; filename="registered-receipt-${externalId}.zip"`,
+        },
+      });
     } catch (err) {
       return this.jsonResponse({ error: err.message }, 502);
     }
