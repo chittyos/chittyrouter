@@ -240,42 +240,39 @@ export class RPostRegisteredDeliveryProvider {
   /**
    * Upload inline attachments, returning RMail attachment ids.
    * String entries are assumed to be already-uploaded ids and pass through.
+   * The Upload endpoint returns a single id per request, so each file gets
+   * its own call.
    */
   async uploadAttachments(account, attachments) {
     const ids = [];
-    const pending = [];
     for (const att of attachments) {
       if (typeof att === 'string') {
         ids.push(att);
-      } else {
-        pending.push(att);
+        continue;
       }
-    }
-    if (pending.length === 0) return ids;
 
-    const form = new FormData();
-    for (const att of pending) {
+      const form = new FormData();
       const bytes = base64ToBytes(att.content);
       form.append(
         att.filename,
         new Blob([bytes], { type: att.contentType || 'application/octet-stream' }),
         att.filename,
       );
-    }
 
-    const res = await this.authorizedFetch(account, '/api/Upload', {
-      method: 'POST',
-      body: form,
-    });
-    const { text, parsed } = await parseResponse(res);
-    if (!res.ok) {
-      throw new Error(`RPost upload failed (${res.status}): ${text.slice(0, 400)}`);
-    }
+      const res = await this.authorizedFetch(account, '/api/Upload', {
+        method: 'POST',
+        body: form,
+      });
+      const { text, parsed } = await parseResponse(res);
+      if (!res.ok) {
+        throw new Error(`RPost upload failed (${res.status}) for ${att.filename}: ${text.slice(0, 400)}`);
+      }
 
-    // The API returns the id string (JSON-encoded), e.g. "c142e3c3"
-    const id = typeof parsed === 'string' ? parsed : text.replace(/^"|"$/g, '').trim();
-    if (!id) throw new Error('RPost upload returned no attachment id');
-    ids.push(id);
+      // The API returns the id string (JSON-encoded), e.g. "c142e3c3"
+      const id = typeof parsed === 'string' ? parsed : text.replace(/^"|"$/g, '').trim();
+      if (!id) throw new Error(`RPost upload returned no attachment id for ${att.filename}`);
+      ids.push(id);
+    }
     return ids;
   }
 

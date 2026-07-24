@@ -324,11 +324,12 @@ export class NotificationAgent extends ChittyRouterBaseAgent {
     try {
       const provider = this.getRegisteredProvider();
       const result = await provider.getRegisteredReceipt({ accountId, externalId });
+      const safeExternalId = externalId.replace(/[^A-Za-z0-9._-]/g, '_');
       return new Response(result.body, {
         status: 200,
         headers: {
           'Content-Type': result.contentType,
-          'Content-Disposition': `attachment; filename="registered-receipt-${externalId}.zip"`,
+          'Content-Disposition': `attachment; filename="registered-receipt-${safeExternalId}.zip"`,
         },
       });
     } catch (err) {

@@ -222,6 +222,36 @@ describe('RPostRegisteredDeliveryProvider', () => {
       expect(sendBody.Attachments).toEqual(['pre-uploaded-id', 'c142e3c3']);
     });
 
+    it('uploads each inline attachment in its own request, preserving order', async () => {
+      fetchMock
+        .mockResolvedValueOnce(tokenRes())
+        .mockResolvedValueOnce(jsonRes('id-first'))
+        .mockResolvedValueOnce(jsonRes('id-second'))
+        .mockResolvedValueOnce(sendRes());
+
+      const provider = new RPostRegisteredDeliveryProvider(env);
+      await provider.sendRegisteredEmail({
+        to: 'a@b.com',
+        subject: 'Two attachments',
+        bodyText: 'see attached',
+        attachments: [
+          { filename: 'exhibit-a.pdf', content: btoa('AAA'), contentType: 'application/pdf' },
+          { filename: 'exhibit-b.pdf', content: btoa('BBB'), contentType: 'application/pdf' },
+        ],
+      });
+
+      // token + 2 uploads + send
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+      const firstUpload = fetchMock.mock.calls[1][1].body;
+      const secondUpload = fetchMock.mock.calls[2][1].body;
+      expect(firstUpload.get('exhibit-a.pdf')).toBeTruthy();
+      expect(firstUpload.get('exhibit-b.pdf')).toBeNull();
+      expect(secondUpload.get('exhibit-b.pdf')).toBeTruthy();
+
+      const sendBody = JSON.parse(fetchMock.mock.calls[3][1].body);
+      expect(sendBody.Attachments).toEqual(['id-first', 'id-second']);
+    });
+
     it('rejects invalid payloads before any network call', async () => {
       const provider = new RPostRegisteredDeliveryProvider(env);
       await expect(provider.sendRegisteredEmail({ to: 'a@b.com', subject: 'no body' }))
