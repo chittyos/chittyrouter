@@ -87,7 +87,11 @@
     // dropped on the next deploy. Active only as a privilege gate; routing is
     // unchanged. The alias_registry overlay stays dormant until the
     // ALIAS_REGISTRY_ENABLED kill-switch is set (intentionally absent here).
-    "PRIVILEGED_SENDER_DOMAINS": "ksnlaw.com,bertonring.com,vanguardadvocates.com"
+    "PRIVILEGED_SENDER_DOMAINS": "ksnlaw.com,bertonring.com,vanguardadvocates.com",
+    // Lane-2 (property/mgmt) consolidation forward target. Non-secret. Read ONLY
+    // by the alias_registry overlay, dormant until ALIAS_REGISTRY_ENABLED — inert
+    // today. Committed so wrangler deploy does not drop it.
+    "FORWARD_LANE2_OPS": "ops@aribia.llc"
     // COMPTROLLER_HMAC_KEY is a SECRET (not a var) — set via:
     //   wrangler secret put COMPTROLLER_HMAC_KEY
     // It MUST equal the same secret on the chittycomptroller worker
