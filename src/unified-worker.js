@@ -651,12 +651,12 @@ class RouteMultiplexer {
     if (request.method !== 'POST') {
       return this.jsonResponse({ error: 'POST required' }, 405);
     }
-    return this.requireAuth(request);
+    return await this.requireAuth(request);
   }
 
   // GET /email/receipts — recent routing confirmations (auth required)
   async handleEmailReceipts(request) {
-    const authErr = this.requireAuth(request);
+    const authErr = await this.requireAuth(request);
     if (authErr) return authErr;
     try {
       const url = new URL(request.url);
@@ -683,7 +683,7 @@ class RouteMultiplexer {
 
   // GET /email/training — view current training corrections (auth required)
   async handleEmailTraining(request) {
-    const authErr = this.requireAuth(request);
+    const authErr = await this.requireAuth(request);
     if (authErr) return authErr;
     try {
       const examples = await this.services.email.handler.getTrainingExamples();
@@ -695,7 +695,7 @@ class RouteMultiplexer {
 
   // GET /email/queue?status=pending — view the review queue (auth required)
   async handleEmailQueue(request) {
-    const authErr = this.requireAuth(request);
+    const authErr = await this.requireAuth(request);
     if (authErr) return authErr;
     try {
       const url = new URL(request.url);
@@ -754,7 +754,7 @@ class RouteMultiplexer {
     try {
       const handler = this.services.email.handler;
       if (request.method === 'POST') {
-        const authErr = this.requireAuth(request);
+        const authErr = await this.requireAuth(request);
         if (authErr) return authErr;
         const { mode } = await request.json();
         if (!['onboarding', 'auto'].includes(mode)) {
@@ -810,7 +810,7 @@ class RouteMultiplexer {
   }
 
   async handleRegisteredEmailStatus(request) {
-    const authErr = this.requireAuth(request);
+    const authErr = await this.requireAuth(request);
     if (authErr) return authErr;
     try {
       const url = new URL(request.url);
@@ -829,7 +829,7 @@ class RouteMultiplexer {
   }
 
   async handleRegisteredEmailAccounts(request) {
-    const authErr = this.requireAuth(request);
+    const authErr = await this.requireAuth(request);
     if (authErr) return authErr;
     try {
       const resp = await this.callNotificationAgent('GET', '/registered-email/accounts');
@@ -1035,16 +1035,10 @@ class RouteMultiplexer {
   /**
    * Verify service token for protected endpoints
    */
-  requireAuth(request) {
-    const auth = request.headers.get('Authorization');
-    if (!auth || !auth.startsWith('Bearer ')) {
-      return this.jsonResponse({ error: 'Authorization required' }, 401);
-    }
-    const token = auth.slice('Bearer '.length).trim();
-    const expected = this.env.CHITTY_AUTH_SERVICE_TOKEN;
-    if (!token || !expected || !constantTimeEqual(token, expected)) {
-      return this.jsonResponse({ error: 'Invalid token' }, 403);
-    }
+  async requireAuth(request) {
+    if (!this.env.CHITTYAUTH) return this.jsonResponse({ error: 'CHITTYAUTH binding missing' }, 500);
+    const auth = await this.env.CHITTYAUTH.validate(request);
+    if (!auth.ok) return auth.errorResponse();
     return null; // auth passed
   }
 
