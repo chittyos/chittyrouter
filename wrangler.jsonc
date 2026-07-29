@@ -174,6 +174,10 @@
       "*/15 * * * *"
     ]
   },
+  "services": [
+    // Auth sidecar — ADR-000 Decision 2
+    { "binding": "CHITTYAUTH", "service": "chittyauth", "entrypoint": "ChittyAuthService" }
+  ],
   "placement": {
     "mode": "smart"
   },
