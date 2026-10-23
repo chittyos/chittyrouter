@@ -647,7 +647,7 @@ class RouteMultiplexer {
    * Guard helper: returns an error Response if method is not POST or auth fails,
    * otherwise returns null (proceed).
    */
-  requirePostWithAuth(request) {
+  async requirePostWithAuth(request) {
     if (request.method !== 'POST') {
       return this.jsonResponse({ error: 'POST required' }, 405);
     }
@@ -670,7 +670,7 @@ class RouteMultiplexer {
 
   // POST /email/correct — submit a routing correction for AI training
   async handleEmailCorrection(request) {
-    const guard = this.requirePostWithAuth(request);
+    const guard = await this.requirePostWithAuth(request);
     if (guard) return guard;
     try {
       const body = await request.json();
@@ -712,7 +712,7 @@ class RouteMultiplexer {
 
   // POST /email/queue/approve — approve a single queue item (AI was right)
   async handleEmailQueueApprove(request) {
-    const guard = this.requirePostWithAuth(request);
+    const guard = await this.requirePostWithAuth(request);
     if (guard) return guard;
     try {
       const { id } = await request.json();
@@ -725,7 +725,7 @@ class RouteMultiplexer {
 
   // POST /email/queue/approve-all — bulk approve all pending
   async handleEmailQueueApproveAll(request) {
-    const guard = this.requirePostWithAuth(request);
+    const guard = await this.requirePostWithAuth(request);
     if (guard) return guard;
     try {
       const result = await this.services.email.handler.approveAll();
@@ -737,7 +737,7 @@ class RouteMultiplexer {
 
   // POST /email/queue/correct — correct a queue item (AI was wrong)
   async handleEmailQueueCorrect(request) {
-    const guard = this.requirePostWithAuth(request);
+    const guard = await this.requirePostWithAuth(request);
     if (guard) return guard;
     try {
       const body = await request.json();
@@ -794,7 +794,7 @@ class RouteMultiplexer {
   }
 
   async handleRegisteredEmailSend(request) {
-    const guard = this.requirePostWithAuth(request);
+    const guard = await this.requirePostWithAuth(request);
     if (guard) return guard;
     try {
       const body = await request.json();

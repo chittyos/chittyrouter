@@ -13,12 +13,9 @@
  *   - privileged_legal metadataOnly redacts subject/summary in log + receipt
  *   - fail-open: unset override env falls back to default forward
  *
- * NOTE: DEFAULT_FORWARD below is intentionally a non-.test address — it is
- * PINNED to the handler's hardcoded source default (src/email/
- * cloudflare-email-handler.js: `message.forward('nick@aribia.llc')`). It is NOT
- * fixture PII we control; changing it here would diverge the assertion from the
- * real routing behavior under test. (Scrubbing that source default is a
- * separate, repo-wide follow-up — see PR #99 thread replies.)
+ * NOTE: the default forward is no longer a source literal — it is resolved
+ * from env.FORWARD_DEFAULT (CFDXN-197 Tier 1). makeEnv() below supplies a
+ * synthetic .test value and DEFAULT_FORWARD pins the assertions to it.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -46,6 +43,7 @@ function makeEnv(overrides = {}) {
       },
       async put(k, v) { this._store.set(k, v); },
     },
+    FORWARD_DEFAULT: 'default@aribia.test',
     ...overrides,
   };
 }
@@ -58,7 +56,7 @@ function makeMessage() {
   };
 }
 
-const DEFAULT_FORWARD = 'nick@aribia.llc';
+const DEFAULT_FORWARD = 'default@aribia.test';
 
 describe('routeEmail: case-registry precedence (overlay never overrides)', () => {
   it('a known non-case address is skipped even with the overlay ENABLED and a matching fixture row', async () => {
