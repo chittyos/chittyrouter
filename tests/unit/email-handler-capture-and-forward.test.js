@@ -266,9 +266,35 @@ describe('default forward is env-resolved and never silent', () => {
     // Authoritative per-message marker: time-prefixed, discoverable by prefix list.
     const markerKeys = [...env.AI_CACHE._store.keys()].filter(k => k.startsWith('email_unforwarded_') && k !== 'email_unforwarded_index');
     expect(markerKeys).toHaveLength(1);
-    expect(markerKeys[0]).toMatch(/^email_unforwarded_\d{4}-\d{2}-\d{2}T[^_]+_<m2@test>$/);
+    expect(markerKeys[0]).toMatch(/^email_unforwarded_\d{4}-\d{2}-\d{2}T[^_]+_m2@test-[0-9a-f]{8}$/);
     const single = await env.AI_CACHE.get(markerKeys[0], 'json');
     expect(single.reason).toBe('no_route_match:no_default');
+    expect(single.id).toBe('<m2@test>'); // full ID retained in the value
+  });
+
+  it('marker keys stay under the 512-byte KV limit for an oversized Message-ID, and distinct long IDs do not collide', async () => {
+    const env = makeEnv({ FORWARD_DEFAULT: '' });
+    const handler = new CloudflareEmailHandler(env);
+    const prefix = 'x'.repeat(900);
+    await handler.recordUnforwarded({ id: `<${prefix}-one@long.test>`, from: 'a@b.test', to: 'c@d.test', subject: 's' }, 'test');
+    await handler.recordUnforwarded({ id: `<${prefix}-two@long.test>`, from: 'a@b.test', to: 'c@d.test', subject: 's' }, 'test');
+    const markerKeys = [...env.AI_CACHE._store.keys()].filter(k => k.startsWith('email_unforwarded_') && k !== 'email_unforwarded_index');
+    expect(markerKeys).toHaveLength(2);
+    for (const k of markerKeys) expect(new TextEncoder().encode(k).byteLength).toBeLessThan(512);
+    const ids = await Promise.all(markerKeys.map(async k => (await env.AI_CACHE.get(k, 'json')).id));
+    expect(new Set(ids).size).toBe(2);
+    expect(ids.every(i => i.length > 900)).toBe(true);
+  });
+
+  it('a failing marker write does not prevent the index write (and vice versa)', async () => {
+    const env = makeEnv({ FORWARD_DEFAULT: '' });
+    const realPut = env.AI_CACHE.put.bind(env.AI_CACHE);
+    env.AI_CACHE.put = async (k, v) => { if (k !== 'email_unforwarded_index') throw new Error('kv down'); return realPut(k, v); };
+    const handler = new CloudflareEmailHandler(env);
+    await handler.recordUnforwarded({ id: '<m5@test>', from: 'a@b.test', to: 'c@d.test', subject: 's' }, 'test');
+    const index = await env.AI_CACHE.get('email_unforwarded_index', 'json');
+    expect(index).toHaveLength(1);
+    expect(index[0].id).toBe('<m5@test>');
   });
 
   it('routeEmail returns true for a direct route and for an alias-overlay forward', async () => {

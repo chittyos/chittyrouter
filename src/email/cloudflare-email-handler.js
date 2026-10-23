@@ -1143,26 +1143,51 @@ Respond with ONLY the JSON object, no other text.`;
    * entries under concurrent failures or KV's 1 write/sec/key limit.
    */
   async recordUnforwarded(emailData, reason) {
+    const id = emailData?.id || `cf-${Date.now()}`;
+    const metadataOnly = emailData?.privileged === true || emailData?.aliasDecision?.metadataOnly === true;
+    const recordedAt = new Date().toISOString();
+    const entry = {
+      id, // full Message-ID lives in the VALUE; the key carries a bounded form
+      from: emailData?.from ?? '',
+      to: emailData?.to ?? '',
+      subject: metadataOnly ? '[REDACTED — privileged_legal]' : String(emailData?.subject ?? '').substring(0, 200),
+      rawKey: emailData?.rawArchive?.key ?? null,
+      reason,
+      recordedAt,
+    };
+    // Authoritative per-message marker. Its key must stay under Workers KV's
+    // 512-byte limit whatever the Message-ID length, so the ID is bounded to
+    // 80 sanitized chars plus an 8-hex content hash (uniqueness survives the
+    // truncation). Written in its own try so a failure here never prevents
+    // the index write below, and vice versa.
     try {
-      const id = emailData?.id || `cf-${Date.now()}`;
-      const metadataOnly = emailData?.privileged === true || emailData?.aliasDecision?.metadataOnly === true;
-      const recordedAt = new Date().toISOString();
-      const entry = {
-        id,
-        from: emailData?.from ?? '',
-        to: emailData?.to ?? '',
-        subject: metadataOnly ? '[REDACTED — privileged_legal]' : String(emailData?.subject ?? '').substring(0, 200),
-        rawKey: emailData?.rawArchive?.key ?? null,
-        reason,
-        recordedAt,
-      };
-      await this.env.AI_CACHE?.put(`email_unforwarded_${recordedAt}_${id}`, JSON.stringify(entry), { expirationTtl: 86400 * 90 });
+      const key = `email_unforwarded_${recordedAt}_${await this.boundedKeyPart(id)}`;
+      await this.env.AI_CACHE?.put(key, JSON.stringify(entry), { expirationTtl: 86400 * 90 });
+    } catch (err) {
+      console.error('[default-forward] failed to write unforwarded marker:', err?.message ?? err);
+    }
+    // Best-effort convenience index (KV read-modify-write; may lose entries
+    // under concurrency — the per-message markers above are the record).
+    try {
       const index = await this.env.AI_CACHE?.get('email_unforwarded_index', 'json') || [];
       index.unshift(entry);
       await this.env.AI_CACHE?.put('email_unforwarded_index', JSON.stringify(index.slice(0, 500)), { expirationTtl: 86400 * 90 });
     } catch (err) {
-      console.error('[default-forward] failed to record unforwarded marker:', err?.message ?? err);
+      console.error('[default-forward] failed to update unforwarded index:', err?.message ?? err);
     }
+  }
+
+  /**
+   * Bound an arbitrary identifier for use inside a KV key: up to 80 chars of
+   * the ID restricted to [A-Za-z0-9@._-], plus '-' and the first 8 hex of its
+   * SHA-256 so two IDs that share the kept prefix still get distinct keys.
+   */
+  async boundedKeyPart(id) {
+    const s = String(id ?? '');
+    const safe = s.replace(/[^A-Za-z0-9@._-]/g, '').slice(0, 80) || 'noid';
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    const hash = Array.from(new Uint8Array(digest)).slice(0, 4).map(b => b.toString(16).padStart(2, '0')).join('');
+    return `${safe}-${hash}`;
   }
 
   // pushUrgentToNotion removed — replaced by sendRoutingConfirmation which covers all emails
