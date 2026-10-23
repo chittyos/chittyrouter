@@ -127,6 +127,25 @@ describe('handleEmail: raw capture before classification', () => {
 
     // No route for this recipient → env-resolved default, never a literal.
     expect(message.forwards).toEqual(['default@aribia.test']);
+    expect(result.forwarded).toBe(true);
+    const receipts = await env.AI_CACHE.get('email_receipts_recent', 'json');
+    expect(receipts[0].forwarded).toBe(true);
+  });
+
+  it('two different messages whose Message-IDs share a suffix get DIFFERENT raw keys (no overwrite)', async () => {
+    // Tyler eFileIL IDs end in the same domain, so a slug-only key collided:
+    // `<abc@efilingmail.tylertech.cloud>` vs `<xyz@efilingmail.tylertech.cloud>`.
+    const r2 = makeR2();
+    const handler = new CloudflareEmailHandler(makeEnv({ DOCUMENT_STORAGE: r2 }));
+    const a = await handler.archiveRawMessage(new TextEncoder().encode('notice one'), { id: '<abc123@efilingmail.tylertech.cloud>' });
+    const b = await handler.archiveRawMessage(new TextEncoder().encode('notice two'), { id: '<xyz999@efilingmail.tylertech.cloud>' });
+    expect(a.key).not.toBe(b.key);
+    expect(r2._objects.size).toBe(2);
+    expect(a.key).toMatch(/^raw\/\d{4}-\d{2}-\d{2}\/[0-9a-f]{16}-[A-Za-z0-9]+\.eml$/);
+    // Byte-identical re-delivery maps to the same key (dedupe by content).
+    const a2 = await handler.archiveRawMessage(new TextEncoder().encode('notice one'), { id: '<abc123@efilingmail.tylertech.cloud>' });
+    expect(a2.key).toBe(a.key);
+    expect(r2._objects.size).toBe(2);
   });
 
   it('does NOT write privileged mail to R2 (F-L10) but still forwards it', async () => {
@@ -167,9 +186,40 @@ describe('court-sender urgency floor', () => {
     expect(result.urgencyLevel).toBe('CRITICAL');
     const stored = await env.AI_CACHE.get(`email_queue_${result.queueId}`, 'json');
     expect(stored.aiClassification.urgency).toBe('CRITICAL');
+    // Subject carries the REGISTERED case number 2024D007847 → attributed.
     expect(stored.aiClassification.caseRelevant).toBe(true);
-    expect(stored.aiClassification.category).toBe('legal');
+    expect(stored.aiClassification.category).toBe('case');
     expect(stored.aiClassification.reasons).toContain('court_sender_floor');
+    expect(stored.aiClassification.reasons).toContain('case:arias-v-bianchi');
+  });
+
+  it('a court-domain notice for an UNREGISTERED matter is CRITICAL but NOT attributed to any case', () => {
+    // The clerk / e-filing system serve many matters; sender domain alone is
+    // not attribution. Without a registered alias recipient or a registered
+    // case number in the subject, caseRelevant/category stay as triaged.
+    const handler = new CloudflareEmailHandler(makeEnv());
+    const triaged = { urgencyLevel: 'INFO', urgencyScore: 5, category: 'ops', reasons: ['x'], caseRelevant: false };
+    const out = handler.applyCourtSenderFloor(
+      { from: COURT_FROM, to: '20261701274@chitty.test', subject: 'Courtesy Copy of Service for Case: 20261701274 COMMODORE GREEN BRIER LANDMARK CONDO' },
+      triaged,
+    );
+    expect(out.urgencyLevel).toBe('CRITICAL');
+    expect(out.actionNeeded).toBe(true);
+    expect(out.caseRelevant).toBe(false);
+    expect(out.category).toBe('ops');
+    expect(out.reasons).toEqual(['x', 'court_sender_floor']);
+  });
+
+  it('attributes by registered alias recipient, and by case number in the subject regardless of spacing', () => {
+    const handler = new CloudflareEmailHandler(makeEnv());
+    const triaged = { urgencyLevel: 'LOW', urgencyScore: 10, category: 'ops', reasons: [], caseRelevant: false };
+    const byAlias = handler.applyCourtSenderFloor({ from: COURT_FROM, to: 'Arias-v-Bianchi@chitty.cc', subject: 'Notice' }, triaged);
+    expect(byAlias.caseRelevant).toBe(true);
+    expect(byAlias.category).toBe('case');
+    const bySpacedNumber = handler.applyCourtSenderFloor({ from: COURT_FROM, to: 'x@chitty.test', subject: 'Case No. 2024 D 007847 — order entered' }, triaged);
+    expect(bySpacedNumber.caseRelevant).toBe(true);
+    expect(bySpacedNumber.reasons).toContain('case:arias-v-bianchi');
+    expect(handler.matchRegisteredCase({ to: 'x@chitty.test', subject: 'nothing here' })).toBeNull();
   });
 
   it('applies to the clerk domain (suffix match) and to env-extended domains; leaves other senders untouched', () => {
@@ -185,10 +235,10 @@ describe('court-sender urgency floor', () => {
 
   it('keeps an existing case category and never lowers an already-CRITICAL score', () => {
     const handler = new CloudflareEmailHandler(makeEnv());
-    const out = handler.applyCourtSenderFloor({ from: COURT_FROM }, { urgencyLevel: 'CRITICAL', urgencyScore: 95, category: 'case', reasons: ['court'] });
+    const out = handler.applyCourtSenderFloor({ from: COURT_FROM, subject: COURT_SUBJECT }, { urgencyLevel: 'CRITICAL', urgencyScore: 95, category: 'case', reasons: ['court'], caseRelevant: true });
     expect(out.category).toBe('case');
     expect(out.urgencyScore).toBe(95);
-    expect(out.reasons).toEqual(['court', 'court_sender_floor']);
+    expect(out.reasons).toEqual(['court', 'court_sender_floor', 'case:arias-v-bianchi']);
   });
 });
 
@@ -206,14 +256,50 @@ describe('default forward is env-resolved and never silent', () => {
     const message = makeMessage({ from: 'a@b.test', to: 'unknown@chitty.test', subject: 'Important' });
     const emailData = { id: '<m2@test>', from: 'a@b.test', to: 'unknown@chitty.test', subject: 'Important', aliasDecision: null, rawArchive: { key: 'raw/2026-10-22/m2test.eml' } };
 
-    await handler.routeEmail(message, emailData, {});
+    const forwarded = await handler.routeEmail(message, emailData, {});
 
+    expect(forwarded).toBe(false);
     expect(message.forwards).toEqual([]);
     const index = await env.AI_CACHE.get('email_unforwarded_index', 'json');
     expect(index).toHaveLength(1);
     expect(index[0]).toMatchObject({ id: '<m2@test>', reason: 'no_route_match:no_default', rawKey: 'raw/2026-10-22/m2test.eml', subject: 'Important' });
-    const single = await env.AI_CACHE.get('email_unforwarded_<m2@test>', 'json');
+    // Authoritative per-message marker: time-prefixed, discoverable by prefix list.
+    const markerKeys = [...env.AI_CACHE._store.keys()].filter(k => k.startsWith('email_unforwarded_') && k !== 'email_unforwarded_index');
+    expect(markerKeys).toHaveLength(1);
+    expect(markerKeys[0]).toMatch(/^email_unforwarded_\d{4}-\d{2}-\d{2}T[^_]+_<m2@test>$/);
+    const single = await env.AI_CACHE.get(markerKeys[0], 'json');
     expect(single.reason).toBe('no_route_match:no_default');
+  });
+
+  it('routeEmail returns true for a direct route and for an alias-overlay forward', async () => {
+    const handler = new CloudflareEmailHandler(makeEnv({ FORWARD_LANE2_OPS: 'ops@aribia.test' }));
+    const direct = makeMessage({ from: 'a@b.test', to: 'legal@chitty.cc', subject: 's' });
+    expect(await handler.routeEmail(direct, { to: 'legal@chitty.cc', aliasDecision: null }, {})).toBe(true);
+    const overlay = makeMessage({ from: 'a@b.test', to: 'mgmt@aribia.test', subject: 's' });
+    expect(await handler.routeEmail(overlay, {
+      to: 'mgmt@aribia.test',
+      aliasDecision: { address: 'mgmt@aribia.test', lane: 2, posture: 'public_facing', disposition: 'consolidate', entity: 'ARIBIA LLC', metadataOnly: false, retired: false, forwardEnv: 'FORWARD_LANE2_OPS' },
+    }, {})).toBe(true);
+    expect(overlay.forwards).toEqual(['ops@aribia.test']);
+  });
+
+  it('handleEmail reports forwarded:false and a non-delivered receipt when the default forward is unavailable', async () => {
+    const sequence = [];
+    const env = makeEnv({ FORWARD_DEFAULT: '', DOCUMENT_STORAGE: makeR2(sequence), AI: makeAi(sequence, INFO_CLASSIFICATION) });
+    const handler = new CloudflareEmailHandler(env);
+    const message = makeMessage({ from: 'a@b.test', to: 'unknown@chitty.test', subject: 'Held' });
+
+    const result = await handler.handleEmail(message, env, {});
+
+    expect(result.success).toBe(true);        // handler completed: archived + marked
+    expect(result.forwarded).toBe(false);     // but NOT delivered
+    expect(result.rawKey).toMatch(/^raw\//);
+    expect(message.forwards).toEqual([]);
+    const receipts = await env.AI_CACHE.get('email_receipts_recent', 'json');
+    expect(receipts[0].forwarded).toBe(false);
+    expect(receipts[0].rawKey).toBe(result.rawKey);
+    const index = await env.AI_CACHE.get('email_unforwarded_index', 'json');
+    expect(index[0].rawKey).toBe(result.rawKey);
   });
 
   it('when Email Routing rejects the forward (unverified destination): swallowed, marker records forward_failed', async () => {

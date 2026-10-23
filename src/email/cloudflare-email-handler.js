@@ -4,9 +4,9 @@
  * AI triages, extracts attachments to R2, logs, and forwards
  */
 
-import { CASE_EMAIL_ROUTES } from '../config/case-registry.js';
+import { CASE_EMAIL_ROUTES, CASE_BY_NUMBER, EMAIL_ALIAS_TO_CASE } from '../config/case-registry.js';
 import { resolveAliasDecision } from '../config/alias-registry.js';
-import { isPrivileged, extractAddress } from '../config/privilege-gate.js';
+import { isPrivileged, extractAddress, extractAddresses } from '../config/privilege-gate.js';
 
 /**
  * Normalize a recipient address for route/registry/privilege LOOKUPS only.
@@ -219,23 +219,30 @@ export class CloudflareEmailHandler {
       // Queue the email with AI's proposed classification
       const queueItem = await this.enqueue(emailData, triage, stored);
 
+      // routeEmail returns true iff a forward was issued and accepted; false
+      // means the message is held only in the raw archive (non-privileged)
+      // and the unforwarded marker. That outcome is carried into the receipt
+      // and the handler result so an undelivered message is never reported
+      // as delivered. No retry of the same destination.
+      let forwarded;
       if (mode === 'auto') {
         // Auto mode: AI is trusted, process immediately
         await this.logEmail(emailData, triage);
-        await this.routeEmail(message, emailData, triage);
-        await this.sendRoutingConfirmation(emailData, triage, stored);
+        forwarded = await this.routeEmail(message, emailData, triage);
+        await this.sendRoutingConfirmation(emailData, triage, stored, { forwarded });
         await this.updateQueueItem(queueItem.id, 'auto_approved');
       } else {
         // Onboarding/training mode: queue for review, still forward email
-        await this.routeEmail(message, emailData, triage);
-        await this.sendRoutingConfirmation(emailData, triage, stored);
+        forwarded = await this.routeEmail(message, emailData, triage);
+        await this.sendRoutingConfirmation(emailData, triage, stored, { forwarded });
         // Item stays 'pending' in queue until user approves/corrects
       }
+      forwarded = forwarded === true;
 
       const elapsed = Date.now() - startTime;
-      console.log(`[${mode}] Processed email from ${emailData.from} in ${elapsed}ms - ${triage.urgencyLevel} - ${stored.length} attachments - queue:${queueItem.id}`);
+      console.log(`[${mode}] Processed email from ${emailData.from} in ${elapsed}ms - ${triage.urgencyLevel} - ${stored.length} attachments - queue:${queueItem.id} - forwarded:${forwarded}`);
 
-      return { success: true, urgencyLevel: triage.urgencyLevel, attachmentsStored: stored.length, queueId: queueItem.id, mode };
+      return { success: true, forwarded, urgencyLevel: triage.urgencyLevel, attachmentsStored: stored.length, queueId: queueItem.id, mode, rawKey: emailData.rawArchive?.key ?? null };
 
     } catch (error) {
       console.error('Email handling failed:', error);
@@ -518,8 +525,14 @@ export class CloudflareEmailHandler {
       const hashBuffer = await crypto.subtle.digest('SHA-256', rawBytes);
       const sha256 = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
       const dateStr = new Date().toISOString().split('T')[0];
-      const slug = String(emailData?.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(-24) || sha256.slice(0, 24);
-      const key = `raw/${dateStr}/${slug}.eml`;
+      // Key = content hash prefix + Message-ID slug. The hash makes keys
+      // collision-resistant: Message-IDs from one sender often share their
+      // final characters (e.g. `<abc@efilingmail.tylertech.cloud>` and
+      // `<xyz@efilingmail.tylertech.cloud>` both end in the domain), so a
+      // slug-only key would let a later notice overwrite an earlier one.
+      // Byte-identical duplicates map to the same key by design.
+      const slug = String(emailData?.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(-24) || 'noid';
+      const key = `raw/${dateStr}/${sha256.slice(0, 16)}-${slug}.eml`;
       await this.env.DOCUMENT_STORAGE.put(key, rawBytes, {
         httpMetadata: { contentType: 'message/rfc822' },
         customMetadata: {
@@ -572,26 +585,65 @@ export class CloudflareEmailHandler {
   }
 
   /**
+   * Attribute a message to a REGISTERED case (src/config/case-registry.js)
+   * from recipient address or subject only — never the body:
+   *   - any recipient is a registered case emailAlias, or
+   *   - the subject contains a registered caseNumber (compared with
+   *     non-alphanumerics stripped, so "2024 D 007847" matches "2024D007847").
+   * Returns the registry entry or null. A court-domain sender alone is NOT
+   * attribution: the clerk and the e-filing system serve several matters.
+   */
+  matchRegisteredCase(emailData) {
+    try {
+      for (const addr of extractAddresses(emailData?.to)) {
+        if (Object.prototype.hasOwnProperty.call(EMAIL_ALIAS_TO_CASE, addr)) return EMAIL_ALIAS_TO_CASE[addr];
+      }
+      const subj = String(emailData?.subject ?? '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+      if (subj) {
+        for (const [num, entry] of Object.entries(CASE_BY_NUMBER)) {
+          const n = String(num).replace(/[^a-z0-9]/gi, '').toUpperCase();
+          if (n && subj.includes(n)) return entry;
+        }
+      }
+    } catch (err) {
+      console.error('[court-floor] case attribution error (treating as unattributed):', err?.message ?? err);
+    }
+    return null;
+  }
+
+  /**
    * Deterministic urgency FLOOR for court / e-service senders. Applied AFTER
    * AI or rule-based triage, to privileged and non-privileged mail alike —
-   * it reads the sender address only (no body), so F-L10 is unaffected.
-   * Motivation: a Tyler eFileIL "Courtesy Copy of Service" was scored INFO
-   * by the model while a GitHub billing notice scored CRITICAL. Court
-   * service is CRITICAL and case-relevant by definition.
+   * it reads sender/recipient addresses and the subject only (no body), so
+   * F-L10 is unaffected. Motivation: a Tyler eFileIL "Courtesy Copy of
+   * Service" was scored INFO by the model while a GitHub billing notice
+   * scored CRITICAL. Court service is CRITICAL by definition.
+   *
+   * Case attribution is NOT inferred from the sender: caseRelevant/category
+   * are set only when matchRegisteredCase() ties the message to a registered
+   * case (alias recipient or case number in the subject). Otherwise the
+   * triage's own caseRelevant/category are left untouched, so a notice for
+   * another matter is never filed as this case's evidence.
    */
   applyCourtSenderFloor(emailData, triage) {
     if (!triage || !this.isCourtSender(emailData?.from)) return triage;
     const reasons = Array.isArray(triage.reasons) ? [...triage.reasons] : [];
     if (!reasons.includes('court_sender_floor')) reasons.push('court_sender_floor');
-    return {
+    const out = {
       ...triage,
       urgencyLevel: 'CRITICAL',
       urgencyScore: Math.max(Number(triage.urgencyScore) || 0, 90),
-      caseRelevant: true,
-      category: (triage.category === 'case' || triage.category === 'legal') ? triage.category : 'legal',
       actionNeeded: true,
       reasons,
     };
+    const matched = this.matchRegisteredCase(emailData);
+    if (matched) {
+      out.caseRelevant = true;
+      out.category = 'case';
+      const tag = `case:${matched.slug ?? matched.caseNumber}`;
+      if (!reasons.includes(tag)) reasons.push(tag);
+    }
+    return out;
   }
 
   /**
@@ -1006,7 +1058,7 @@ Respond with ONLY the JSON object, no other text.`;
     if (route?.forward) {
       await message.forward(route.forward);
       console.log(`Forwarded to ${route.forward}`);
-      return;
+      return true;
     }
 
     // No case/non-case route matched. Consult the registry-backed overlay
@@ -1023,7 +1075,7 @@ Respond with ONLY the JSON object, no other text.`;
             `[alias-registry] lane=${decision.lane} disposition=${decision.disposition} ` +
             `forwarded via ${decision.forwardEnv}`,
           );
-          return;
+          return true;
         }
         // Override env unset → fail open to default forward below.
         console.warn(
@@ -1037,7 +1089,7 @@ Respond with ONLY the JSON object, no other text.`;
       }
     }
 
-    await this.forwardToDefault(message, emailData, 'no_route_match');
+    return this.forwardToDefault(message, emailData, 'no_route_match');
   }
 
   // ============ Default forward (env-resolved — never a source literal) ============
@@ -1081,10 +1133,20 @@ Respond with ONLY the JSON object, no other text.`;
     }
   }
 
+  /**
+   * Record an unforwarded marker. The AUTHORITATIVE record is the per-message
+   * key `email_unforwarded_<recordedAt>_<id>`: time-prefixed so recovery can
+   * enumerate every failure in order with
+   * `AI_CACHE.list({ prefix: 'email_unforwarded_' })` — no shared index is
+   * needed to discover them. `email_unforwarded_index` is kept as a
+   * best-effort convenience view; it is a KV read-modify-write and may miss
+   * entries under concurrent failures or KV's 1 write/sec/key limit.
+   */
   async recordUnforwarded(emailData, reason) {
     try {
       const id = emailData?.id || `cf-${Date.now()}`;
       const metadataOnly = emailData?.privileged === true || emailData?.aliasDecision?.metadataOnly === true;
+      const recordedAt = new Date().toISOString();
       const entry = {
         id,
         from: emailData?.from ?? '',
@@ -1092,9 +1154,9 @@ Respond with ONLY the JSON object, no other text.`;
         subject: metadataOnly ? '[REDACTED — privileged_legal]' : String(emailData?.subject ?? '').substring(0, 200),
         rawKey: emailData?.rawArchive?.key ?? null,
         reason,
-        recordedAt: new Date().toISOString(),
+        recordedAt,
       };
-      await this.env.AI_CACHE?.put(`email_unforwarded_${id}`, JSON.stringify(entry), { expirationTtl: 86400 * 90 });
+      await this.env.AI_CACHE?.put(`email_unforwarded_${recordedAt}_${id}`, JSON.stringify(entry), { expirationTtl: 86400 * 90 });
       const index = await this.env.AI_CACHE?.get('email_unforwarded_index', 'json') || [];
       index.unshift(entry);
       await this.env.AI_CACHE?.put('email_unforwarded_index', JSON.stringify(index.slice(0, 500)), { expirationTtl: 86400 * 90 });
@@ -1108,7 +1170,7 @@ Respond with ONLY the JSON object, no other text.`;
   /**
    * Send routing confirmation — so user knows what arrived and where it went
    */
-  async sendRoutingConfirmation(emailData, triage, storedAttachments) {
+  async sendRoutingConfirmation(emailData, triage, storedAttachments, { forwarded = true } = {}) {
     // F-L10 metadata-only: privileged_legal mail gets a redacted receipt
     // (no subject/summary persisted or pushed to Notion). Routing is unaffected.
     // Union of the static pre-triage gate and #99's registry posture.
@@ -1137,7 +1199,9 @@ Respond with ONLY the JSON object, no other text.`;
         size: a.size,
         sha256: a.sha256
       })),
-      actionNeeded: triage.actionNeeded
+      actionNeeded: triage.actionNeeded,
+      forwarded: forwarded === true, // false ⇒ held in raw archive + unforwarded marker only
+      rawKey: emailData?.rawArchive?.key ?? null
     };
 
     // Store receipt in KV for retrieval
