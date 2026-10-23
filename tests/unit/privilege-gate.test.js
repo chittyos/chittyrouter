@@ -169,6 +169,9 @@ function makeGateEnv(overrides = {}) {
         },
         async put(k, v) { this._store.set(k, v); },
       },
+      // Default forward is env-resolved (CFDXN-197 Tier 1); without it the
+      // handler records an unforwarded marker instead of forwarding.
+      FORWARD_DEFAULT: 'default@aribia.test',
       // routing mode 'auto' so logEmail runs (exercises the metadata-only sink)
       ...overrides,
     },
@@ -245,7 +248,13 @@ describe('handleEmail: pre-triage privilege GATE (F-L10 end-to-end)', () => {
     const res = await handler.handleEmail(message, env, {});
 
     expect(aiRun).toHaveBeenCalledTimes(1);        // body DID go to AI
-    expect(r2Put).toHaveBeenCalledTimes(1);        // attachment DID hit R2
+    // R2 is written twice for non-privileged mail: the raw .eml archive
+    // (CFDXN-197 Tier 1, BEFORE the AI call) and the extracted attachment.
+    expect(r2Put).toHaveBeenCalledTimes(2);
+    const r2Keys = r2Put.mock.calls.map(c => c[0]);
+    expect(r2Keys.some(k => k.startsWith('raw/') && k.endsWith('.eml'))).toBe(true);
+    expect(r2Keys.some(k => k.endsWith('/exhibit.pdf'))).toBe(true);
+    expect(r2Put.mock.invocationCallOrder[0]).toBeLessThan(aiRun.mock.invocationCallOrder[0]); // raw archive precedes AI
     expect(message.forwards.length).toBe(1);
     expect(res.attachmentsStored).toBe(1);
   });

@@ -6,7 +6,7 @@
 
 import { CASE_EMAIL_ROUTES } from '../config/case-registry.js';
 import { resolveAliasDecision } from '../config/alias-registry.js';
-import { isPrivileged } from '../config/privilege-gate.js';
+import { isPrivileged, extractAddress } from '../config/privilege-gate.js';
 
 /**
  * Normalize a recipient address for route/registry/privilege LOOKUPS only.
@@ -127,6 +127,7 @@ export class CloudflareEmailHandler {
    */
   async handleEmail(message, env, ctx) {
     const startTime = Date.now();
+    let emailData; // hoisted so the catch path can reference rawArchive/id
 
     try {
       // Read raw email once — we need it for both parsing and triage
@@ -134,7 +135,7 @@ export class CloudflareEmailHandler {
       const rawText = new TextDecoder().decode(rawBytes);
 
       // Extract email metadata
-      const emailData = this.extractEmailData(message, rawText);
+      emailData = this.extractEmailData(message, rawText);
 
       // Parse MIME and extract attachments
       const attachments = this.parseMimeAttachments(rawText);
@@ -166,13 +167,21 @@ export class CloudflareEmailHandler {
       );
       emailData.privileged = privileged;
 
+      // ===== RAW CAPTURE BEFORE CLASSIFICATION (CFDXN-197 Tier 1) =====
+      // Non-privileged mail is archived byte-for-byte to R2 BEFORE triage and
+      // routing, so a downstream failure (AI error, unverified forward target,
+      // KV blip) can never lose the message. Privileged mail stays out of R2
+      // per F-L10; its residual loss-on-forward-failure is surfaced by the
+      // unforwarded marker in forwardToDefault rather than silently dropped.
+      emailData.rawArchive = privileged ? null : await this.archiveRawMessage(rawBytes, emailData);
+
       let triage;
       let stored;
       if (privileged) {
         // SKIP the AI model (no body to llama) and SKIP R2 attachment storage.
         // Classify on subject + sender ONLY. Forward + metadata-only logging
         // still proceed below exactly as for non-privileged mail.
-        triage = this.privilegedTriage(emailData);
+        triage = this.applyCourtSenderFloor(emailData, this.privilegedTriage(emailData));
         stored = []; // privileged attachments are NOT written to R2
         // F-L10: attachment FILENAMES are themselves privileged content
         // (e.g. "settlement_strategy.pdf"). Scrub them at this single
@@ -189,8 +198,10 @@ export class CloudflareEmailHandler {
           `${attachments.length} attachment(s) NOT stored to R2, metadata-only logging.`,
         );
       } else {
-        // Non-privileged: unchanged behavior — full AI triage + R2 storage.
-        triage = await this.triageEmail(emailData);
+        // Non-privileged: full AI triage, then the deterministic court-sender
+        // floor (sender address only), then R2 attachment storage — the floor
+        // runs first so court documents land under the case path.
+        triage = this.applyCourtSenderFloor(emailData, await this.triageEmail(emailData));
         stored = await this.storeAttachments(attachments, emailData, triage);
       }
       emailData.storedAttachments = stored;
@@ -229,9 +240,17 @@ export class CloudflareEmailHandler {
     } catch (error) {
       console.error('Email handling failed:', error);
 
-      // Fallback - forward to catch-all
+      // Fallback — forward to the env-resolved default destination (never a
+      // source literal). When FORWARD_DEFAULT is unset or the forward is
+      // rejected, forwardToDefault records an unforwarded marker instead of
+      // dropping the message silently.
       try {
-        await message.forward('nick@aribia.llc');
+        const fallbackData = emailData ?? {
+          id: message?.headers?.get?.('message-id') || `cf-${Date.now()}`,
+          from: message?.from ?? '',
+          to: message?.to ?? '',
+        };
+        await this.forwardToDefault(message, fallbackData, `handler_error:${error?.message ?? 'unknown'}`);
       } catch (forwardError) {
         console.error('Fallback forward failed:', forwardError);
       }
@@ -479,6 +498,100 @@ export class CloudflareEmailHandler {
     }
 
     return stored;
+  }
+
+  // ============ Raw capture + court-sender floor (CFDXN-197 Tier 1) ============
+
+  /**
+   * Archive the raw RFC-822 message to R2 BEFORE classification/routing.
+   * Key: raw/<YYYY-MM-DD>/<message-id-slug>.eml, sha256 of the bytes in
+   * metadata so duplicates are detectable. Never called for privileged mail
+   * (F-L10). Returns { key, sha256, size } or null on any failure — fail-open:
+   * an archive error must never block delivery.
+   */
+  async archiveRawMessage(rawBytes, emailData) {
+    if (!this.env?.DOCUMENT_STORAGE) {
+      console.error('[raw-archive] R2 DOCUMENT_STORAGE binding not available — raw message NOT archived');
+      return null;
+    }
+    try {
+      const hashBuffer = await crypto.subtle.digest('SHA-256', rawBytes);
+      const sha256 = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const dateStr = new Date().toISOString().split('T')[0];
+      const slug = String(emailData?.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(-24) || sha256.slice(0, 24);
+      const key = `raw/${dateStr}/${slug}.eml`;
+      await this.env.DOCUMENT_STORAGE.put(key, rawBytes, {
+        httpMetadata: { contentType: 'message/rfc822' },
+        customMetadata: {
+          emailFrom: String(emailData?.from ?? '').substring(0, 200),
+          emailTo: String(emailData?.to ?? '').substring(0, 200),
+          emailSubject: String(emailData?.subject ?? '').substring(0, 200),
+          emailDate: String(emailData?.date ?? ''),
+          emailMessageId: String(emailData?.id ?? ''),
+          sha256,
+          size: String(rawBytes.byteLength),
+          archivedAt: new Date().toISOString(),
+        },
+      });
+      console.log(`[raw-archive] ${key} (${rawBytes.byteLength} bytes, sha256:${sha256.substring(0, 12)}...)`);
+      return { key, sha256, size: rawBytes.byteLength };
+    } catch (err) {
+      console.error('[raw-archive] failed:', err?.message ?? err);
+      return null;
+    }
+  }
+
+  /**
+   * Court / e-service sender domains. The built-in defaults are the domains
+   * OBSERVED delivering e-service for 2024D007847 (Tyler eFileIL courtesy
+   * copies, Cook County clerk); COURT_SENDER_DOMAINS (env, comma-separated)
+   * extends them. Suffix match, so mail.efilingmail.tylertech.cloud matches
+   * efilingmail.tylertech.cloud.
+   */
+  courtSenderDomains() {
+    const out = new Set(['efilingmail.tylertech.cloud', 'cookcountyil.gov']);
+    const raw = this.env?.COURT_SENDER_DOMAINS;
+    if (typeof raw === 'string' && raw) {
+      for (const part of raw.split(',')) {
+        const d = part.trim().replace(/^@/, '').toLowerCase();
+        if (d) out.add(d);
+      }
+    }
+    return out;
+  }
+
+  isCourtSender(fromHeader) {
+    const addr = extractAddress(fromHeader);
+    const at = addr.lastIndexOf('@');
+    if (at < 0) return false;
+    const domain = addr.slice(at + 1);
+    for (const d of this.courtSenderDomains()) {
+      if (domain === d || domain.endsWith(`.${d}`)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Deterministic urgency FLOOR for court / e-service senders. Applied AFTER
+   * AI or rule-based triage, to privileged and non-privileged mail alike —
+   * it reads the sender address only (no body), so F-L10 is unaffected.
+   * Motivation: a Tyler eFileIL "Courtesy Copy of Service" was scored INFO
+   * by the model while a GitHub billing notice scored CRITICAL. Court
+   * service is CRITICAL and case-relevant by definition.
+   */
+  applyCourtSenderFloor(emailData, triage) {
+    if (!triage || !this.isCourtSender(emailData?.from)) return triage;
+    const reasons = Array.isArray(triage.reasons) ? [...triage.reasons] : [];
+    if (!reasons.includes('court_sender_floor')) reasons.push('court_sender_floor');
+    return {
+      ...triage,
+      urgencyLevel: 'CRITICAL',
+      urgencyScore: Math.max(Number(triage.urgencyScore) || 0, 90),
+      caseRelevant: true,
+      category: (triage.category === 'case' || triage.category === 'legal') ? triage.category : 'legal',
+      actionNeeded: true,
+      reasons,
+    };
   }
 
   /**
@@ -924,8 +1037,70 @@ Respond with ONLY the JSON object, no other text.`;
       }
     }
 
-    await message.forward('nick@aribia.llc');
-    console.log('Forwarded to default (nick@aribia.llc)');
+    await this.forwardToDefault(message, emailData, 'no_route_match');
+  }
+
+  // ============ Default forward (env-resolved — never a source literal) ============
+
+  /**
+   * The catch-all forward destination, resolved from env.FORWARD_DEFAULT. It
+   * must be a VERIFIED Cloudflare Email Routing destination: Email Routing
+   * rejects forwards to unverified addresses, which is how unrouted mail
+   * (including court e-service) was silently lost — CFDXN-197. Returns null
+   * when unset/blank.
+   */
+  defaultForwardAddress() {
+    const v = this.env?.FORWARD_DEFAULT;
+    return typeof v === 'string' && v.trim() ? v.trim() : null;
+  }
+
+  /**
+   * Forward to the default destination. When none is configured, or the
+   * forward itself is rejected, record an UNFORWARDED marker in KV (metadata
+   * only — the raw body is already in R2 via rawArchive for non-privileged
+   * mail) and log loudly. Never throws. Returns true iff a forward succeeded.
+   */
+  async forwardToDefault(message, emailData, reason) {
+    const dest = this.defaultForwardAddress();
+    if (!dest) {
+      console.error(
+        `[default-forward] FORWARD_DEFAULT unset — NOT forwarded (reason=${reason}). ` +
+        'Set FORWARD_DEFAULT to a verified Email Routing destination.',
+      );
+      await this.recordUnforwarded(emailData, `${reason}:no_default`);
+      return false;
+    }
+    try {
+      await message.forward(dest);
+      console.log(`[default-forward] reason=${reason} via FORWARD_DEFAULT`);
+      return true;
+    } catch (err) {
+      console.error(`[default-forward] forward rejected (reason=${reason}):`, err?.message ?? err);
+      await this.recordUnforwarded(emailData, `${reason}:forward_failed:${err?.message ?? 'unknown'}`);
+      return false;
+    }
+  }
+
+  async recordUnforwarded(emailData, reason) {
+    try {
+      const id = emailData?.id || `cf-${Date.now()}`;
+      const metadataOnly = emailData?.privileged === true || emailData?.aliasDecision?.metadataOnly === true;
+      const entry = {
+        id,
+        from: emailData?.from ?? '',
+        to: emailData?.to ?? '',
+        subject: metadataOnly ? '[REDACTED — privileged_legal]' : String(emailData?.subject ?? '').substring(0, 200),
+        rawKey: emailData?.rawArchive?.key ?? null,
+        reason,
+        recordedAt: new Date().toISOString(),
+      };
+      await this.env.AI_CACHE?.put(`email_unforwarded_${id}`, JSON.stringify(entry), { expirationTtl: 86400 * 90 });
+      const index = await this.env.AI_CACHE?.get('email_unforwarded_index', 'json') || [];
+      index.unshift(entry);
+      await this.env.AI_CACHE?.put('email_unforwarded_index', JSON.stringify(index.slice(0, 500)), { expirationTtl: 86400 * 90 });
+    } catch (err) {
+      console.error('[default-forward] failed to record unforwarded marker:', err?.message ?? err);
+    }
   }
 
   // pushUrgentToNotion removed — replaced by sendRoutingConfirmation which covers all emails
@@ -1153,6 +1328,7 @@ Respond with ONLY the JSON object, no other text.`;
         aiClassified: triage.aiClassified
       },
       storedPaths: storedAttachments.map(a => a.key),
+      rawKey: emailData?.rawArchive?.key ?? null, // R2 raw .eml (null for privileged mail)
       finalClassification: null, // filled when approved/corrected
       reviewedAt: null
     };

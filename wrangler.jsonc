@@ -91,7 +91,19 @@
     // Lane-2 (property/mgmt) consolidation forward target. Non-secret. Read ONLY
     // by the alias_registry overlay, dormant until ALIAS_REGISTRY_ENABLED — inert
     // today. Committed so wrangler deploy does not drop it.
-    "FORWARD_LANE2_OPS": "ops@aribia.llc"
+    "FORWARD_LANE2_OPS": "ops@aribia.llc",
+    // Catch-all forward destination (CFDXN-197 Tier 1). Replaces the former
+    // source literal in cloudflare-email-handler.js. MUST be a VERIFIED Email
+    // Routing destination address on this account — Email Routing rejects
+    // forwards to unverified addresses and the message is then only recoverable
+    // from the R2 raw archive (raw/<date>/<id>.eml) + the KV unforwarded index.
+    // The value below is the legacy default carried over unchanged so this PR
+    // is behavior-preserving; replace it after Tier 0 destination verification.
+    "FORWARD_DEFAULT": "nick@aribia.llc",
+    // Court / e-service sender domains that FLOOR urgency at CRITICAL and mark
+    // mail case-relevant (sender address only — no body is read). Extends the
+    // built-in observed defaults in CloudflareEmailHandler.courtSenderDomains().
+    "COURT_SENDER_DOMAINS": "efilingmail.tylertech.cloud,cookcountyil.gov"
     // COMPTROLLER_HMAC_KEY is a SECRET (not a var) — set via:
     //   wrangler secret put COMPTROLLER_HMAC_KEY
     // It MUST equal the same secret on the chittycomptroller worker
