@@ -166,6 +166,7 @@ export class CloudflareEmailHandler {
         emailData.to,
         this.env,
         emailData.aliasDecision,
+        [emailData.cc, emailData.bcc],
       );
       emailData.privileged = privileged;
 
