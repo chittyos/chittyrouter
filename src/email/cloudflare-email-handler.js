@@ -7,6 +7,7 @@
 import { CASE_EMAIL_ROUTES } from '../config/case-registry.js';
 import { resolveAliasDecision } from '../config/alias-registry.js';
 import { isPrivileged } from '../config/privilege-gate.js';
+import { extractCommunicationContext } from './communication-context.js';
 
 /**
  * Normalize a recipient address for route/registry/privilege LOOKUPS only.
@@ -135,6 +136,8 @@ export class CloudflareEmailHandler {
 
       // Extract email metadata
       const emailData = this.extractEmailData(message, rawText);
+      // Observed audience and transport semantics; never permission or identity.
+      emailData.communicationContext = extractCommunicationContext(message);
 
       // Parse MIME and extract attachments
       const attachments = this.parseMimeAttachments(rawText);
@@ -733,6 +736,8 @@ Respond with ONLY the JSON object, no other text.`;
       content: undefined, // Don't store full body in KV
       subject: metadataOnly ? '[REDACTED — privileged_legal]' : emailData.subject,
       aliasDecision: undefined, // don't serialize the decision object into the log
+      // Privileged participant context must not expand general KV log visibility.
+      communicationContext: metadataOnly ? undefined : emailData.communicationContext,
       ...triage,
       summary: metadataOnly ? '' : triage.summary,
       metadataOnly,
@@ -1138,6 +1143,9 @@ Respond with ONLY the JSON object, no other text.`;
         from: emailData.from,
         to: emailData.to,
         cc: emailData.cc,
+        // Non-privileged context is available to the authorized review queue.
+        // Privileged audience metadata remains ephemeral and outside this KV sink.
+        communicationContext: metadataOnly ? undefined : emailData.communicationContext,
         subject: safeSubject,
         date: emailData.date,
         bodyPreview: safeBodyPreview,
