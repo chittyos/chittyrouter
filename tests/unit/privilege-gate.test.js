@@ -85,10 +85,12 @@ describe('privilege-gate: isPrivileged (fail-closed static detection)', () => {
     expect(isPrivileged('someone@example.com', 'Legal <legal@aribia.test>', env, decision)).toBe(true);
   });
 
-  it('recognized case alias copied in Cc or observed Bcc suppresses AI despite unknown envelope recipient', () => {
+  it('recognized case alias in visible To/Cc/Bcc suppresses AI despite unknown envelope recipient', () => {
     const unknown = 'luisa+earnings@chitty.cc';
     expect(isPrivileged('guest@example.com', unknown, env, null,
-      ['Observer <arias-v-bianchi@chitty.cc>', ''])).toBe(true);
+      ['Case <arias-v-bianchi@chitty.cc>', '', ''])).toBe(true);
+    expect(isPrivileged('guest@example.com', unknown, env, null,
+      ['', 'Observer <arias-v-bianchi@chitty.cc>', ''])).toBe(true);
     expect(isPrivileged('guest@example.com', unknown, env, null,
       ['', 'arias-v-bianchi@chitty.cc'])).toBe(true);
     expect(isPrivileged('guest@example.com', unknown, env, null,
@@ -123,11 +125,11 @@ describe('privilege-gate: isPrivileged (fail-closed static detection)', () => {
 // ===== End-to-end handler gate behavior =====
 
 /** Build a real raw MIME message (with a PDF attachment) the handler can parse. */
-function makeRawMessage({ from, to, subject, body, cc = '', bcc = '' }) {
+function makeRawMessage({ from, to, subject, body, visibleTo = to, cc = '', bcc = '' }) {
   const boundary = 'BOUND123';
   const raw =
     `From: ${from}\r\n` +
-    `To: ${to}\r\n` +
+    `To: ${visibleTo}\r\n` +
     (cc ? `Cc: ${cc}\r\n` : '') +
     (bcc ? `Bcc: ${bcc}\r\n` : '') +
     `Subject: ${subject}\r\n` +
@@ -153,6 +155,7 @@ function makeRawMessage({ from, to, subject, body, cc = '', bcc = '' }) {
     to,
     rawSize: bytes.length,
     headers: new Map([
+      ['to', visibleTo],
       ['subject', subject],
       ['message-id', `<test@chitty.cc>`],
       ['date', 'Thu, 12 Jun 2026 10:00:00 +0000'],
@@ -246,6 +249,7 @@ describe('handleEmail: pre-triage privilege GATE (F-L10 end-to-end)', () => {
   });
 
   it.each([
+    ['visible To', { visibleTo: 'arias-v-bianchi@chitty.cc' }],
     ['Cc', { cc: 'arias-v-bianchi@chitty.cc' }],
     ['observed Bcc', { bcc: 'arias-v-bianchi@chitty.cc' }],
   ])('case alias in %s blocks AI/R2 and redacts privileged KV sinks', async (_role, recipientHeaders) => {
