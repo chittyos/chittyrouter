@@ -85,6 +85,16 @@ describe('privilege-gate: isPrivileged (fail-closed static detection)', () => {
     expect(isPrivileged('someone@example.com', 'Legal <legal@aribia.test>', env, decision)).toBe(true);
   });
 
+  it('recognized case alias copied in Cc or observed Bcc suppresses AI despite unknown envelope recipient', () => {
+    const unknown = 'luisa+earnings@chitty.cc';
+    expect(isPrivileged('guest@example.com', unknown, env, null,
+      ['Observer <arias-v-bianchi@chitty.cc>', ''])).toBe(true);
+    expect(isPrivileged('guest@example.com', unknown, env, null,
+      ['', 'arias-v-bianchi@chitty.cc'])).toBe(true);
+    expect(isPrivileged('guest@example.com', unknown, env, null,
+      ['someone@example.org', ''])).toBe(false);
+  });
+
   it('non-privileged sender + non-privileged recipient → NOT privileged', () => {
     expect(isPrivileged('guest@example.com', 'mgmt@aribia.test', env)).toBe(false);
   });
@@ -113,11 +123,13 @@ describe('privilege-gate: isPrivileged (fail-closed static detection)', () => {
 // ===== End-to-end handler gate behavior =====
 
 /** Build a real raw MIME message (with a PDF attachment) the handler can parse. */
-function makeRawMessage({ from, to, subject, body }) {
+function makeRawMessage({ from, to, subject, body, cc = '', bcc = '' }) {
   const boundary = 'BOUND123';
   const raw =
     `From: ${from}\r\n` +
     `To: ${to}\r\n` +
+    (cc ? `Cc: ${cc}\r\n` : '') +
+    (bcc ? `Bcc: ${bcc}\r\n` : '') +
     `Subject: ${subject}\r\n` +
     `Message-ID: <test-${Math.random().toString(36).slice(2)}@chitty.cc>\r\n` +
     `Date: Thu, 12 Jun 2026 10:00:00 +0000\r\n` +
@@ -144,6 +156,8 @@ function makeRawMessage({ from, to, subject, body }) {
       ['subject', subject],
       ['message-id', `<test@chitty.cc>`],
       ['date', 'Thu, 12 Jun 2026 10:00:00 +0000'],
+      ['cc', cc],
+      ['bcc', bcc],
     ]),
     // Map.get matches the handler's message.headers.get(...) usage.
     raw: new ReadableStream({
@@ -229,6 +243,32 @@ describe('handleEmail: pre-triage privilege GATE (F-L10 end-to-end)', () => {
     expect(message.forwards.length).toBe(1);
     const dump = JSON.stringify([...env.AI_CACHE._store.entries()]);
     expect(dump).not.toContain('discovery work product');
+  });
+
+  it.each([
+    ['Cc', { cc: 'arias-v-bianchi@chitty.cc' }],
+    ['observed Bcc', { bcc: 'arias-v-bianchi@chitty.cc' }],
+  ])('case alias in %s blocks AI/R2 and redacts privileged KV sinks', async (_role, recipientHeaders) => {
+    const { env, aiRun, r2Put } = makeGateEnv({ PRIVILEGED_SENDER_DOMAINS: PRIV_DOMAINS });
+    await setAutoMode(env);
+    const handler = new CloudflareEmailHandler(env);
+    const message = makeRawMessage({
+      from: 'external@example.com',
+      to: 'luisa+earnings@chitty.cc',
+      ...recipientHeaders,
+      subject: 'PRIVATE legal copied subject',
+      body: 'PRIVATE legal copied body',
+    });
+    const res = await handler.handleEmail(message, env, {});
+    expect(res.success).toBe(true);
+    expect(aiRun).not.toHaveBeenCalled();
+    expect(r2Put).not.toHaveBeenCalled();
+    expect(message.forwards).toHaveLength(1);
+    const dump = JSON.stringify([...env.AI_CACHE._store.entries()]);
+    expect(dump).not.toContain('PRIVATE legal copied subject');
+    expect(dump).not.toContain('PRIVATE legal copied body');
+    expect(dump).not.toContain('exhibit.pdf');
+    expect(dump).not.toContain('communicationContext');
   });
 
   it('NON-privileged mail → AI IS called and R2 IS written (unchanged behavior)', async () => {
