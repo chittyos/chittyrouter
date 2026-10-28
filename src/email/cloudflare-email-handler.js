@@ -736,6 +736,8 @@ Respond with ONLY the JSON object, no other text.`;
       content: undefined, // Don't store full body in KV
       subject: metadataOnly ? '[REDACTED — privileged_legal]' : emailData.subject,
       aliasDecision: undefined, // don't serialize the decision object into the log
+      // Privileged participant context must not expand general KV log visibility.
+      communicationContext: metadataOnly ? undefined : emailData.communicationContext,
       ...triage,
       summary: metadataOnly ? '' : triage.summary,
       metadataOnly,
@@ -1141,6 +1143,9 @@ Respond with ONLY the JSON object, no other text.`;
         from: emailData.from,
         to: emailData.to,
         cc: emailData.cc,
+        // Non-privileged context is available to the authorized review queue.
+        // Privileged audience metadata remains ephemeral and outside this KV sink.
+        communicationContext: metadataOnly ? undefined : emailData.communicationContext,
         subject: safeSubject,
         date: emailData.date,
         bodyPreview: safeBodyPreview,
