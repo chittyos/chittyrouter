@@ -232,11 +232,15 @@ export class CloudflareEmailHandler {
     } catch (error) {
       console.error('Email handling failed:', error);
 
-      // Fallback - forward to catch-all
+      // No unverified hardcoded forwarding. A missing approved destination
+      // must produce an explicit rejection rather than silently lose the mail.
       try {
-        await message.forward('nick@aribia.llc');
+        const destination = this.approvedDefaultForward();
+        if (destination) await message.forward(destination);
+        else message.setReject('ChittyRouter default recipient not configured');
       } catch (forwardError) {
-        console.error('Fallback forward failed:', forwardError);
+        console.error('Fallback forwarding failed:', forwardError);
+        message.setReject('ChittyRouter forwarding unavailable');
       }
 
       return { success: false, error: error.message };
@@ -888,6 +892,16 @@ Respond with ONLY the JSON object, no other text.`;
     }
   }
 
+  // A configured default is usable only when present in the operator-maintained
+  // verified-destination allowlist. This is not proof of current Cloudflare
+  // verification: deployment must check the live Email Routing destination state.
+  approvedDefaultForward() {
+    const destination = String(this.env?.DEFAULT_FORWARD_TO || '').trim().toLowerCase();
+    const approved = new Set(String(this.env?.VERIFIED_FORWARD_DESTINATIONS || '')
+      .split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
+    return destination && approved.has(destination) ? destination : null;
+  }
+
   async routeEmail(message, emailData, triage) {
     // Normalize casing so a mixed-case recipient hits its (lowercased) route
     // and forwards correctly instead of falling through to the default.
@@ -929,8 +943,10 @@ Respond with ONLY the JSON object, no other text.`;
       }
     }
 
-    await message.forward('nick@aribia.llc');
-    console.log('Forwarded to default (nick@aribia.llc)');
+    const fallback = this.approvedDefaultForward();
+    if (!fallback) throw new Error('No approved default-forward destination configured');
+    await message.forward(fallback);
+    console.log('Forwarded to configured approved default');
   }
 
   // pushUrgentToNotion removed — replaced by sendRoutingConfirmation which covers all emails
