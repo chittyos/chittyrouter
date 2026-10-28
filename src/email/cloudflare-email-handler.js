@@ -7,6 +7,7 @@
 import { CASE_EMAIL_ROUTES } from '../config/case-registry.js';
 import { resolveAliasDecision } from '../config/alias-registry.js';
 import { isPrivileged } from '../config/privilege-gate.js';
+import { extractCommunicationContext } from './communication-context.js';
 
 /**
  * Normalize a recipient address for route/registry/privilege LOOKUPS only.
@@ -135,6 +136,8 @@ export class CloudflareEmailHandler {
 
       // Extract email metadata
       const emailData = this.extractEmailData(message, rawText);
+      // Observed audience and transport semantics; never permission or identity.
+      emailData.communicationContext = extractCommunicationContext(message);
 
       // Parse MIME and extract attachments
       const attachments = this.parseMimeAttachments(rawText);
