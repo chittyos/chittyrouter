@@ -132,9 +132,10 @@ function recipientPrivileged(addr, aliasDecision) {
  * @param {string} toHeader    - raw To header value (may be a list)
  * @param {any} env            - worker env (PRIVILEGED_SENDER_DOMAINS, ...)
  * @param {AliasDecision | null} [aliasDecision] - #99's already-resolved decision
+ * @param {string[]} [additionalRecipientHeaders] - observed Cc/Bcc header values; not delivery proof
  * @returns {boolean}
  */
-export function isPrivileged(fromHeader, toHeader, env, aliasDecision = null) {
+export function isPrivileged(fromHeader, toHeader, env, aliasDecision = null, additionalRecipientHeaders = []) {
   try {
     const domains = privilegedSenderDomains(env);
 
@@ -142,9 +143,16 @@ export function isPrivileged(fromHeader, toHeader, env, aliasDecision = null) {
     const fromAddr = extractAddress(fromHeader);
     if (senderDomainPrivileged(fromAddr, domains)) return true;
 
-    // Signal (b): known-privileged RECIPIENT lane (any recipient in the list).
-    for (const toAddr of extractAddresses(toHeader)) {
-      if (recipientPrivileged(toAddr, aliasDecision)) return true;
+    // Signal (b): any observed recipient role can reveal case material.
+    // Cc and observed Bcc are conservative *privacy* signals only: their
+    // presence does not prove delivery, participation or permission to share.
+    // Include them before AI/R2 handling so an unknown envelope recipient
+    // cannot bypass F-L10 by copying a recognized legal case alias.
+    const recipientHeaders = [toHeader, ...additionalRecipientHeaders];
+    for (const header of recipientHeaders) {
+      for (const addr of extractAddresses(header)) {
+        if (recipientPrivileged(addr, aliasDecision)) return true;
+      }
     }
 
     return false;
